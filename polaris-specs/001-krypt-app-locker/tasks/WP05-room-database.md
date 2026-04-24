@@ -9,6 +9,7 @@ subtasks: [T022, T023, T024, T025, T026]
 test_status: required
 test_file: tests/e2e/WP05-wp05-room-database.spec.js
 shell_pid: "23536"
+agent: "claude"
 ---
 
 # WP05 - Data layer: Room database + entities + DAOs
@@ -166,3 +167,7 @@ Define the Room schema for Krypt exactly as described in `data-model.md`. Four e
 ```
 polaris implement WP05 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:13:25Z – claude – shell_pid=23536 – lane=doing – Assigned agent via workflow command
