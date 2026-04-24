@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Krypt base theme (light).
+    WP01 ships a minimal Theme.Material3.DayNight host so the app is buildable;
+    WP12 replaces this with the full Krypt brand ColorScheme / Typography /
+    Shapes via Compose. The Android theme only sets window-level properties
+    that Compose itself cannot set (edge-to-edge, status-bar handling).
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Krypt" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
+    </style>
+</resources>

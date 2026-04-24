@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Krypt — AndroidManifest.xml
+
+    CRITICAL INVARIANT (FR-005 / SC-008):
+        This manifest MUST NOT declare `android.permission.INTERNET`.
+        It MUST NOT declare any network-adjacent permission (ACCESS_NETWORK_STATE,
+        ACCESS_WIFI_STATE, CHANGE_NETWORK_STATE). Krypt is an offline-only,
+        air-gapped locker; the absence of these permissions is the auditable
+        proof to users and reviewers that no telemetry can ever be shipped.
+
+    The ManifestAuditTest.kt unit test in src/test/ parses this file and fails
+    the build if an INTERNET-adjacent permission appears. Do not add these.
+
+    WP-by-WP note: only MainActivity is active in WP01. Receivers, services,
+    Guardian activity, and watchdog are declared in WP07-WP16 as those WPs land.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ============================================================ -->
+    <!-- PERMISSIONS — see polaris-specs/001-krypt-app-locker/spec.md  -->
+    <!-- ============================================================ -->
+
+    <!-- FR-001 / FR-002: overlay that covers locked apps (WP09). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- FR-004: post the Security-Alerts notification on lock events (WP07). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Enumerate installed packages so the Accessibility Service can check lock
+         state per package and the PackageReceiver can resolve display names.
+         This permission triggers a Play Store review if distribution switches
+         from sideload to Play; documented in research.md R6. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+                     tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- FR-010: foreground service that supervises the Accessibility Service (WP16). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- API 34+: specialUse subtype required; see research.md R8. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- API 29-33: dataSync fallback for the same FGS. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Re-start the Accessibility Service after device reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- FR-010: surviving Doze requires user-granted battery-optimisation ignore. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- FR-012: DeviceAdmin-backed uninstall friction (WP11).
+         Requires the device to support device-admin provisioning. -->
+    <uses-feature android:name="android.software.device_admin"
+                  android:required="true" />
+
+    <!-- ============================================================ -->
+    <!-- APPLICATION                                                  -->
+    <!-- ============================================================ -->
+    <application
+        android:name=".KryptApplication"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Krypt">
+
+        <!-- Main launcher Activity. Full Compose host + onboarding wizard wired
+             in WP12; WP01 ships only a placeholder greeting. -->
+        <activity
+            android:name=".ui.main.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Krypt">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            The following entries are declared by subsequent WPs:
+              - .service.AppLockerAccessibilityService      (WP10)
+              - .service.KryptDeviceAdminReceiver           (WP11)
+              - .service.KryptWatchdogService               (WP16)
+              - .receiver.PackageReceiver                   (WP08)
+              - .ui.guardian.GuardianActivity               (WP14)
+            Leaving them out in WP01 keeps the manifest minimal and buildable.
+        -->
+
+    </application>
+
+</manifest>

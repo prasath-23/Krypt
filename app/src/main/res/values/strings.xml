@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    User-visible strings. All literal text in Kotlin / Compose MUST reference a
+    key from this file (enforced by lint in WP18). Placeholders use the %1$s
+    syntax for future localisation.
+-->
+<resources>
+    <string name="app_name">Krypt</string>
+    <string name="wp01_placeholder_subtitle">Zero-Trust offline app locker</string>
+</resources>

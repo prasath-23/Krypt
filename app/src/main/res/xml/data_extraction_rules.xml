@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Krypt ships with android:allowBackup="false" and android:fullBackupContent="false".
+    This data-extraction-rules file exists because API 31+ requires it to be referenced
+    even when backup is disabled. The file is intentionally empty (no rules) — nothing
+    is backed up, nothing is cloud-transferred, nothing is device-transferred.
+
+    Rationale: Krypt's K_pair shared secret must not appear on any other device. A
+    device-transfer copy could leak the pairing to a new physical device the Guardian
+    did not consent to. Backups are off across the board.
+-->
+<data-extraction-rules>
+    <cloud-backup />
+    <device-transfer />
+</data-extraction-rules>
