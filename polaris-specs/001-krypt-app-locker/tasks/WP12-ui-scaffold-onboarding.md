@@ -9,6 +9,7 @@ subtasks: [T055, T056, T057, T058, T059]
 test_status: required
 test_file: tests/e2e/WP12-wp12-ui-scaffold-onboarding.spec.js
 shell_pid: "8592"
+agent: "claude"
 ---
 
 # WP12 - UI scaffold: MainActivity + Compose theme + onboarding wizard
@@ -169,3 +170,7 @@ Build the main Compose + Material3 entry point: themed `MainActivity`, a multi-s
 ```
 polaris implement WP12 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:36:20Z – claude – shell_pid=8592 – lane=doing – Assigned agent via workflow command
