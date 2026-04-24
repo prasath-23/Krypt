@@ -1,10 +1,11 @@
 ---
 work_package_id: WP09
-lane: planned
+lane: "for_review"
 dependencies: [WP01]
 subtasks: [T040, T041, T042, T043, T044]
 test_status: required
 test_file: tests/e2e/WP09-wp09-overlay-manager.spec.js
+agent: "claude"
 ---
 
 # WP09 - OverlayManager + XML locker overlay layout
@@ -169,3 +170,9 @@ Back-key consumption: override `dispatchKeyEvent` on the overlayView's root (sub
 ```
 polaris implement WP09 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:30:24Z – claude – lane=doing – d
+- 2026-04-24T07:30:34Z – claude – lane=testing – t
+- 2026-04-24T07:30:41Z – claude – lane=for_review – r
