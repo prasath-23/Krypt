@@ -5,9 +5,15 @@ import java.util.UUID
 /**
  * A single outstanding unlock request, as emitted by the Subject device and
  * consumed (for shape only; no cryptographic validation) by the Guardian
- * device. The cryptographic gate on the Guardian side is the PIN entry UI
- * (WP14); this DTO merely carries the metadata needed to produce the matching
- * approval URL.
+ * device.
+ *
+ * Amendment 1 shape: the request URL now carries the Subject's *setup* salt
+ * (the 16 bytes the PIN was PBKDF2'd against at Guardian-on-Subject PIN
+ * setup, not a per-request random value) alongside a 32-byte `pinProof`
+ * (`HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")`) so the Guardian can
+ * locally verify a typed PIN before composing an approval. The per-request
+ * randomness that binds a specific approval to its request now lives inside
+ * the approval's data blob (`nonceForHkdf`), not in this URL.
  *
  * See polaris-specs/001-krypt-app-locker/contracts/request.md for field
  * semantics and size budgets.
@@ -15,8 +21,10 @@ import java.util.UUID
 data class UnlockRequest(
     val requestId: UUID,
     val targetPackage: String,
-    /** Per-request nonce; exactly [SALT_BYTES] long. */
+    /** Setup-time salt used for PBKDF2(PIN, salt). Exactly [SALT_BYTES]. */
     val salt: ByteArray,
+    /** HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof"). Exactly [PIN_PROOF_BYTES]. */
+    val pinProof: ByteArray,
     /** Wall-clock seconds (Subject) at issue time. */
     val issuedAt: Long,
     /** Request validity window in seconds. */
@@ -32,6 +40,7 @@ data class UnlockRequest(
         return requestId == other.requestId &&
             targetPackage == other.targetPackage &&
             salt.contentEquals(other.salt) &&
+            pinProof.contentEquals(other.pinProof) &&
             issuedAt == other.issuedAt &&
             ttlSeconds == other.ttlSeconds
     }
@@ -40,17 +49,25 @@ data class UnlockRequest(
         var h = requestId.hashCode()
         h = 31 * h + targetPackage.hashCode()
         h = 31 * h + salt.contentHashCode()
+        h = 31 * h + pinProof.contentHashCode()
         h = 31 * h + issuedAt.hashCode()
         h = 31 * h + ttlSeconds.hashCode()
         return h
     }
 
     companion object {
-        /** Per-request salt length mandated by contracts/request.md. */
+        /** Salt length in bytes (Amendment 1 = setup salt). */
         const val SALT_BYTES = 16
 
-        /** Default TTL: 30 minutes. */
-        const val DEFAULT_TTL_SECONDS = 1800L
+        /** HMAC-SHA-256 tag length — `pinProof`. */
+        const val PIN_PROOF_BYTES = 32
+
+        /**
+         * Default TTL: 5 minutes (Amendment 1 FR-019). Previous shipped
+         * default was 1800 s; tightened to limit replay window on captured
+         * URLs.
+         */
+        const val DEFAULT_TTL_SECONDS = 300L
     }
 }
 
@@ -68,6 +85,7 @@ sealed interface RequestParseError {
     data object BadUuid : RequestParseError
     data object BadPackageName : RequestParseError
     data object BadSaltLength : RequestParseError
+    data object BadPinProofLength : RequestParseError
     data object BadTimestamp : RequestParseError
     data object Expired : RequestParseError
 }

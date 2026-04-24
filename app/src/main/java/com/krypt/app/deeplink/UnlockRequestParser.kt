@@ -7,12 +7,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Parses a `krypt://request?...` URL into an [UnlockRequest] on the
- * Guardian device. Performs shape and range validation only; cryptographic
- * gates live on the Guardian-side PIN UI (WP14).
+ * Parses an Amendment 1 `krypt://request?...` URL into an [UnlockRequest]
+ * on the Guardian device. Performs shape and range validation only; PIN
+ * verification happens in the Guardian PIN screen (WP21).
  *
- * Parser is tolerant of up to [CLOCK_SKEW_SECONDS] of clock skew between the
- * Subject (who stamps `iat`) and the Guardian (who evaluates expiry).
+ * Parser is tolerant of up to [CLOCK_SKEW_SECONDS] of clock skew between
+ * the Subject (who stamps `iat`) and the Guardian (who evaluates expiry).
  */
 @Singleton
 class UnlockRequestParser @Inject constructor() {
@@ -38,7 +38,6 @@ class UnlockRequestParser @Inject constructor() {
         } catch (_: IllegalArgumentException) {
             return Outcome.err(RequestParseError.BadUuid)
         }
-        // Accept v4 only. version() returns 4 for randomly-generated UUIDv4.
         if (requestId.version() != 4) return Outcome.err(RequestParseError.BadUuid)
 
         val targetPackage = parsed.params[Params.APP_PACKAGE]
@@ -53,6 +52,14 @@ class UnlockRequestParser @Inject constructor() {
             ?: return Outcome.err(RequestParseError.BadBase64)
         if (salt.size != UnlockRequest.SALT_BYTES) {
             return Outcome.err(RequestParseError.BadSaltLength)
+        }
+
+        val pinProofB64 = parsed.params[Params.PIN_PROOF]
+            ?: return Outcome.err(RequestParseError.MissingParam(Params.PIN_PROOF))
+        val pinProof = Base64Url.tryDecode(pinProofB64)
+            ?: return Outcome.err(RequestParseError.BadBase64)
+        if (pinProof.size != UnlockRequest.PIN_PROOF_BYTES) {
+            return Outcome.err(RequestParseError.BadPinProofLength)
         }
 
         val issuedAtString = parsed.params[Params.ISSUED_AT]
@@ -84,6 +91,7 @@ class UnlockRequestParser @Inject constructor() {
                 requestId = requestId,
                 targetPackage = targetPackage,
                 salt = salt,
+                pinProof = pinProof,
                 issuedAt = issuedAt,
                 ttlSeconds = ttlSeconds,
             )

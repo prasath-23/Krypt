@@ -1,40 +1,55 @@
 package com.krypt.app.deeplink
 
 import com.krypt.app.common.Clock
-import com.krypt.app.crypto.SecureRandomSource
 import com.krypt.app.deeplink.DeepLinkScheme.Params
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Builds `krypt://request?...` URLs on the Subject device.
+ * Builds `krypt://request?...` URLs on the Subject device (Amendment 1).
  *
- * The returned `UnlockRequest` is intended to be persisted into the
- * `outstanding_requests` table (WP05) by the caller, inside the same
- * transaction that opens the Share sheet. See contracts/request.md.
+ * The URL carries the Subject's *setup* salt (from [MasterKeyStore]) plus
+ * the 32-byte `pinProof`, so the Guardian can PBKDF2 a typed PIN against
+ * the same salt and constant-time compare against the embedded proof. This
+ * replaces the original WP03 flow, where the URL carried a per-request
+ * random salt and validation relied on K_pair.
+ *
+ * This builder is intentionally PURE (non-suspending): the caller loads
+ * `{setupSalt, pinProof}` from [com.krypt.app.security.MasterKeyStore] and
+ * passes them in. That keeps the builder trivially JVM-testable and avoids
+ * rippling `suspend` through the overlay's "Ask Guardian" button handler.
  */
 @Singleton
 class UnlockRequestBuilder @Inject constructor(
-    private val rng: SecureRandomSource,
     private val clock: Clock,
 ) {
 
     /**
      * Produce a request URL + its domain object.
      *
+     * @param setupSalt     the 16-byte salt persisted at PIN setup time.
+     * @param pinProof      the 32-byte `HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")`.
      * @param targetPackage Android package name to ask the Guardian to unlock.
      * @param requestId     defaults to a fresh UUIDv4.
-     * @param ttlSeconds    request validity window; default 30 min.
+     * @param ttlSeconds    request validity window. Amendment 1 default 300 s.
      *
-     * @throws IllegalArgumentException if [targetPackage] doesn't match the
-     *         Android package-name convention from contracts/request.md.
+     * @throws IllegalArgumentException on malformed package name, bad salt /
+     *         pinProof sizes, or out-of-range ttl.
      */
     fun build(
+        setupSalt: ByteArray,
+        pinProof: ByteArray,
         targetPackage: String,
         requestId: UUID = UUID.randomUUID(),
         ttlSeconds: Long = UnlockRequest.DEFAULT_TTL_SECONDS,
     ): Pair<String, UnlockRequest> {
+        require(setupSalt.size == UnlockRequest.SALT_BYTES) {
+            "setupSalt must be ${UnlockRequest.SALT_BYTES} bytes"
+        }
+        require(pinProof.size == UnlockRequest.PIN_PROOF_BYTES) {
+            "pinProof must be ${UnlockRequest.PIN_PROOF_BYTES} bytes"
+        }
         require(targetPackage.matches(PACKAGE_REGEX)) {
             "targetPackage '$targetPackage' is not a valid Android package name"
         }
@@ -42,13 +57,13 @@ class UnlockRequestBuilder @Inject constructor(
             "ttlSeconds ($ttlSeconds) must be in 1..$MAX_TTL_SECONDS"
         }
 
-        val salt = rng.nextBytes(UnlockRequest.SALT_BYTES)
         val issuedAt = clock.nowSeconds()
 
         val request = UnlockRequest(
             requestId = requestId,
             targetPackage = targetPackage,
-            salt = salt,
+            salt = setupSalt.copyOf(),
+            pinProof = pinProof.copyOf(),
             issuedAt = issuedAt,
             ttlSeconds = ttlSeconds,
         )
@@ -59,7 +74,8 @@ class UnlockRequestBuilder @Inject constructor(
                 Params.VERSION     to DeepLinkScheme.PROTOCOL_VERSION,
                 Params.REQUEST_ID  to requestId.toString(),
                 Params.APP_PACKAGE to targetPackage,
-                Params.SALT        to Base64Url.encode(salt),
+                Params.SALT        to Base64Url.encode(setupSalt),
+                Params.PIN_PROOF   to Base64Url.encode(pinProof),
                 Params.ISSUED_AT   to issuedAt.toString(),
                 Params.TTL         to ttlSeconds.toString(),
             ),

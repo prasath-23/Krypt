@@ -24,6 +24,14 @@ import dagger.hilt.android.AndroidEntryPoint
  * Deep-link host for every krypt://{authority} URL. Self-whitelisted by
  * [com.krypt.app.service.AppLockerAccessibilityService] so Guardians can
  * complete approvals on devices where Krypt also protects apps (FR-011).
+ *
+ * Amendment 1 routing:
+ *   - `krypt://request?...` -> WP21 Guardian PIN screen (stub below until WP21 lands)
+ *   - `krypt://approve?...` -> WP22 silent ApprovalTrampolineActivity (handled
+ *     by that Activity's own intent-filter, not routed through here)
+ *   - `krypt://pair?...` / `krypt://paired?...` -> legacy pairing screens
+ *     (shipped code, unreachable from live nav after Amendment 1 but still
+ *     deep-link-openable if a sender crafts one).
  */
 @AndroidEntryPoint
 class GuardianActivity : ComponentActivity() {
@@ -53,8 +61,18 @@ fun GuardianRoute(data: Uri?) {
     val authority = data.authority
     val url = data.toString()
     when (authority) {
-        DeepLinkScheme.AUTHORITY_REQUEST -> GuardianRequestScreen(incomingUrl = url, onDone = {})
-        DeepLinkScheme.AUTHORITY_APPROVE -> GuardianApprovalConsumeScreen(incomingUrl = url, onDone = {})
+        DeepLinkScheme.AUTHORITY_REQUEST -> PendingAmendmentUi(
+            title = "Unlock request",
+            body = "The Guardian-side PIN entry screen is wired up in WP21. " +
+                "This placeholder means Amendment 1 WP21 has not landed yet " +
+                "on this build.",
+        )
+        DeepLinkScheme.AUTHORITY_APPROVE -> PendingAmendmentUi(
+            title = "Unlock approval",
+            body = "Approval URLs are consumed silently by ApprovalTrampolineActivity " +
+                "(WP22). If you are seeing this screen, the trampoline's " +
+                "intent-filter has not taken priority for this URL.",
+        )
         DeepLinkScheme.AUTHORITY_PAIR -> GuardianPairConsumeScreen(incomingUrl = url, onDone = {})
         DeepLinkScheme.AUTHORITY_PAIRED -> SubjectPairedConsumeScreen(incomingUrl = url, onDone = {})
         else -> UnknownLink()
@@ -66,5 +84,13 @@ private fun UnknownLink() {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text("Unknown Krypt deep link", style = MaterialTheme.typography.headlineSmall)
         Text("Open Krypt from your messenger app.", style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun PendingAmendmentUi(title: String, body: String) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Text(body, style = MaterialTheme.typography.bodyMedium)
     }
 }
