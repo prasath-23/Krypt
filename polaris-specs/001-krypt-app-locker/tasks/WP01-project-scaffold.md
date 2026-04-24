@@ -9,6 +9,7 @@ subtasks: [T001, T002, T003, T004, T005]
 test_status: required
 test_file: tests/e2e/WP01-wp01-project-scaffold.spec.js
 shell_pid: "3028"
+agent: "claude"
 ---
 
 # WP01 - Project scaffold + Gradle + manifest skeleton
@@ -181,3 +182,7 @@ Wire `ManifestAuditTest` into `./gradlew check` so that it runs on every CI buil
 ```
 polaris implement WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T05:48:59Z – claude – shell_pid=3028 – lane=doing – Assigned agent via workflow command
