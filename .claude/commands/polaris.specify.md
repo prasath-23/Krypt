@@ -2,8 +2,10 @@
 description: Create or update the feature specification from a natural language feature description.
 ---
 
-
 ## User Input
+
+**Telemetry**: Run: `polaris telemetry record specify --feature <slug> --phase start --agent {{AGENT_NAME}}`
+
 
 ```text
 $ARGUMENTS
@@ -17,7 +19,9 @@ If user passes `--quick` or arguments contain "quick": Skip discovery gate. Assu
 
 ## Working Directory
 
-Run from the planning repository root. NO worktrees created during specify. Artifacts go to `polaris-specs/###-feature/`. Worktrees are created later during `/polaris.implement`.
+Run from planning repository root. NO worktrees created. All output goes to `polaris-specs/###-feature/` and is committed to the target branch. Worktrees are created later via `polaris implement WP##`.
+
+Verify: if `pwd` contains `.worktrees/`, STOP. Planning runs from the main repo only. Navigate back to repo root first.
 
 ## Discovery Gate
 
@@ -72,6 +76,11 @@ Confirm with user unless explicit. If `--mission <key>` provided, use it directl
 
 ## Workflow
 
+**IMPORTANT - Write early, write often.** Context windows can drop mid-conversation.
+Create the feature directory and write files as soon as you have content - do not
+accumulate everything in conversation memory. Every file write is a checkpoint that
+survives context loss.
+
 1. **Check discovery status** - stay in question loop until Intent Summary confirmed
 
 2. **Create feature** (once discovery complete, title and mission confirmed):
@@ -95,11 +104,16 @@ Confirm with user unless explicit. If `--mission <key>` provided, use it directl
    Use the CURRENT branch for `target_branch` (from create-feature JSON output).
    Include only the detected provider's field. Omit others entirely.
 
+   **Write discovery notes now:** Save `<feature_dir>/discovery-notes.md` with the
+   Intent Summary and all Q&A answers collected so far. This protects against context
+   loss during spec generation. Delete this file after spec.md is finalized.
+
 4. **Generate spec** from discovery answers (not raw $ARGUMENTS):
    - Identify actors, actions, data, constraints, success metrics
    - For ambiguity: ask user (max 3 `[NEEDS CLARIFICATION]` markers for truly deferred decisions)
    - Fill: User Scenarios, Functional Requirements (testable), Success Criteria (measurable, tech-agnostic), Key Entities
-   - Write to `<feature_dir>/spec.md`
+   - **Write to `<feature_dir>/spec.md` immediately** - do not wait for later steps.
+     A partial spec on disk is better than a perfect spec lost to context.
 
 5. **Control map** (if feature has 2+ interrelated flows/forms/screens):
    Create `<feature_dir>/control-map.md`:
@@ -119,11 +133,12 @@ Confirm with user unless explicit. If `--mission <key>` provided, use it directl
 6. **Validate spec** against quality checklist:
    - No implementation details, focused on user value, all sections complete
    - Requirements testable, success criteria measurable and tech-agnostic
-   - If items fail: fix and re-validate (max 3 iterations)
-   - If `[NEEDS CLARIFICATION]` remains: present options (A/B/C/Custom) for each, update spec with answers
+   - If items fail: fix spec.md on disk and re-validate (max 3 iterations)
+   - If `[NEEDS CLARIFICATION]` remains: present options (A/B/C/Custom) for each, update spec.md with answers
    - Save checklist to `<feature_dir>/checklists/requirements.md`
 
-7. **Auto-review**: Re-read spec end-to-end, identify gaps, ask user if needed, update
+7. **Auto-review**: Re-read spec end-to-end, identify gaps, ask user if needed, update spec.md on disk.
+   Delete `<feature_dir>/discovery-notes.md` once spec is finalized.
 
 ## Phase 2: Implementation Planning
 
@@ -155,3 +170,6 @@ Proceed directly to planning (eliminates separate `/polaris.plan` step).
 - Default: ask "Spec and plan are ready. Proceed with autopilot? (y/n)"
   - **y** (default): Launch `/polaris.autopilot` with the current feature
   - **n**: Stop and report spec path for manual `/polaris.tasks` or `/polaris.plan`
+
+
+**Telemetry**: Run: `polaris telemetry record specify --feature <slug> --phase complete --agent {{AGENT_NAME}}`

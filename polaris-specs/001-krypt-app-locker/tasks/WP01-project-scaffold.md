@@ -1,6 +1,10 @@
 ---
 work_package_id: WP01
-lane: "doing"
+<<<<<<< Updated upstream
+lane: "done"
+=======
+lane: "for_review"
+>>>>>>> Stashed changes
 dependencies: []
 base_branch: main
 base_commit: 77f718033dafa4f182a19ca96fb3b5b949b5fddd
@@ -8,8 +12,13 @@ created_at: '2026-04-24T05:48:56.035445+00:00'
 subtasks: [T001, T002, T003, T004, T005]
 test_status: required
 test_file: tests/e2e/WP01-wp01-project-scaffold.spec.js
+<<<<<<< Updated upstream
 shell_pid: "3028"
+=======
+>>>>>>> Stashed changes
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP01 - Project scaffold + Gradle + manifest skeleton
@@ -185,4 +194,11 @@ polaris implement WP01
 
 ## Activity Log
 
+<<<<<<< Updated upstream
 - 2026-04-24T05:48:59Z – claude – shell_pid=3028 – lane=doing – Assigned agent via workflow command
+=======
+- 2026-04-24T06:02:50Z – claude – lane=doing – Implementation begun; already committed as 3be5b1c
+- 2026-04-24T06:03:20Z – claude – lane=testing – Implementation committed (3be5b1c). Entering testing lane; Gradle not available in this env so ManifestAuditTest cannot be run locally.
+- 2026-04-24T06:03:49Z – claude – lane=for_review – WP01 ready for review. Implementation commit: 3be5b1c (branch 001-krypt-app-locker-WP01). 19 files: Gradle root + version catalog + 8.10.2 wrapper, app/build.gradle.kts (Compose+Hilt+Room+minSdk29/targetSdk35), AndroidManifest.xml (no INTERNET), KryptApplication + MainActivity placeholder, Theme.Krypt (light+night), strings.xml, data_extraction_rules.xml, ManifestAuditTest.kt. polaris runtests is JS-focused (agent-browser/playwright) and not applicable to this Android/Kotlin project; ManifestAuditTest is a JVM unit test that runs via ./gradlew :app:testDebugUnitTest and is wired into ./gradlew check. Reviewer should run that locally. FR-005/SC-008 enforced by manifest audit. No INTERNET-adjacent permission declared.
+>>>>>>> Stashed changes
+- 2026-04-24T06:11:38Z – claude – shell_pid=3028 – lane=done – Merged to main as 3be5b1c
