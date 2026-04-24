@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.krypt.app.deeplink.DeepLinkScheme
+import com.krypt.app.guardian.GuardianPinScreen
 import com.krypt.app.ui.pairing.GuardianPairConsumeScreen
 import com.krypt.app.ui.pairing.SubjectPairedConsumeScreen
 import com.krypt.app.ui.theme.KryptTheme
@@ -61,12 +62,7 @@ fun GuardianRoute(data: Uri?) {
     val authority = data.authority
     val url = data.toString()
     when (authority) {
-        DeepLinkScheme.AUTHORITY_REQUEST -> PendingAmendmentUi(
-            title = "Unlock request",
-            body = "The Guardian-side PIN entry screen is wired up in WP21. " +
-                "This placeholder means Amendment 1 WP21 has not landed yet " +
-                "on this build.",
-        )
+        DeepLinkScheme.AUTHORITY_REQUEST -> GuardianPinScreen(incomingUrl = url)
         DeepLinkScheme.AUTHORITY_APPROVE -> PendingAmendmentUi(
             title = "Unlock approval",
             body = "Approval URLs are consumed silently by ApprovalTrampolineActivity " +

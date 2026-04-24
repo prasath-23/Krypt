@@ -106,11 +106,18 @@
     <string name="pin_setup_error_not_numeric">PIN must contain digits only.</string>
     <string name="pin_setup_error_save_failed">Could not save the PIN. Please try again.</string>
 
-    <!-- Guardian request (WP14) -->
+    <!-- Guardian request (WP14 + WP21 Amendment 1) -->
     <string name="guardian_request_title">Unlock request</string>
     <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>
     <string name="guardian_pin_label">Enter PIN</string>
     <string name="guardian_send_approval">Verify &amp; send approval</string>
+    <string name="guardian_validating">Verifying PIN…</string>
+    <string name="guardian_sent">Approval sent. You can close this screen.</string>
+    <string name="guardian_error_wrong_pin">Wrong PIN. %1$d attempts left.</string>
+    <string name="guardian_error_lockout">Too many wrong PIN attempts. Try again in %1$d s.</string>
+    <string name="guardian_error_expired">This unlock request has expired. Ask your Subject to send a new one.</string>
+    <string name="guardian_error_corrupt">This unlock request appears corrupted.</string>
+    <string name="guardian_error_unreadable">Could not read this unlock request.</string>
 
     <!-- Watchdog (WP16) -->
     <string name="watchdog_channel">Krypt Watchdog</string>
