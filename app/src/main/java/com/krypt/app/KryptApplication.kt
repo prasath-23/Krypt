@@ -1,20 +1,30 @@
 package com.krypt.app
 
 import android.app.Application
+import com.krypt.app.notifications.SecurityAlertsChannel
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 /**
  * Krypt Application entry point.
  *
- * Responsibilities are intentionally minimal at the WP01 foundation stage:
- *  - Hosts Hilt's DI graph via [HiltAndroidApp].
+ * Lifecycle hooks wired so far:
+ *  - [HiltAndroidApp] bootstrap (WP01).
+ *  - [SecurityAlertsChannel.ensureCreated] — registers the notification
+ *    channel on API 26+ so [NotificationHelper] has somewhere to post
+ *    (WP07).
  *
- * Later WPs wire additional side-effects here:
- *  - WP07: create the Security-Alerts notification channel.
- *  - WP16: start the watchdog foreground service and WorkManager heartbeat.
- *  - WP06: bootstrap the in-memory LockerSessionStore from persisted grants.
+ * WP16 adds: start watchdog FGS + schedule AccessibilityHealthWorker.
  *
  * Do NOT perform any network work here. Krypt does not declare INTERNET.
  */
 @HiltAndroidApp
-class KryptApplication : Application()
+class KryptApplication : Application() {
+
+    @Inject lateinit var securityAlertsChannel: SecurityAlertsChannel
+
+    override fun onCreate() {
+        super.onCreate()
+        securityAlertsChannel.ensureCreated()
+    }
+}
