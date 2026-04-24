@@ -90,7 +90,10 @@
                 android:value="accessibilityServiceSupervisor" />
         </service>
 
-        <!-- WP14: Guardian Activity (krypt:// deep-link host). -->
+        <!-- WP14 + WP21: Guardian Activity (krypt:// deep-link host).
+             Note: krypt://approve is handled by ApprovalTrampolineActivity
+             below (Amendment 1 WP22 — silent Subject-side consumption);
+             approve is intentionally absent from this intent-filter. -->
         <activity
             android:name=".ui.guardian.GuardianActivity"
             android:exported="true"
@@ -103,9 +106,26 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="krypt" android:host="request" />
-                <data android:scheme="krypt" android:host="approve" />
                 <data android:scheme="krypt" android:host="paired" />
                 <data android:scheme="krypt" android:host="pair" />
+            </intent-filter>
+        </activity>
+
+        <!-- WP22 Amendment 1: silent approval-URL trampoline. Translucent
+             theme, no input surface (FR-018). Runs ApprovalConsumer and
+             plays the 500 ms green flash + haptic + toast, then finishes. -->
+        <activity
+            android:name=".subject.ApprovalTrampolineActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Krypt.Trampoline">
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="krypt" android:host="approve" />
             </intent-filter>
         </activity>
 

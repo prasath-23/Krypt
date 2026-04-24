@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    WP22 Amendment 1: ApprovalTrampolineActivity layout.
+
+    A single full-bleed FrameLayout holds the 500 ms green-flash overlay.
+    No text fields, no buttons, no PIN input — FR-018 guarantees the
+    Subject device never prompts for a PIN during approval consumption.
+    The parent theme is translucent; this FrameLayout only becomes visible
+    during the flash animation.
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/approval_trampoline_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clickable="false"
+    android:focusable="false">
+
+    <!--
+        The flash view. Alpha is animated from 0 -> 0.6 -> 0 by
+        UnlockSuccessEffect. Tint colour is the Material 3 "onTertiaryContainer"
+        green used elsewhere in Krypt; hard-coded here because this view is
+        inflated from XML outside of Compose's theme cascade.
+    -->
+    <View
+        android:id="@+id/unlock_flash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#8035C759"
+        android:alpha="0.0" />
+
+</FrameLayout>

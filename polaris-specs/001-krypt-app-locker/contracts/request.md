@@ -1,5 +1,16 @@
 # Contract: `krypt://request`
 
+> **Amendment 1 (2026-04-24)**: URL shape now carries the Subject's *setup*
+> salt (the 16-byte salt PBKDF2 was run against at Guardian-on-Subject PIN
+> setup, NOT a per-request random value) alongside a 32-byte `pinProof`
+> (`HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")`). The Guardian types a
+> PIN, recomputes `MasterKey = PBKDF2(PIN, salt, >=300k)` and then
+> `HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")`, and constant-time
+> compares against the URL's `pinProof`. Default TTL drops from 1800 s to
+> 300 s. Per-request randomness that binds a specific approval-to-request
+> lives inside the approval's `data` blob (`nonceForHkdf`), not here.
+> See `WP20-amendment1-crypto-url-rework.md` in tasks/.
+
 Subject-device-to-Guardian-device unlock request. Emitted when a Subject taps "Ask Guardian" in the Locker overlay. Carries enough information for the Guardian device to prompt its user for the PIN and compose an approval.
 
 ## URL format

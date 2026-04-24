@@ -63,6 +63,7 @@
     <string name="home_locked_title">Locked apps</string>
     <string name="home_locked_count">%1$d apps protected</string>
     <string name="home_setup_pairing">Set up pairing</string>
+    <string name="home_pin_configured">Guardian PIN is configured. Approvals arrive via deep-link.</string>
 
     <!-- Pairing (WP13) -->
     <string name="role_chooser_title">Choose this device\'s role</string>
@@ -92,11 +93,40 @@
     <string name="paired_success">Paired with %1$s!</string>
     <string name="paired_error">Pairing reply rejected: %1$s</string>
 
-    <!-- Guardian request (WP14) -->
+    <!-- PIN setup (WP19, Amendment 1) -->
+    <string name="pin_setup_title">Set Guardian PIN</string>
+    <string name="pin_setup_body">Hand this device to your Guardian. They will set a 4–6 digit PIN that only they know. You will not see the PIN — this is what protects your locked apps.</string>
+    <string name="pin_setup_pin_label">PIN</string>
+    <string name="pin_setup_confirm_label">Confirm PIN</string>
+    <string name="pin_setup_save">Save PIN</string>
+    <string name="pin_setup_saving">Securing PIN…</string>
+    <string name="pin_setup_done">Saved. Hand the phone back to the owner.</string>
+    <string name="pin_setup_error_mismatch">The two PINs don\'t match.</string>
+    <string name="pin_setup_error_too_short">PIN must be at least 4 digits.</string>
+    <string name="pin_setup_error_not_numeric">PIN must contain digits only.</string>
+    <string name="pin_setup_error_save_failed">Could not save the PIN. Please try again.</string>
+
+    <!-- Approval trampoline (WP22 Amendment 1) -->
+    <string name="approval_toast_unlocked">Unlocked %1$s until %2$s</string>
+    <string name="approval_a11y_announcement">Unlocked by Guardian</string>
+    <string name="approval_error_unreadable">Could not read this approval.</string>
+    <string name="approval_error_unmatched">This approval doesn\'t match a pending unlock request.</string>
+    <string name="approval_error_expired">Your original request expired before the approval arrived.</string>
+    <string name="approval_error_tamper">This approval failed cryptographic verification.</string>
+    <string name="approval_error_not_configured">This device isn\'t set up yet. Open Krypt first.</string>
+
+    <!-- Guardian request (WP14 + WP21 Amendment 1) -->
     <string name="guardian_request_title">Unlock request</string>
     <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>
     <string name="guardian_pin_label">Enter PIN</string>
     <string name="guardian_send_approval">Verify &amp; send approval</string>
+    <string name="guardian_validating">Verifying PIN…</string>
+    <string name="guardian_sent">Approval sent. You can close this screen.</string>
+    <string name="guardian_error_wrong_pin">Wrong PIN. %1$d attempts left.</string>
+    <string name="guardian_error_lockout">Too many wrong PIN attempts. Try again in %1$d s.</string>
+    <string name="guardian_error_expired">This unlock request has expired. Ask your Subject to send a new one.</string>
+    <string name="guardian_error_corrupt">This unlock request appears corrupted.</string>
+    <string name="guardian_error_unreadable">Could not read this unlock request.</string>
 
     <!-- Watchdog (WP16) -->
     <string name="watchdog_channel">Krypt Watchdog</string>

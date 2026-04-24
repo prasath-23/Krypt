@@ -40,5 +40,8 @@ object DeepLinkScheme {
         const val DATA = "data"
         const val ISSUED_AT = "iat"
         const val TTL = "ttl"
+
+        /** Amendment 1: HMAC-SHA-256 tag embedded in `krypt://request?...`. */
+        const val PIN_PROOF = "pinProof"
     }
 }

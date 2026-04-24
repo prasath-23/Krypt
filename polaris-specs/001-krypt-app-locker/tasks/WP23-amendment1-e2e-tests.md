@@ -1,6 +1,6 @@
 ---
 work_package_id: WP23
-lane: "for_review"
+lane: "done"
 dependencies: [WP19, WP20, WP21, WP22]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'

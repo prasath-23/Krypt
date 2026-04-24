@@ -9,16 +9,27 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Builds `krypt://approve?...` URLs on the Guardian device.
+ * Builds `krypt://approve?...` URLs on the Guardian device (Amendment 1).
  *
- * Wire layout (per contracts/approve.md):
- *   data = nonce(12) || AES-GCM(K_req, CBOR(payload))
- *   K_req = HKDF(K_pair, "krypt/v1/approve", requestId.utf8 || requestSalt)
+ * Wire layout (per contracts/approve.md, post-Amendment 1):
+ *   data = nonceForHkdf(16) || aesNonce(12) || AES-256-GCM(K_req, CBOR(payload))
+ *   K_req = HKDF-SHA-256(
+ *     ikm  = MasterKey,
+ *     salt = "krypt/v1/approve".utf8,
+ *     info = requestId.utf8 || nonceForHkdf,
+ *     L    = 32,
+ *   )
  *
- * Encryption happens on a pre-matched `UnlockRequest` (recovered by the
- * Guardian from a freshly-received `krypt://request` URL), so the Guardian
- * already has the requestId + salt needed to derive K_req. K_pair is pulled
- * from the Guardian's [com.krypt.app.crypto.KPairStore].
+ * `MasterKey` is 32 bytes, derived from the typed PIN + setup salt (on the
+ * Guardian's device when it validates the PIN, or on the Subject's device
+ * where it was computed once at setup and stored in `MasterKeyStore`). The
+ * 16-byte `nonceForHkdf` is fresh per approval and is how the key is bound
+ * to this specific approval; it is PART OF the `data` blob so the Subject
+ * can re-derive K_req before decryption.
+ *
+ * `K_pair` (X25519 shared secret) is no longer used - the shipped
+ * [com.krypt.app.crypto.KPairStore] remains compiled for legacy pairing
+ * code but has no callers in the live Amendment 1 flow.
  */
 @Singleton
 class ApprovalLinkBuilder @Inject constructor(
@@ -29,21 +40,24 @@ class ApprovalLinkBuilder @Inject constructor(
     /**
      * Build the approval URL.
      *
-     * @param kPair                 32-byte shared secret from pairing.
+     * @param masterKey             32-byte MasterKey (PBKDF2 derived).
      * @param request               matched UnlockRequest.
      * @param grantDurationMinutes  how long the unlock should last. Default 15.
      */
     fun build(
-        kPair: ByteArray,
+        masterKey: ByteArray,
         request: UnlockRequest,
         grantDurationMinutes: Int = DEFAULT_GRANT_MINUTES,
     ): String {
-        require(kPair.size == 32) { "kPair must be 32 bytes (got ${kPair.size})" }
+        require(masterKey.size == AesGcmCipher.KEY_BYTES) {
+            "masterKey must be ${AesGcmCipher.KEY_BYTES} bytes (got ${masterKey.size})"
+        }
         require(grantDurationMinutes in 1..MAX_GRANT_MINUTES) {
             "grantDurationMinutes ($grantDurationMinutes) must be in 1..$MAX_GRANT_MINUTES"
         }
 
-        val kReq = deriveKReq(kPair, request)
+        val nonceForHkdf = rng.nextBytes(NONCE_FOR_HKDF_BYTES)
+        val kReq = deriveKReq(masterKey, request.requestId.toString(), nonceForHkdf)
         try {
             val payload = ApprovalPayload(
                 v = DeepLinkScheme.PROTOCOL_VERSION,
@@ -53,9 +67,9 @@ class ApprovalLinkBuilder @Inject constructor(
                 iat = clock.nowSeconds(),
             )
             val plaintext = ApprovalPayloadCodec.encode(payload)
-            val nonce = rng.nextBytes(AesGcmCipher.NONCE_BYTES)
-            val ciphertextAndTag = AesGcmCipher.encrypt(kReq, nonce, plaintext)
-            val data = nonce + ciphertextAndTag    // wire layout: nonce || (ct || tag)
+            val aesNonce = rng.nextBytes(AesGcmCipher.NONCE_BYTES)
+            val ciphertextAndTag = AesGcmCipher.encrypt(kReq, aesNonce, plaintext)
+            val data = nonceForHkdf + aesNonce + ciphertextAndTag
 
             return UrlCodec.build(
                 authority = DeepLinkScheme.AUTHORITY_APPROVE,
@@ -71,11 +85,21 @@ class ApprovalLinkBuilder @Inject constructor(
         }
     }
 
-    /** Derive the per-request AES-256 key. Exposed for test reuse. */
-    fun deriveKReq(kPair: ByteArray, request: UnlockRequest): ByteArray {
-        val info = request.requestId.toString().toByteArray(Charsets.UTF_8) + request.salt
+    /**
+     * Derive the per-request AES-256 key from a [masterKey] (32 bytes) and
+     * the request-specific [nonceForHkdf] (16 bytes). Exposed so the
+     * consumer side ([ApprovalConsumer]) can re-derive identically.
+     */
+    fun deriveKReq(
+        masterKey: ByteArray,
+        requestIdUtf8: String,
+        nonceForHkdf: ByteArray,
+    ): ByteArray {
+        require(masterKey.size == AesGcmCipher.KEY_BYTES)
+        require(nonceForHkdf.size == NONCE_FOR_HKDF_BYTES)
+        val info = requestIdUtf8.toByteArray(Charsets.UTF_8) + nonceForHkdf
         return KeyDeriver.hkdfSha256(
-            ikm = kPair,
+            ikm = masterKey,
             salt = HKDF_SALT,
             info = info,
             outLength = AesGcmCipher.KEY_BYTES,
@@ -88,5 +112,12 @@ class ApprovalLinkBuilder @Inject constructor(
 
         /** HKDF salt label for the per-request AES key derivation. */
         val HKDF_SALT: ByteArray = "krypt/v1/approve".toByteArray(Charsets.UTF_8)
+
+        /**
+         * Amendment 1: 16-byte per-approval nonce used as HKDF info material.
+         * Prepended to the `data` blob so the Subject can re-derive K_req
+         * before decryption.
+         */
+        const val NONCE_FOR_HKDF_BYTES = 16
     }
 }

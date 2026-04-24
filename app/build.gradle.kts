@@ -26,9 +26,10 @@ android {
         versionCode = 1
         versionName = "0.1.0-alpha"
 
-        // Custom runner bootstraps Hilt in instrumented tests.
-        // (The runner class itself lands in WP05 alongside the Room DB tests.)
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // WP05/WP23: Custom runner bootstraps HiltTestApplication so
+        // instrumented tests can drive @HiltAndroidRule + @TestInstallIn
+        // overrides (Amendment1* e2e tests in androidTest/).
+        testInstrumentationRunner = "com.krypt.app.KryptTestRunner"
 
         // Export the Room schema JSON so schema drift shows up in code review.
         javaCompileOptions {

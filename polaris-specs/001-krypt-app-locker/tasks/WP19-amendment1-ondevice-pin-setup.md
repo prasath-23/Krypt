@@ -1,14 +1,17 @@
 ---
 work_package_id: WP19
-lane: "for_review"
+lane: "done"
 dependencies: [WP01, WP02, WP05, WP06, WP11, WP12]
 base_branch: main
-created_at: '2026-04-24T11:10:00+00:00'
+base_commit: adf0d7cfc4aee42c28a3e7bf63da4c117ac37329
+created_at: '2026-04-24T12:17:04.937033+00:00'
 subtasks: [T100, T101, T102, T103, T104]
 test_status: required
 test_file: tests/e2e/WP19-amendment1-ondevice-pin-setup.spec.js
 amendment: 1
 domain: backend-logic
+shell_pid: "36600"
+agent: "claude"
 ---
 
 # WP19 - Amendment 1: On-device PIN setup flow (Guardian sets PIN on Subject device)
@@ -100,3 +103,4 @@ Implement the new first-time setup flow where the Guardian physically holds the 
 ## Activity Log
 
 - 2026-04-24T12:35:13Z – unknown – lane=for_review – WP19 Amendment 1 on-device PIN setup ready. Commit d6c3a97 on branch 001-krypt-app-locker-WP19. 10 new files + 3 edits. MasterKeyStore + EncryptedPrefsMasterKeyStore (Keystore-backed triple), HmacProvider (RFC 4231 verified), PinSetupScreen + PinSetupViewModel (PIN chars zeroed after derive, PBKDF2 calibration cached), MainRoute gated on onboardingComplete AND masterKey.isConfigured(), HomeScreen dead-button removed. Tests: HmacProviderTest (RFC 4231 TC2 KAT), MasterKeyStoreContractTest + FakeMasterKeyStore, PinSetupViewModelTest. No third-party dep. Reviewer runs ./gradlew :app:testDebugUnitTest.
+- 2026-04-25T00:00:00Z – claude – lane=done – Merged to main via direct git merge.

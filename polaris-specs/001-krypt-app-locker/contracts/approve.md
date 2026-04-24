@@ -1,6 +1,15 @@
 # Contract: `krypt://approve`
 
-Guardian-device-to-Subject-device unlock approval. Emitted after the Guardian enters a valid PIN in the Guardian Popup. Carries an AES-256-GCM-encrypted grant payload that the Subject can decrypt using its stored `K_pair` plus the matched `OutstandingRequest`.
+> **Amendment 1 (2026-04-24)**: Encryption key is now derived from
+> `MasterKey` (PBKDF2(PIN, setup_salt, >=300k)) instead of `K_pair`. The
+> `data` blob layout changes from `nonce(12) || ct || tag` to
+> `nonceForHkdf(16) || aesNonce(12) || ct || tag`. `K_req` is derived as
+> `HKDF-SHA-256(MasterKey, "krypt/v1/approve", requestId.utf8 ||
+> nonceForHkdf, 32)`. The Subject device has the MasterKey from setup and
+> decrypts **silently** (no PIN keypad on Subject side, FR-018). See
+> `WP20-amendment1-crypto-url-rework.md` in tasks/.
+
+Guardian-device-to-Subject-device unlock approval. Emitted after the Guardian enters a valid PIN in the Guardian Popup. Carries an AES-256-GCM-encrypted grant payload that the Subject can decrypt using its stored MasterKey plus the matched `OutstandingRequest`.
 
 ## URL format
 
