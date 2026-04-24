@@ -11,6 +11,7 @@ test_file: tests/e2e/WP19-amendment1-ondevice-pin-setup.spec.js
 amendment: 1
 domain: backend-logic
 shell_pid: "36600"
+agent: "claude"
 ---
 
 # WP19 - Amendment 1: On-device PIN setup flow (Guardian sets PIN on Subject device)
@@ -98,3 +99,7 @@ Implement the new first-time setup flow where the Guardian physically holds the 
 - **PIN re-setup** (if user clears app data or Guardian wants to change PIN): the amendment spec says "physical reset session". Clearing `MasterKeyStore` regenerates a new `salt` and new `MasterKey`, which invalidates any in-flight approval URLs because the Guardian's recomputed `pinProof` will no longer match. This is the intended behaviour.
 - **PIN strength.** 4-digit numeric PIN = 10,000 entries. The >=300k PBKDF2 iterations means brute force of a captured URL costs ~10,000 * 0.25 s = 42 minutes on equivalent hardware. Acceptable for v1 family-safety threat model; longer alphanumeric PINs can be added in a future amendment.
 - **Onboarding resume.** If the user backgrounds during PinSetup, the `CharArray` MUST still be cleared via a `DisposableEffect { onDispose { pin.fill(' ') } }`.
+
+## Activity Log
+
+- 2026-04-24T12:17:08Z – claude – shell_pid=36600 – lane=doing – Assigned agent via workflow command
