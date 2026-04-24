@@ -2,13 +2,18 @@
 description: Run E2E tests for work packages with automatic lane transitions (doing -> testing -> for_review/doing).
 ---
 
-
 # /polaris.runtests - Run Tests with Auto Lane Transitions
+
+## Location Pre-flight (WP mode)
+For WP-specific tests: `pwd` must contain `.worktrees/` and `git branch --show-current` must NOT be `main`. For `--all` regression mode: main repo is acceptable.
 
 **Version**: 2026.3.0+
 **Purpose**: Execute tests for work packages and automatically transition lanes based on results. Supports both project test suites (unit/integration) and E2E browser tests.
 
 ## Test Modes
+
+**Telemetry**: Run: `polaris telemetry record runtests --feature <slug> --phase start --agent {{AGENT_NAME}} --wp <WP_ID>`
+
 
 This command supports two test modes:
 
@@ -271,6 +276,51 @@ if should_retry(classification):
     # wait delay seconds, then re-run the test
 ```
 
+## Mutation Testing (Quality Gate)
+
+After all tests pass, Polaris performs **mutation testing** to validate test quality - not just coverage. This runs automatically as the final quality gate before a WP moves to `for_review`.
+
+**What it does:** The agent introduces small, targeted mutations to the code that was changed in this WP (flip a condition, change an operator, remove a return statement, swap a boundary value). For each mutation, it re-runs the relevant tests. If the tests still pass after a mutation, that's a **surviving mutant** - a gap in test quality.
+
+**How it works:**
+
+1. Identify the files changed in this WP (via `git diff`)
+2. For each changed file, generate 3-5 targeted mutations:
+   - Negate a conditional (`if x > 0` becomes `if x <= 0`)
+   - Remove a function call or return statement
+   - Change a boundary value (`>=` to `>`)
+   - Swap a string literal or constant
+3. For each mutation, run only the tests relevant to that file (tests that import from the mutated module, or test files whose name matches the source file pattern - e.g., `test_order_model.py` for `order_model.py`)
+4. Report which mutations were **killed** (tests caught them) vs **survived** (tests missed them)
+5. If survival rate > 30%, flag the WP for additional test coverage before review
+
+**Output:**
+
+```
+Mutation Testing Results
+------------------------
+Files mutated:    3
+Mutations tested: 12
+Killed:           10 (83%)
+Survived:          2 (17%)
+
+Surviving mutants:
+  - auth_service.py:45 - changed `>=` to `>` (boundary check)
+  - order_model.py:112 - removed validation call (missing negative test)
+
+Verdict: PASS (survival rate 17% < 30% threshold)
+```
+
+**Quality Manager perspective:** This is not optional. It ensures the AI-generated tests actually validate behavior, not just execute code paths. A test suite with 100% coverage but 50% mutation survival is weak - Polaris catches this before review.
+
+**Threshold:** Configurable in `.polaris/config.yaml`:
+```yaml
+testing:
+  mutation_survival_threshold: 30  # max % of surviving mutants allowed
+```
+
+Default is 30%. Set to 0 for strictest quality (all mutations must be caught). Set to 100 to disable.
+
 ## Regression Testing
 
 Use `--all` to run tests across ALL features in the project. This is useful for validating that new changes haven't broken existing features.
@@ -293,3 +343,6 @@ polaris runtests --all --mode e2e --runner playwright
 - Does NOT change any lanes (read-only mode)
 - Reports results with a summary table
 - Exits 0 if all pass, 1 if any fail
+
+
+**Telemetry**: Run: `polaris telemetry record runtests --feature <slug> --phase complete --agent {{AGENT_NAME}} --wp <WP_ID>`

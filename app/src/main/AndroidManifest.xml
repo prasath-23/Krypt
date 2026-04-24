@@ -80,14 +80,36 @@
             </intent-filter>
         </activity>
 
+        <!-- WP10: Accessibility Service (FR-001 interception). -->
+        <service
+            android:name=".service.AppLockerAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- WP08: Default-Deny package receiver (FR-003, FR-004). -->
+        <receiver
+            android:name=".receiver.PackageReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <!--
-            The following entries are declared by subsequent WPs:
+            Still to be declared by later WPs:
               - .service.AppLockerAccessibilityService      (WP10)
               - .service.KryptDeviceAdminReceiver           (WP11)
               - .service.KryptWatchdogService               (WP16)
-              - .receiver.PackageReceiver                   (WP08)
               - .ui.guardian.GuardianActivity               (WP14)
-            Leaving them out in WP01 keeps the manifest minimal and buildable.
         -->
 
     </application>

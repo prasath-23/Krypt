@@ -1,10 +1,16 @@
 ---
 work_package_id: WP08
-lane: planned
+lane: "done"
 dependencies: [WP06, WP07]
+base_branch: 001-krypt-app-locker-WP06
+base_commit: a377c264b0d4577f3843618d6342347980dfde90
+created_at: '2026-04-24T07:26:17.665231+00:00'
 subtasks: [T036, T037, T038, T039]
 test_status: required
 test_file: tests/e2e/WP08-wp08-package-receiver.spec.js
+agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP08 - Package receiver (Default-Deny Engine)
@@ -148,3 +154,10 @@ Wire the spec's second pillar: every new install is auto-locked, and a notificat
 ```
 polaris implement WP08 --base WP07
 ```
+
+## Activity Log
+
+- 2026-04-24T07:27:52Z – claude – lane=doing – d
+- 2026-04-24T07:28:01Z – claude – lane=testing – t
+- 2026-04-24T07:28:08Z – claude – lane=for_review – r
+- 2026-04-24T07:28:18Z – claude – lane=done – m

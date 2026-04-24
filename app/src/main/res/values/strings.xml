@@ -7,4 +7,20 @@
 <resources>
     <string name="app_name">Krypt</string>
     <string name="wp01_placeholder_subtitle">Zero-Trust offline app locker</string>
+
+    <!-- Notifications (WP07) -->
+    <string name="notif_app_locked_title">New App Protected</string>
+    <string name="notif_app_locked_body">%1$s (%2$s) has been locked by default</string>
+
+    <!-- Overlay (WP09) -->
+    <string name="overlay_icon_desc">Locked app icon</string>
+    <string name="overlay_locked">Locked</string>
+    <string name="overlay_ask_guardian">Ask Guardian</string>
+    <string name="overlay_hint">Your Guardian will receive a secure request link.</string>
+    <string name="overlay_footer">Krypt protects this app</string>
+
+    <!-- Accessibility service (WP10) -->
+    <string name="accessibility_service_label">Krypt Locker</string>
+    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and cover locked apps with a Guardian-protected screen. Krypt does not read your app content and does not send any data off the device.</string>
+    <string name="accessibility_service_summary">Guards your locked apps by covering them when launched.</string>
 </resources>
