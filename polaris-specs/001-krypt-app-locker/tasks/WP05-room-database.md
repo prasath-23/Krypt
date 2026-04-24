@@ -1,10 +1,14 @@
 ---
 work_package_id: WP05
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 001-krypt-app-locker-WP01
+base_commit: 3be5b1c4b9a96067bf5878d3e8d5ddd04b73f01c
+created_at: '2026-04-24T07:13:22.177063+00:00'
 subtasks: [T022, T023, T024, T025, T026]
 test_status: required
 test_file: tests/e2e/WP05-wp05-room-database.spec.js
+shell_pid: "23536"
 ---
 
 # WP05 - Data layer: Room database + entities + DAOs
