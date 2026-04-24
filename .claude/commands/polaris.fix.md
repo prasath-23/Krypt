@@ -2,13 +2,15 @@
 description: Fix a bug from an Azure DevOps work item with full traceability, kanban progress tracking, and status write-back.
 ---
 
-
 # /polaris.fix - Bug Fix from Azure DevOps Work Item
 
 **Version**: 2026.3.0+
 **Purpose**: Fix a bug sourced from Azure DevOps, with full traceability through polaris-specs.
 
 ## User Input
+
+**Telemetry**: Run: `polaris telemetry record fix --feature <slug> --phase start --agent {{AGENT_NAME}}`
+
 
 ```text
 $ARGUMENTS
@@ -203,6 +205,8 @@ Create `meta.json`:
 git checkout -b fix/{id}-{kebab-title}
 ```
 
+Verify branch: run `git branch --show-current`. Must show `fix/{id}-{kebab-title}`, NOT `main`/`master`. If still on main: STOP - branch creation failed.
+
 ### Step 3.5: Update Work Item Status
 
 Update the ADO work item to "Active" to signal investigation has started:
@@ -341,3 +345,6 @@ Next steps:
 ## Cross-Platform Notes
 
 All commands used here are Polaris CLI commands, Python one-liners, or git operations that work on Windows, macOS, and Linux. No shell-specific commands are used.
+
+
+**Telemetry**: Run: `polaris telemetry record fix --feature <slug> --phase complete --agent {{AGENT_NAME}}`

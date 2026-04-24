@@ -2,13 +2,15 @@
 description: Review, accept, and merge a completed feature.
 ---
 
-
 # /polaris.ship - Ship Feature
 
 **Version**: 2026.3.0+
 **Purpose**: Composite command that chains the review, acceptance, and merge workflow for a completed feature.
 
 ## User Input
+
+**Telemetry**: Run: `polaris telemetry record ship --feature <slug> --phase start --agent {{AGENT_NAME}}`
+
 
 ```text
 $ARGUMENTS
@@ -110,3 +112,6 @@ Display a summary of what was shipped:
 ## Cross-Platform Notes
 
 All commands used here are Polaris CLI commands or git operations that work on Windows, macOS, and Linux. No shell-specific commands are used.
+
+
+**Telemetry**: Run: `polaris telemetry record ship --feature <slug> --phase complete --agent {{AGENT_NAME}}`
