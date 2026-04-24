@@ -1,6 +1,6 @@
 ---
 work_package_id: WP14
-lane: "for_review"
+lane: "done"
 dependencies: [WP03, WP04, WP06, WP12]
 base_branch: 001-krypt-app-locker-WP13
 base_commit: 9039a3f41d06f5788d2278eb85e46be69a9c7064
@@ -9,6 +9,8 @@ subtasks: [T065, T066, T067, T068, T069, T070]
 test_status: required
 test_file: tests/e2e/WP14-wp14-guardian-activity.spec.js
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP14 - UI: GuardianActivity (request-consume + PIN UI + approval-emit)
@@ -198,3 +200,4 @@ polaris implement WP14 --base WP12
 - 2026-04-24T07:45:10Z – claude – lane=doing – d
 - 2026-04-24T07:45:17Z – claude – lane=testing – t
 - 2026-04-24T07:45:23Z – claude – lane=for_review – r
+- 2026-04-24T07:45:38Z – claude – lane=done – m
