@@ -1,6 +1,6 @@
 ---
 work_package_id: WP03
-lane: "for_review"
+lane: "done"
 dependencies: [WP01, WP02]
 base_branch: 001-krypt-app-locker-WP02
 base_commit: 6c2aebf109594807e377a987e02dacd2dffb7ff9
@@ -9,6 +9,8 @@ subtasks: [T012, T013, T014, T015, T016]
 test_status: required
 test_file: tests/e2e/WP03-wp03-deeplink-request-approve.spec.js
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP03 - Deep-link scheme: `krypt://request` + `krypt://approve`
@@ -200,3 +202,4 @@ polaris implement WP03 --base WP02
 =======
 - 2026-04-24T06:42:00Z – claude – shell_pid=11380 – lane=doing – Assigned agent via workflow command
 >>>>>>> 001-krypt-app-locker-WP03
+- 2026-04-24T07:04:24Z – claude – lane=done – Merged to main (7a4bde9-style merge)
