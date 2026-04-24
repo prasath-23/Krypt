@@ -9,6 +9,7 @@ subtasks: [T060, T061, T062, T063, T064]
 test_status: required
 test_file: tests/e2e/WP13-wp13-pairing-ui.spec.js
 shell_pid: "17080"
+agent: "claude"
 ---
 
 # WP13 - UI: Guardian pairing screens (pair emit + paired consume)
@@ -178,3 +179,7 @@ Covers spec US-1 (first-time setup) end-to-end.
 ```
 polaris implement WP13 --base WP12
 ```
+
+## Activity Log
+
+- 2026-04-24T07:39:42Z – claude – shell_pid=17080 – lane=doing – Assigned agent via workflow command
