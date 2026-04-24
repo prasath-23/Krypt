@@ -1,6 +1,6 @@
 ---
 work_package_id: WP12
-lane: "doing"
+lane: "done"
 dependencies: [WP01]
 base_branch: 001-krypt-app-locker-WP11
 base_commit: 2f557214fec377607af950fe9e724178204e8a02
@@ -8,8 +8,9 @@ created_at: '2026-04-24T07:36:17.626742+00:00'
 subtasks: [T055, T056, T057, T058, T059]
 test_status: required
 test_file: tests/e2e/WP12-wp12-ui-scaffold-onboarding.spec.js
-shell_pid: "8592"
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP12 - UI scaffold: MainActivity + Compose theme + onboarding wizard
@@ -173,4 +174,7 @@ polaris implement WP12 --base WP01
 
 ## Activity Log
 
-- 2026-04-24T07:36:20Z – claude – shell_pid=8592 – lane=doing – Assigned agent via workflow command
+- 2026-04-24T07:38:19Z – claude – lane=doing – d
+- 2026-04-24T07:38:25Z – claude – lane=testing – t
+- 2026-04-24T07:38:35Z – claude – lane=for_review – r
+- 2026-04-24T07:38:49Z – claude – lane=done – m
