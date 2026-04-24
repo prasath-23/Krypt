@@ -9,6 +9,7 @@ subtasks: [T006, T007, T008, T009, T010, T011]
 test_status: required
 test_file: tests/e2e/WP02-wp02-crypto-primitives.spec.js
 shell_pid: "35948"
+agent: "claude"
 ---
 
 # WP02 - Crypto primitives (KDF + HKDF + AES-GCM + X25519)
@@ -187,3 +188,7 @@ Downstream WPs (WP03 approval encryption, WP04 HMAC-verified pairing reply, WP15
 ```
 polaris implement WP02 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T06:15:58Z – claude – shell_pid=35948 – lane=doing – Assigned agent via workflow command
