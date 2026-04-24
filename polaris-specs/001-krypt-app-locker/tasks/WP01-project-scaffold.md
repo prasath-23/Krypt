@@ -1,10 +1,14 @@
 ---
 work_package_id: WP01
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: main
+base_commit: 77f718033dafa4f182a19ca96fb3b5b949b5fddd
+created_at: '2026-04-24T05:48:56.035445+00:00'
 subtasks: [T001, T002, T003, T004, T005]
 test_status: required
 test_file: tests/e2e/WP01-wp01-project-scaffold.spec.js
+shell_pid: "3028"
 ---
 
 # WP01 - Project scaffold + Gradle + manifest skeleton
