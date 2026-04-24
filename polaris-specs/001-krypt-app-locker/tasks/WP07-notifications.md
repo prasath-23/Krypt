@@ -9,6 +9,7 @@ subtasks: [T032, T033, T034, T035]
 test_status: required
 test_file: tests/e2e/WP07-wp07-notifications.spec.js
 shell_pid: "34836"
+agent: "claude"
 ---
 
 # WP07 - Notifications: Security-Alerts channel + helper + runtime permission
@@ -121,3 +122,7 @@ Set up the user-visible "Security Alerts" `NotificationChannel` and a `Notificat
 ```
 polaris implement WP07 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:23:09Z – claude – shell_pid=34836 – lane=doing – Assigned agent via workflow command
