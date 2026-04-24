@@ -1,6 +1,6 @@
 ---
 work_package_id: WP21
-lane: planned
+lane: "for_review"
 dependencies: [WP19, WP20]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
@@ -89,3 +89,7 @@ Rework `GuardianActivity` so the Guardian types the PIN, the app derives `Master
 - **Guardian cache poisoning.** `MessageDigest.isEqual` is specifically designed to avoid timing leaks even when the comparator receives attacker-controlled data. Do NOT replace with `contentEquals` "for readability".
 - **Share sheet fallback.** On some OEMs, `ACTION_SEND` may not offer WhatsApp. Provide a "copy link" button as secondary path; clipboard content labelled "Approval link (ephemeral - share immediately)".
 - **GuardianActivity spoof.** A malicious package could declare its own `krypt://request` intent-filter and steal the URL. Krypt's manifest should set `android:exported=true` only for `GuardianActivity` with `android:launchMode="singleInstance"`. Consider `android:autoVerify="true"` + custom scheme verification (nothing enforceable without App Links over https, so accept the threat per v1 threat model).
+
+## Activity Log
+
+- 2026-04-24T18:33:04Z – unknown – lane=for_review – WP21 Amendment 1 Guardian PIN validation ready. Commit eca6a20 on 001-krypt-app-locker-WP21 (stacks on WP20). GuardianPinValidator (constant-time compare, CharArray zero), GuardianPinViewModel (3-attempt/60s in-memory lockout), GuardianPinScreen (numeric PIN field + share-sheet on success), GuardianActivity routes krypt://request here. 15 tests (7 validator + 8 ViewModel). Reviewer runs ./gradlew :app:testDebugUnitTest.
