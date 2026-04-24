@@ -23,4 +23,10 @@
     <string name="accessibility_service_label">Krypt Locker</string>
     <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and cover locked apps with a Guardian-protected screen. Krypt does not read your app content and does not send any data off the device.</string>
     <string name="accessibility_service_summary">Guards your locked apps by covering them when launched.</string>
+
+    <!-- Device Admin (WP11) -->
+    <string name="device_admin_label">Krypt Device Admin</string>
+    <string name="device_admin_description">Required so Krypt cannot be uninstalled without first being disabled here. Krypt does not use any other device-admin privilege.</string>
+    <string name="device_admin_disable_warning">Disabling Krypt device admin will allow anyone to uninstall Krypt and remove protection from your locked apps. Are you sure?</string>
+    <string name="device_admin_explanation">Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first.</string>
 </resources>

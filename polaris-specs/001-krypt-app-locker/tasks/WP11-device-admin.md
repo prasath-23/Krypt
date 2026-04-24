@@ -2,6 +2,9 @@
 work_package_id: WP11
 lane: "for_review"
 dependencies: [WP01]
+base_branch: 001-krypt-app-locker-WP01
+base_commit: 3be5b1c4b9a96067bf5878d3e8d5ddd04b73f01c
+created_at: '2026-04-24T07:34:06.572868+00:00'
 subtasks: [T051, T052, T053, T054]
 test_status: required
 test_file: tests/e2e/WP11-wp11-device-admin.spec.js
