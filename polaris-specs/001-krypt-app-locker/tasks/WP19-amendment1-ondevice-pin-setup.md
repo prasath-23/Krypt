@@ -1,6 +1,6 @@
 ---
 work_package_id: WP19
-lane: planned
+lane: "for_review"
 dependencies: [WP01, WP02, WP05, WP06, WP11, WP12]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
@@ -96,3 +96,7 @@ Implement the new first-time setup flow where the Guardian physically holds the 
 - **PIN re-setup** (if user clears app data or Guardian wants to change PIN): the amendment spec says "physical reset session". Clearing `MasterKeyStore` regenerates a new `salt` and new `MasterKey`, which invalidates any in-flight approval URLs because the Guardian's recomputed `pinProof` will no longer match. This is the intended behaviour.
 - **PIN strength.** 4-digit numeric PIN = 10,000 entries. The >=300k PBKDF2 iterations means brute force of a captured URL costs ~10,000 * 0.25 s = 42 minutes on equivalent hardware. Acceptable for v1 family-safety threat model; longer alphanumeric PINs can be added in a future amendment.
 - **Onboarding resume.** If the user backgrounds during PinSetup, the `CharArray` MUST still be cleared via a `DisposableEffect { onDispose { pin.fill(' ') } }`.
+
+## Activity Log
+
+- 2026-04-24T12:35:13Z – unknown – lane=for_review – WP19 Amendment 1 on-device PIN setup ready. Commit d6c3a97 on branch 001-krypt-app-locker-WP19. 10 new files + 3 edits. MasterKeyStore + EncryptedPrefsMasterKeyStore (Keystore-backed triple), HmacProvider (RFC 4231 verified), PinSetupScreen + PinSetupViewModel (PIN chars zeroed after derive, PBKDF2 calibration cached), MainRoute gated on onboardingComplete AND masterKey.isConfigured(), HomeScreen dead-button removed. Tests: HmacProviderTest (RFC 4231 TC2 KAT), MasterKeyStoreContractTest + FakeMasterKeyStore, PinSetupViewModelTest. No third-party dep. Reviewer runs ./gradlew :app:testDebugUnitTest.
