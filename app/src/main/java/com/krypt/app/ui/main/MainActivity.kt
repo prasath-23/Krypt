@@ -5,20 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.krypt.app.data.PairingRole
-import com.krypt.app.ui.pairing.PairingRoleChooserScreen
-import com.krypt.app.ui.pairing.SubjectPairScreen
+import com.krypt.app.ui.setup.PinSetupScreen
 import com.krypt.app.ui.theme.KryptTheme
 import dagger.hilt.android.AndroidEntryPoint
-
-private enum class AppScreen { HOME, PAIRING_ROLE_CHOOSER, SUBJECT_PAIR }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -30,28 +22,31 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Top-level navigation, Amendment 1 flow:
+ *   onboarding incomplete   -> OnboardingScreen (permission wizard)
+ *   onboarding complete,
+ *   MasterKey not configured-> PinSetupScreen (Guardian types PIN on Subject
+ *                              device; replaces the legacy X25519 pairing
+ *                              round-trip — see polaris-specs/001-krypt-app-
+ *                              locker/spec.md "Amendment 1")
+ *   both complete           -> HomeScreen
+ *
+ * The legacy `PairingRoleChooserScreen` / `SubjectPairScreen` path is no
+ * longer reachable from the Home surface. Those files remain in the tree
+ * for history; see WP04 / WP13 in the shipped work packages.
+ */
 @Composable
 fun MainRoute(viewModel: MainViewModel = hiltViewModel()) {
     val onboardingComplete by viewModel.onboardingComplete.collectAsStateWithLifecycle()
-    var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    val masterKeyConfigured by viewModel.masterKeyConfigured.collectAsStateWithLifecycle()
 
-    if (!onboardingComplete) {
-        OnboardingScreen(onComplete = viewModel::markOnboardingComplete)
-    } else {
-        when (screen) {
-            AppScreen.HOME -> HomeScreen(onPairClick = { screen = AppScreen.PAIRING_ROLE_CHOOSER })
-            AppScreen.PAIRING_ROLE_CHOOSER -> PairingRoleChooserScreen(
-                onRoleChosen = { role ->
-                    when (role) {
-                        PairingRole.SUBJECT_OF_GUARDIAN -> screen = AppScreen.SUBJECT_PAIR
-                        // Guardian pairing is triggered by opening a krypt://pair deep link
-                        // from the Subject device — handled by GuardianActivity.
-                        PairingRole.GUARDIAN_OF_SUBJECT -> screen = AppScreen.HOME
-                    }
-                }
-            )
-            AppScreen.SUBJECT_PAIR -> SubjectPairScreen()
-        }
+    when {
+        !onboardingComplete -> OnboardingScreen(onComplete = viewModel::markOnboardingComplete)
+        !masterKeyConfigured -> PinSetupScreen(
+            onDone = viewModel::refreshMasterKeyConfigured,
+        )
+        else -> HomeScreen()
     }
 }
 

@@ -63,6 +63,7 @@
     <string name="home_locked_title">Locked apps</string>
     <string name="home_locked_count">%1$d apps protected</string>
     <string name="home_setup_pairing">Set up pairing</string>
+    <string name="home_pin_configured">Guardian PIN is configured. Approvals arrive via deep-link.</string>
 
     <!-- Pairing (WP13) -->
     <string name="role_chooser_title">Choose this device\'s role</string>
@@ -91,6 +92,19 @@
     <string name="paired_verifying">Verifying pairing reply…</string>
     <string name="paired_success">Paired with %1$s!</string>
     <string name="paired_error">Pairing reply rejected: %1$s</string>
+
+    <!-- PIN setup (WP19, Amendment 1) -->
+    <string name="pin_setup_title">Set Guardian PIN</string>
+    <string name="pin_setup_body">Hand this device to your Guardian. They will set a 4–6 digit PIN that only they know. You will not see the PIN — this is what protects your locked apps.</string>
+    <string name="pin_setup_pin_label">PIN</string>
+    <string name="pin_setup_confirm_label">Confirm PIN</string>
+    <string name="pin_setup_save">Save PIN</string>
+    <string name="pin_setup_saving">Securing PIN…</string>
+    <string name="pin_setup_done">Saved. Hand the phone back to the owner.</string>
+    <string name="pin_setup_error_mismatch">The two PINs don\'t match.</string>
+    <string name="pin_setup_error_too_short">PIN must be at least 4 digits.</string>
+    <string name="pin_setup_error_not_numeric">PIN must contain digits only.</string>
+    <string name="pin_setup_error_save_failed">Could not save the PIN. Please try again.</string>
 
     <!-- Guardian request (WP14) -->
     <string name="guardian_request_title">Unlock request</string>
