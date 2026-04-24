@@ -11,4 +11,11 @@
     <!-- Notifications (WP07) -->
     <string name="notif_app_locked_title">New App Protected</string>
     <string name="notif_app_locked_body">%1$s (%2$s) has been locked by default</string>
+
+    <!-- Overlay (WP09) -->
+    <string name="overlay_icon_desc">Locked app icon</string>
+    <string name="overlay_locked">Locked</string>
+    <string name="overlay_ask_guardian">Ask Guardian</string>
+    <string name="overlay_hint">Your Guardian will receive a secure request link.</string>
+    <string name="overlay_footer">Krypt protects this app</string>
 </resources>

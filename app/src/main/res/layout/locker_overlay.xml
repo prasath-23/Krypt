@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/overlay_gradient"
+    android:fitsSystemWindows="false"
+    android:focusable="true"
+    android:clickable="true">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <ImageView
+            android:id="@+id/locked_app_icon"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:contentDescription="@string/overlay_icon_desc"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/locked_app_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:layout_marginBottom="4dp"
+            tools:text="App Name"
+            xmlns:tools="http://schemas.android.com/tools" />
+
+        <TextView
+            android:id="@+id/locked_app_package"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:textColor="#B3FFFFFF"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:id="@+id/locked_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/overlay_locked"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
+
+        <Button
+            android:id="@+id/btn_ask_guardian"
+            android:layout_width="280dp"
+            android:layout_height="56dp"
+            android:text="@string/overlay_ask_guardian"
+            android:textColor="#FF2E1A47"
+            android:backgroundTint="#FFF3C98B" />
+
+        <TextView
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:text="@string/overlay_hint"
+            android:textSize="12sp"
+            android:textColor="#B3FFFFFF"
+            android:gravity="center"
+            android:layout_marginTop="12dp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingBottom="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/overlay_footer"
+            android:textSize="11sp"
+            android:textColor="#80FFFFFF" />
+    </LinearLayout>
+
+</FrameLayout>
