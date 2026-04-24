@@ -1,10 +1,11 @@
 ---
 work_package_id: WP08
-lane: planned
+lane: "for_review"
 dependencies: [WP06, WP07]
 subtasks: [T036, T037, T038, T039]
 test_status: required
 test_file: tests/e2e/WP08-wp08-package-receiver.spec.js
+agent: "claude"
 ---
 
 # WP08 - Package receiver (Default-Deny Engine)
@@ -148,3 +149,9 @@ Wire the spec's second pillar: every new install is auto-locked, and a notificat
 ```
 polaris implement WP08 --base WP07
 ```
+
+## Activity Log
+
+- 2026-04-24T07:27:52Z – claude – lane=doing – d
+- 2026-04-24T07:28:01Z – claude – lane=testing – t
+- 2026-04-24T07:28:08Z – claude – lane=for_review – r
