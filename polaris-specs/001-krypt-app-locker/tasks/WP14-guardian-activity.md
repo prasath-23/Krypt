@@ -2,6 +2,9 @@
 work_package_id: WP14
 lane: "for_review"
 dependencies: [WP03, WP04, WP06, WP12]
+base_branch: 001-krypt-app-locker-WP13
+base_commit: 9039a3f41d06f5788d2278eb85e46be69a9c7064
+created_at: '2026-04-24T07:43:12.396219+00:00'
 subtasks: [T065, T066, T067, T068, T069, T070]
 test_status: required
 test_file: tests/e2e/WP14-wp14-guardian-activity.spec.js
