@@ -2,6 +2,9 @@
 work_package_id: WP04
 lane: "for_review"
 dependencies: [WP01, WP02]
+base_branch: 001-krypt-app-locker-WP02
+base_commit: 6c2aebf109594807e377a987e02dacd2dffb7ff9
+created_at: '2026-04-24T07:05:25.121078+00:00'
 subtasks: [T017, T018, T019, T020, T021]
 test_status: required
 test_file: tests/e2e/WP04-wp04-deeplink-pair-paired.spec.js
