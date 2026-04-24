@@ -1,10 +1,14 @@
 ---
 work_package_id: WP06
-lane: planned
+lane: "doing"
 dependencies: [WP05]
+base_branch: 001-krypt-app-locker-WP05
+base_commit: f8ad4e3fe0a3c4c11b26ca2e5dd146cafaa27f52
+created_at: '2026-04-24T07:18:32.180712+00:00'
 subtasks: [T027, T028, T029, T030, T031]
 test_status: required
 test_file: tests/e2e/WP06-wp06-repositories-stores.spec.js
+shell_pid: "33752"
 ---
 
 # WP06 - Data layer: repositories, in-memory stores, DataStore settings
