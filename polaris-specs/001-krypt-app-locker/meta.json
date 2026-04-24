@@ -29,6 +29,22 @@
       "agent": "claude",
       "source": "implement",
       "drift_type": "expansion"
+    },
+    {
+      "amendment_id": "amd-002",
+      "text": "Files changed outside declared WP scope: .gitignore, app/build.gradle.kts, app/proguard-rules.pro (and 9 more)",
+      "timestamp": "2026-04-24T07:25:43.063881+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "claude",
+      "source": "implement",
+      "drift_type": "expansion"
     }
   ]
 }
