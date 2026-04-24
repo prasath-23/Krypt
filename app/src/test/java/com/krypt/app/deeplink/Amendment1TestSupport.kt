@@ -5,6 +5,8 @@ import com.krypt.app.crypto.SecureRandomSource
 import com.krypt.app.data.OutstandingRequest
 import com.krypt.app.data.OutstandingRequestRepository
 import com.krypt.app.data.UnlockGrant
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
 /** Deterministic [Clock] for tests. */
@@ -32,6 +34,7 @@ internal class FakeOutstandingRequestRepository : OutstandingRequestRepository {
     val requests: MutableMap<UUID, OutstandingRequest> = mutableMapOf()
     val grants: MutableList<UnlockGrant> = mutableListOf()
     private var nextGrantId: Long = 1L
+    private val mutex = Mutex()
 
     override suspend fun insert(request: OutstandingRequest) {
         requests[request.requestId] = request
@@ -39,19 +42,18 @@ internal class FakeOutstandingRequestRepository : OutstandingRequestRepository {
 
     override suspend fun findById(id: UUID): OutstandingRequest? = requests[id]
 
-    @Synchronized
     override suspend fun consumeAndInsertGrant(
         requestId: UUID,
         nowMs: Long,
         grant: UnlockGrant,
-    ): Long? {
-        val existing = requests[requestId] ?: return null
-        if (existing.consumed) return null
-        if (nowMs > existing.expiresAtMs) return null
+    ): Long? = mutex.withLock {
+        val existing = requests[requestId] ?: return@withLock null
+        if (existing.consumed) return@withLock null
+        if (nowMs > existing.expiresAtMs) return@withLock null
         requests[requestId] = existing.copy(consumed = true)
         val id = nextGrantId++
         grants += grant.copy(id = id)
-        return id
+        id
     }
 }
 
