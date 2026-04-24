@@ -2,8 +2,56 @@
 description: Create an isolated workspace (worktree) for implementing a specific work package.
 ---
 
+## Domain Expert Check (read before starting)
+
+Read the WP frontmatter. If a `domain` field is present:
+
+1. Look for the domain prompt file at `.polaris/skills/superpowers/<domain>.md` in the project root
+2. If not found locally, look for `src/specify_cli/superpowers/prompts/<domain>.md` (the built-in package prompt)
+3. If a prompt file is found, read its content. This is your **domain expertise** for this WP:
+   - Follow the quality checklist for every subtask you complete
+   - Actively avoid the listed common pitfalls
+   - Meet the output expectations described in the prompt
+4. If no prompt file is found for the domain value, proceed normally (no error)
+
+This domain expertise applies to ALL your work on this WP, whether you use subagents or not. If you also spawn subagents (see Subagent Check below), each subagent gets its own group-level superpower on top of this WP-level domain expertise.
+
+If no `domain` field is present in frontmatter, skip this section entirely.
+
+---
+
+## Subagent Check (read before starting)
+
+Read the WP frontmatter before doing any work.
+
+**If `subagents: true` is present in frontmatter:**
+
+1. Read `subagent_groups` - each entry is either a list of subtask numbers (old format: `[1,2]`) or a dict with `tasks` (subtask numbers) and optional `superpower` (domain name, e.g. `"database-expert"`). Handle both formats.
+2. For each group, spawn one subagent using the Agent tool with this prompt structure:
+   - **Superpower context** (if group has a `superpower` field): Read the file `.polaris/skills/superpowers/<superpower-name>.md` if it exists. If not found there, check `src/specify_cli/superpowers/prompts/<superpower-name>.md`. If a prompt file is found, prepend its content as the FIRST section of the subagent prompt under a "## Domain Expert Role" heading. If no prompt file is found, skip this step (no error, proceed without superpower).
+   - Feature context: read the first 30 lines of `polaris-specs/<feature>/spec.md` (problem statement + actors only)
+   - Plan context: only the plan sections relevant to this group's subtasks
+   - Assigned subtasks: only the subtasks in this group, copied in full detail from the WP file
+   - Permitted files: explicit list of files this group may read and modify (derive from subtask descriptions)
+   - Hard constraint: "Do not read or modify any file not in your permitted files list."
+   - Output format: "When done, report: (1) list of files you modified, (2) one-sentence summary per subtask completed."
+   - Depth constraint: "You are a subagent. Do NOT use the Agent tool. Do NOT spawn further subagents. Use only Read, Write, Edit, Bash, Glob, Grep tools."
+3. Launch all subagents simultaneously - do not wait for one before starting the next
+4. Wait for ALL subagents to complete before proceeding
+5. Check for file conflicts - if any file was modified by more than one subagent:
+   - Read all versions of the conflicting file
+   - Produce a single merged version that satisfies all subtask requirements
+   - Log a warning: "Conflict resolved in <filename> between subagent groups <X> and <Y>"
+6. Commit all changes as a single consolidated commit covering all subagent work
+
+**If `subagents: true` is NOT present:** proceed with normal sequential implementation below. No subagents. No change from standard behavior.
+
+---
 
 ## Working Directory
+
+**Telemetry**: Run: `polaris telemetry record implement --feature <slug> --phase start --agent {{AGENT_NAME}} --wp <WP_ID>`
+
 
 There are two modes for implementation:
 
@@ -99,3 +147,5 @@ polaris agent tasks move-task WP## --to for_review --note "Ready for review: <su
 **The Python script handles all file updates automatically - no manual editing required!**
 
 **NOTE**: If `/polaris.status` shows your WP in "doing" after you moved it to "for_review", don't panic - a reviewer may have moved it back (changes requested), or there's a sync delay. Focus on your WP.
+
+**Telemetry**: Run: `polaris telemetry record implement --feature <slug> --phase complete --agent {{AGENT_NAME}} --wp <WP_ID>`
