@@ -2,7 +2,7 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** draft
+**Status:** accepted
 **Target branch:** `main`
 
 ---
