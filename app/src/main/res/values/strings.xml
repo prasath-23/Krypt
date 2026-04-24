@@ -29,4 +29,37 @@
     <string name="device_admin_description">Required so Krypt cannot be uninstalled without first being disabled here. Krypt does not use any other device-admin privilege.</string>
     <string name="device_admin_disable_warning">Disabling Krypt device admin will allow anyone to uninstall Krypt and remove protection from your locked apps. Are you sure?</string>
     <string name="device_admin_explanation">Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first.</string>
+
+    <!-- Onboarding (WP12) -->
+    <string name="onboarding_title">Welcome to Krypt</string>
+    <string name="onboarding_step_of">Step %1$d of %2$d</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_finish">Finish</string>
+
+    <string name="onboarding_step1_title">Accessibility access</string>
+    <string name="onboarding_step1_body">Krypt needs Accessibility access so it can detect when a locked app is about to open and cover it. Krypt does not read your app content.</string>
+    <string name="onboarding_step1_grant">Open Accessibility Settings</string>
+
+    <string name="onboarding_step2_title">Display over other apps</string>
+    <string name="onboarding_step2_body">Krypt needs permission to draw its Locker Screen over the app you are trying to open.</string>
+    <string name="onboarding_step2_grant">Grant overlay permission</string>
+
+    <string name="onboarding_step3_title">Device Admin</string>
+    <string name="onboarding_step3_body">Activating Device Admin makes Krypt harder to uninstall without Guardian approval. Krypt does not use any other admin privilege.</string>
+    <string name="onboarding_step3_grant">Activate Device Admin</string>
+
+    <string name="onboarding_step4_title">Notifications</string>
+    <string name="onboarding_step4_body">Krypt posts a notification when a new app gets auto-locked. On Android 13+ this needs your permission.</string>
+    <string name="onboarding_step4_grant">Allow notifications</string>
+
+    <string name="onboarding_step5_title">Battery optimisation</string>
+    <string name="onboarding_step5_body">Krypt must stay running in the background. Grant the battery-optimisation exemption so the OS does not kill it while your screen is off.</string>
+    <string name="onboarding_step5_grant">Open battery settings</string>
+
+    <!-- Home (WP12) -->
+    <string name="home_pairing_title">Guardian pairing</string>
+    <string name="home_not_paired">Not paired yet</string>
+    <string name="home_locked_title">Locked apps</string>
+    <string name="home_locked_count">%1$d apps protected</string>
 </resources>
