@@ -1,6 +1,6 @@
 ---
 work_package_id: WP16
-lane: "for_review"
+lane: "done"
 dependencies: [WP10]
 base_branch: 001-krypt-app-locker-WP15
 base_commit: 86f5a23e003d76c1e66db864e95dfd47f956afc7
@@ -9,6 +9,8 @@ subtasks: [T076, T077, T078, T079, T080]
 test_status: required
 test_file: tests/e2e/WP16-wp16-watchdog-battery-hooks.spec.js
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP16 - Watchdog FGS + WorkManager heartbeat + OEM battery hooks
@@ -196,3 +198,4 @@ polaris implement WP16 --base WP10
 - 2026-04-24T07:51:48Z – claude – lane=doing – d
 - 2026-04-24T07:51:55Z – claude – lane=testing – t
 - 2026-04-24T07:52:01Z – claude – lane=for_review – r
+- 2026-04-24T07:52:13Z – claude – lane=done – m
