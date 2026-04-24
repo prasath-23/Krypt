@@ -1,6 +1,6 @@
 ---
 work_package_id: WP23
-lane: planned
+lane: "for_review"
 dependencies: [WP19, WP20, WP21, WP22]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
@@ -81,3 +81,7 @@ Exercise the full Amendment 1 happy-path and each negative branch with instrumen
 - **KDF slowness in tests.** 300k PBKDF2 iters x several per test = tens of seconds of waste. Use a Hilt `@TestInstallIn` module to replace `KdfProvider` with a version that honours `iterations` literally but takes a smaller floor in tests. KEEP production default unchanged.
 - **Clipboard / share sheet in instrumented tests.** Use `Intents.intended(hasAction(ACTION_SEND))` and intercept - do NOT attempt to drive WhatsApp itself.
 - **Robolectric vs connected tests.** FR-018 (no input field) is asserted in Robolectric unit tests (WP22/T118) for fast feedback AND in the androidTest suite here for on-device guarantee.
+
+## Activity Log
+
+- 2026-04-24T18:44:29Z – unknown – lane=for_review – WP23 Amendment 1 e2e tests ready. Commit cc27e85 on 001-krypt-app-locker-WP23. 5 androidTest files: Amendment1TestModule (Hilt @TestInstallIn InMemoryMasterKeyStore), Amendment1NoKeypadTest (FR-018 hard gate - walks ApprovalTrampolineActivity view hierarchy for any EditText, 3 scenarios), Amendment1HappyPathTest (full in-process setup->request->approve->consume->grant), Amendment1WrongPinTest (Compose UI Test through GuardianActivity; 3 wrong PINs -> lockout substring visible), Amendment1ReplayTest (sequential double-consume, 4-way parallel race, short-TTL expiry). Also: fixed testInstrumentationRunner in app/build.gradle.kts to com.krypt.app.KryptTestRunner (the KryptTestRunner class existed since WP05 but the config pointed at default AndroidJUnitRunner). Reviewer runs ./gradlew :app:connectedDebugAndroidTest on an API 33+ emulator.
