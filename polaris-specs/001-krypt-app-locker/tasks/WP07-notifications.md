@@ -1,10 +1,11 @@
 ---
 work_package_id: WP07
-lane: planned
+lane: "for_review"
 dependencies: [WP01]
 subtasks: [T032, T033, T034, T035]
 test_status: required
 test_file: tests/e2e/WP07-wp07-notifications.spec.js
+agent: "claude"
 ---
 
 # WP07 - Notifications: Security-Alerts channel + helper + runtime permission
@@ -117,3 +118,9 @@ Set up the user-visible "Security Alerts" `NotificationChannel` and a `Notificat
 ```
 polaris implement WP07 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:25:15Z – claude – lane=doing – n
+- 2026-04-24T07:25:20Z – claude – lane=testing – n
+- 2026-04-24T07:25:27Z – claude – lane=for_review – ready
