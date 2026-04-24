@@ -96,4 +96,9 @@
     <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>
     <string name="guardian_pin_label">Enter PIN</string>
     <string name="guardian_send_approval">Verify &amp; send approval</string>
+
+    <!-- Watchdog (WP16) -->
+    <string name="watchdog_channel">Krypt Watchdog</string>
+    <string name="watchdog_title">Krypt is protecting your device</string>
+    <string name="watchdog_body">Tap to open Krypt.</string>
 </resources>

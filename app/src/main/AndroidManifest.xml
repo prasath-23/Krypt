@@ -80,6 +80,16 @@
             </intent-filter>
         </activity>
 
+        <!-- WP16: Watchdog foreground service (FR-010 battery survival). -->
+        <service
+            android:name=".service.KryptWatchdogService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|dataSync">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="accessibilityServiceSupervisor" />
+        </service>
+
         <!-- WP14: Guardian Activity (krypt:// deep-link host). -->
         <activity
             android:name=".ui.guardian.GuardianActivity"
