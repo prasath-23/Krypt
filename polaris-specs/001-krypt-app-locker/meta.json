@@ -1,194 +1,211 @@
 {
-  "feature_number": "001",
-  "slug": "001-krypt-app-locker",
-  "friendly_name": "Krypt \u2014 Zero-Trust Offline App Locker",
-  "mission": "software-dev",
-  "source_description": "Krypt is a native Android (Kotlin) Zero-Trust offline App Locker. Default-Deny on every installed app: new installs are auto-locked and a Security-Alerts notification is posted naming the package. Locked apps are intercepted by an AccessibilityService + WindowManager overlay before their UI paints. Unlock is a peer-to-peer flow: the Subject device sends an encrypted deep-link (myapp://request?app=...&salt=...&proof=...) via any off-device transport (WhatsApp/SMS/email); the Guardian's own device opens Krypt's Guardian Popup, validates the PIN against the proof using PBKDF2-HMAC-SHA256 (>=300k iterations), derives an AES-256 key, and returns an approval deep-link (myapp://approve?data=...). The Subject device decrypts, matches the outstanding request, and dismisses the overlay. The app MUST NOT declare the INTERNET permission. Uninstall is protected by regular Device-Admin (consumer-grade, user-revocable). Stack: Kotlin + Coroutines/Flow, Jetpack Compose + Material3 (Activities), XML view for the WindowManager overlay, Room (mock seams first), minSdk 29 / targetSdk 35 / compileSdk 35.",
-  "created_at": "2026-04-24T00:00:00Z",
-  "target_branch": "main",
-  "vcs": "git",
-  "estimation": {
-    "baseline_raw": "skipped",
-    "baseline_hours": null,
-    "source": "skipped",
-    "captured_at": "2026-04-24T00:00:00Z"
-  },
+  "accept_commit": null,
+  "acceptance_history": [
+    {
+      "accepted_at": "2026-04-24T11:00:20Z",
+      "accepted_by": "claude",
+      "accepted_from_commit": "cc932e46c49a048f7e9c5590662606f1b5f151a1",
+      "branch": "main",
+      "mode": "local",
+      "validation_commands": [
+        "./gradlew assembleDebug"
+      ]
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-04-24T11:00:20Z",
+  "accepted_by": "claude",
+  "accepted_from_commit": "cc932e46c49a048f7e9c5590662606f1b5f151a1",
   "amendments": [
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-001",
-      "text": "Files changed outside declared WP scope: .gitignore, app/build.gradle.kts, app/proguard-rules.pro (and 9 more)",
-      "timestamp": "2026-04-24T07:25:29.847797+00:00",
-      "affected_sections": [],
       "artifacts_updated": {
-        "spec_sections": [],
         "plan_files": [],
-        "wps_regenerated": [],
+        "spec_sections": [],
+        "wps_created": [],
         "wps_locked": [],
-        "wps_created": []
+        "wps_regenerated": []
       },
-      "agent": "claude",
+      "drift_type": "expansion",
       "source": "implement",
-      "drift_type": "expansion"
+      "text": "Files changed outside declared WP scope: .gitignore, app/build.gradle.kts, app/proguard-rules.pro (and 9 more)",
+      "timestamp": "2026-04-24T07:25:29.847797+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-002",
+      "artifacts_updated": {
+        "plan_files": [],
+        "spec_sections": [],
+        "wps_created": [],
+        "wps_locked": [],
+        "wps_regenerated": []
+      },
+      "drift_type": "expansion",
+      "source": "implement",
       "text": "Files changed outside declared WP scope: .gitignore, app/build.gradle.kts, app/proguard-rules.pro (and 9 more)",
-      "timestamp": "2026-04-24T07:25:43.063881+00:00",
-      "affected_sections": [],
-      "artifacts_updated": {
-        "spec_sections": [],
-        "plan_files": [],
-        "wps_regenerated": [],
-        "wps_locked": [],
-        "wps_created": []
-      },
-      "agent": "claude",
-      "source": "implement",
-      "drift_type": "expansion"
+      "timestamp": "2026-04-24T07:25:43.063881+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-003",
+      "artifacts_updated": {
+        "plan_files": [],
+        "spec_sections": [],
+        "wps_created": [],
+        "wps_locked": [],
+        "wps_regenerated": []
+      },
+      "drift_type": "expansion",
+      "source": "implement",
       "text": "Files changed outside declared WP scope: app/src/main/res/drawable/overlay_gradient.xml, app/src/main/res/layout/locker_overlay.xml, app/src/main/res/values/strings.xml",
-      "timestamp": "2026-04-24T07:45:27.427430+00:00",
-      "affected_sections": [],
-      "artifacts_updated": {
-        "spec_sections": [],
-        "plan_files": [],
-        "wps_regenerated": [],
-        "wps_locked": [],
-        "wps_created": []
-      },
-      "agent": "claude",
-      "source": "implement",
-      "drift_type": "expansion"
+      "timestamp": "2026-04-24T07:45:27.427430+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-004",
+      "artifacts_updated": {
+        "plan_files": [],
+        "spec_sections": [],
+        "wps_created": [],
+        "wps_locked": [],
+        "wps_regenerated": []
+      },
+      "drift_type": "expansion",
+      "source": "implement",
       "text": "Files changed outside declared WP scope: app/src/main/res/values/strings.xml, app/src/main/res/drawable/overlay_gradient.xml, app/src/main/res/layout/locker_overlay.xml",
-      "timestamp": "2026-04-24T07:45:42.730192+00:00",
-      "affected_sections": [],
-      "artifacts_updated": {
-        "spec_sections": [],
-        "plan_files": [],
-        "wps_regenerated": [],
-        "wps_locked": [],
-        "wps_created": []
-      },
-      "agent": "claude",
-      "source": "implement",
-      "drift_type": "expansion"
+      "timestamp": "2026-04-24T07:45:42.730192+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-005",
-      "text": "Files changed outside declared WP scope: app/src/main/AndroidManifest.xml, app/src/main/res/values/strings.xml",
-      "timestamp": "2026-04-24T07:47:58.186990+00:00",
-      "affected_sections": [],
       "artifacts_updated": {
-        "spec_sections": [],
         "plan_files": [],
-        "wps_regenerated": [],
+        "spec_sections": [],
+        "wps_created": [],
         "wps_locked": [],
-        "wps_created": []
+        "wps_regenerated": []
       },
-      "agent": "claude",
+      "drift_type": "expansion",
       "source": "implement",
-      "drift_type": "expansion"
+      "text": "Files changed outside declared WP scope: app/src/main/AndroidManifest.xml, app/src/main/res/values/strings.xml",
+      "timestamp": "2026-04-24T07:47:58.186990+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-006",
+      "artifacts_updated": {
+        "plan_files": [],
+        "spec_sections": [],
+        "wps_created": [],
+        "wps_locked": [],
+        "wps_regenerated": []
+      },
+      "drift_type": "expansion",
+      "source": "implement",
       "text": "Files changed outside declared WP scope: app/src/main/AndroidManifest.xml, app/src/main/res/values/strings.xml",
-      "timestamp": "2026-04-24T07:48:10.529208+00:00",
-      "affected_sections": [],
-      "artifacts_updated": {
-        "spec_sections": [],
-        "plan_files": [],
-        "wps_regenerated": [],
-        "wps_locked": [],
-        "wps_created": []
-      },
-      "agent": "claude",
-      "source": "implement",
-      "drift_type": "expansion"
+      "timestamp": "2026-04-24T07:48:10.529208+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-007",
-      "text": "Files changed outside declared WP scope: app/src/main/res/values/strings.xml, .gitignore, app/proguard-rules.pro (and 8 more)",
-      "timestamp": "2026-04-24T07:52:05.358046+00:00",
-      "affected_sections": [],
       "artifacts_updated": {
-        "spec_sections": [],
         "plan_files": [],
-        "wps_regenerated": [],
+        "spec_sections": [],
+        "wps_created": [],
         "wps_locked": [],
-        "wps_created": []
+        "wps_regenerated": []
       },
-      "agent": "claude",
+      "drift_type": "expansion",
       "source": "implement",
-      "drift_type": "expansion"
+      "text": "Files changed outside declared WP scope: app/src/main/res/values/strings.xml, .gitignore, app/proguard-rules.pro (and 8 more)",
+      "timestamp": "2026-04-24T07:52:05.358046+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-008",
+      "artifacts_updated": {
+        "plan_files": [],
+        "spec_sections": [],
+        "wps_created": [],
+        "wps_locked": [],
+        "wps_regenerated": []
+      },
+      "drift_type": "expansion",
+      "source": "implement",
       "text": "Files changed outside declared WP scope: app/src/main/res/values/strings.xml, .gitignore, app/proguard-rules.pro (and 8 more)",
-      "timestamp": "2026-04-24T07:52:18.953752+00:00",
-      "affected_sections": [],
-      "artifacts_updated": {
-        "spec_sections": [],
-        "plan_files": [],
-        "wps_regenerated": [],
-        "wps_locked": [],
-        "wps_created": []
-      },
-      "agent": "claude",
-      "source": "implement",
-      "drift_type": "expansion"
+      "timestamp": "2026-04-24T07:52:18.953752+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-009",
-      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
-      "timestamp": "2026-04-24T08:06:09.519434+00:00",
-      "affected_sections": [],
       "artifacts_updated": {
-        "spec_sections": [],
         "plan_files": [],
-        "wps_regenerated": [],
+        "spec_sections": [],
+        "wps_created": [],
         "wps_locked": [],
-        "wps_created": []
+        "wps_regenerated": []
       },
-      "agent": "claude",
+      "drift_type": "expansion",
       "source": "implement",
-      "drift_type": "expansion"
+      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
+      "timestamp": "2026-04-24T08:06:09.519434+00:00"
     },
     {
+      "affected_sections": [],
+      "agent": "claude",
       "amendment_id": "amd-010",
-      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
-      "timestamp": "2026-04-24T08:06:47.004595+00:00",
-      "affected_sections": [],
       "artifacts_updated": {
-        "spec_sections": [],
         "plan_files": [],
-        "wps_regenerated": [],
+        "spec_sections": [],
+        "wps_created": [],
         "wps_locked": [],
-        "wps_created": []
+        "wps_regenerated": []
       },
-      "agent": "claude",
+      "drift_type": "expansion",
       "source": "implement",
-      "drift_type": "expansion"
+      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
+      "timestamp": "2026-04-24T08:06:47.004595+00:00"
     },
     {
-      "amendment_id": "amd-011",
-      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
-      "timestamp": "2026-04-24T08:07:47.949916+00:00",
       "affected_sections": [],
-      "artifacts_updated": {
-        "spec_sections": [],
-        "plan_files": [],
-        "wps_regenerated": [],
-        "wps_locked": [],
-        "wps_created": []
-      },
       "agent": "claude",
+      "amendment_id": "amd-011",
+      "artifacts_updated": {
+        "plan_files": [],
+        "spec_sections": [],
+        "wps_created": [],
+        "wps_locked": [],
+        "wps_regenerated": []
+      },
+      "drift_type": "expansion",
       "source": "implement",
-      "drift_type": "expansion"
+      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
+      "timestamp": "2026-04-24T08:07:47.949916+00:00"
     }
-  ]
+  ],
+  "created_at": "2026-04-24T00:00:00Z",
+  "estimation": {
+    "baseline_hours": null,
+    "baseline_raw": "skipped",
+    "captured_at": "2026-04-24T00:00:00Z",
+    "source": "skipped"
+  },
+  "feature_number": "001",
+  "friendly_name": "Krypt \u2014 Zero-Trust Offline App Locker",
+  "mission": "software-dev",
+  "slug": "001-krypt-app-locker",
+  "source_description": "Krypt is a native Android (Kotlin) Zero-Trust offline App Locker. Default-Deny on every installed app: new installs are auto-locked and a Security-Alerts notification is posted naming the package. Locked apps are intercepted by an AccessibilityService + WindowManager overlay before their UI paints. Unlock is a peer-to-peer flow: the Subject device sends an encrypted deep-link (myapp://request?app=...&salt=...&proof=...) via any off-device transport (WhatsApp/SMS/email); the Guardian's own device opens Krypt's Guardian Popup, validates the PIN against the proof using PBKDF2-HMAC-SHA256 (>=300k iterations), derives an AES-256 key, and returns an approval deep-link (myapp://approve?data=...). The Subject device decrypts, matches the outstanding request, and dismisses the overlay. The app MUST NOT declare the INTERNET permission. Uninstall is protected by regular Device-Admin (consumer-grade, user-revocable). Stack: Kotlin + Coroutines/Flow, Jetpack Compose + Material3 (Activities), XML view for the WindowManager overlay, Room (mock seams first), minSdk 29 / targetSdk 35 / compileSdk 35.",
+  "target_branch": "main",
+  "vcs": "git"
 }
