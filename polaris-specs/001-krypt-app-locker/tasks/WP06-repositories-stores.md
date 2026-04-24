@@ -192,7 +192,7 @@ polaris implement WP06 --base WP05
 
 ## Activity Log
 
-- 2026-04-24T07:21:48Z – claude – lane=doing – repos
-- 2026-04-24T07:21:56Z – claude – lane=testing – tested
-- 2026-04-24T07:22:06Z – claude – lane=for_review – WP06 done
-- 2026-04-24T07:22:20Z – claude – lane=done – Merged
+- 2026-04-24T07:21:48Z -- claude -- lane=doing -- repos
+- 2026-04-24T07:21:56Z -- claude -- lane=testing -- tested
+- 2026-04-24T07:22:06Z -- claude -- lane=for_review -- WP06 done
+- 2026-04-24T07:22:20Z -- claude -- lane=done -- Merged

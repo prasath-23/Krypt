@@ -126,7 +126,7 @@ polaris implement WP07 --base WP01
 
 ## Activity Log
 
-- 2026-04-24T07:25:15Z – claude – lane=doing – n
-- 2026-04-24T07:25:20Z – claude – lane=testing – n
-- 2026-04-24T07:25:27Z – claude – lane=for_review – ready
-- 2026-04-24T07:25:38Z – claude – lane=done – Merged
+- 2026-04-24T07:25:15Z -- claude -- lane=doing -- n
+- 2026-04-24T07:25:20Z -- claude -- lane=testing -- n
+- 2026-04-24T07:25:27Z -- claude -- lane=for_review -- ready
+- 2026-04-24T07:25:38Z -- claude -- lane=done -- Merged

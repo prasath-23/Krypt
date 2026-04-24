@@ -168,7 +168,7 @@ polaris implement WP05 --base WP01
 
 ## Activity Log
 
-- 2026-04-24T07:16:48Z – claude – lane=doing – room impl
-- 2026-04-24T07:16:55Z – claude – lane=testing – 7 androidTest
-- 2026-04-24T07:17:01Z – claude – lane=for_review – WP05 ready. Room schema v1, race-safe consume atomicity test.
-- 2026-04-24T07:17:50Z – claude – lane=done – Merged
+- 2026-04-24T07:16:48Z -- claude -- lane=doing -- room impl
+- 2026-04-24T07:16:55Z -- claude -- lane=testing -- 7 androidTest
+- 2026-04-24T07:17:01Z -- claude -- lane=for_review -- WP05 ready. Room schema v1, race-safe consume atomicity test.
+- 2026-04-24T07:17:50Z -- claude -- lane=done -- Merged

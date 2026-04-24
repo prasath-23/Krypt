@@ -197,7 +197,7 @@ polaris implement WP14 --base WP12
 
 ## Activity Log
 
-- 2026-04-24T07:45:10Z – claude – lane=doing – d
-- 2026-04-24T07:45:17Z – claude – lane=testing – t
-- 2026-04-24T07:45:23Z – claude – lane=for_review – r
-- 2026-04-24T07:45:38Z – claude – lane=done – m
+- 2026-04-24T07:45:10Z -- claude -- lane=doing -- d
+- 2026-04-24T07:45:17Z -- claude -- lane=testing -- t
+- 2026-04-24T07:45:23Z -- claude -- lane=for_review -- r
+- 2026-04-24T07:45:38Z -- claude -- lane=done -- m

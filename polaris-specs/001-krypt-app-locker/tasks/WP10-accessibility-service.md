@@ -236,7 +236,7 @@ polaris implement WP10 --base WP09
 
 ## Activity Log
 
-- 2026-04-24T07:33:01Z – claude – lane=doing – d
-- 2026-04-24T07:33:08Z – claude – lane=testing – t
-- 2026-04-24T07:33:15Z – claude – lane=for_review – r
-- 2026-04-24T07:33:26Z – claude – lane=done – m
+- 2026-04-24T07:33:01Z -- claude -- lane=doing -- d
+- 2026-04-24T07:33:08Z -- claude -- lane=testing -- t
+- 2026-04-24T07:33:15Z -- claude -- lane=for_review -- r
+- 2026-04-24T07:33:26Z -- claude -- lane=done -- m

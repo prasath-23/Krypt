@@ -182,7 +182,7 @@ polaris implement WP11 --base WP01
 
 ## Activity Log
 
-- 2026-04-24T07:35:18Z – claude – lane=doing – d
-- 2026-04-24T07:35:24Z – claude – lane=testing – t
-- 2026-04-24T07:35:31Z – claude – lane=for_review – r
-- 2026-04-24T07:35:42Z – claude – lane=done – m
+- 2026-04-24T07:35:18Z -- claude -- lane=doing -- d
+- 2026-04-24T07:35:24Z -- claude -- lane=testing -- t
+- 2026-04-24T07:35:31Z -- claude -- lane=for_review -- r
+- 2026-04-24T07:35:42Z -- claude -- lane=done -- m

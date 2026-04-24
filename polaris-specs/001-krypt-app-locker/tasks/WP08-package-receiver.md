@@ -157,7 +157,7 @@ polaris implement WP08 --base WP07
 
 ## Activity Log
 
-- 2026-04-24T07:27:52Z – claude – lane=doing – d
-- 2026-04-24T07:28:01Z – claude – lane=testing – t
-- 2026-04-24T07:28:08Z – claude – lane=for_review – r
-- 2026-04-24T07:28:18Z – claude – lane=done – m
+- 2026-04-24T07:27:52Z -- claude -- lane=doing -- d
+- 2026-04-24T07:28:01Z -- claude -- lane=testing -- t
+- 2026-04-24T07:28:08Z -- claude -- lane=for_review -- r
+- 2026-04-24T07:28:18Z -- claude -- lane=done -- m

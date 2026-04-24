@@ -1,0 +1,150 @@
+{
+  "version": "1.1",
+  "generated_at": "2026-04-24T06:05:48.112396+00:00",
+  "files": {
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP01-wp01-project-scaffold.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP02-wp02-crypto-primitives.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP03-wp03-deeplink-request-approve.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP04-wp04-deeplink-pair-paired.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP05-wp05-room-database.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP06-wp06-repositories-stores.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP07-wp07-notifications.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP08-wp08-package-receiver.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP09-wp09-overlay-manager.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP10-wp10-accessibility-service.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP11-wp11-device-admin.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP12-wp12-ui-scaffold-onboarding.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP13-wp13-pairing-ui.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP14-wp14-guardian-activity.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP15-wp15-approval-consumption.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP16-wp16-watchdog-battery-hooks.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP17-wp17-e2e-tests.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    },
+    "polaris-specs/001-krypt-app-locker/tests/e2e/WP18-wp18-polish.spec.js": {
+      "imports": [
+        "@playwright/test"
+      ],
+      "functions": [],
+      "classes": [],
+      "imported_by": []
+    }
+  }
+}
