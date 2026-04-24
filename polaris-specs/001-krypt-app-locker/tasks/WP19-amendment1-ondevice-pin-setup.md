@@ -1,14 +1,16 @@
 ---
 work_package_id: WP19
-lane: planned
+lane: "doing"
 dependencies: [WP01, WP02, WP05, WP06, WP11, WP12]
 base_branch: main
-created_at: '2026-04-24T11:10:00+00:00'
+base_commit: adf0d7cfc4aee42c28a3e7bf63da4c117ac37329
+created_at: '2026-04-24T12:17:04.937033+00:00'
 subtasks: [T100, T101, T102, T103, T104]
 test_status: required
 test_file: tests/e2e/WP19-amendment1-ondevice-pin-setup.spec.js
 amendment: 1
 domain: backend-logic
+shell_pid: "36600"
 ---
 
 # WP19 - Amendment 1: On-device PIN setup flow (Guardian sets PIN on Subject device)
