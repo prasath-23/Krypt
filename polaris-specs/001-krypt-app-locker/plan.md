@@ -182,3 +182,20 @@ No constitution gates to violate. No complexity justifications required.
 | Target API | minSdk 29, targetSdk 35, compileSdk 35 |
 | Network | Zero. `INTERNET` permission intentionally absent. |
 | Uninstall protection | Regular Device-Admin (user-revocable) |
+
+## Amendment 1 (2026-04-24) - Silent-Unlock Architecture
+
+See `spec.md` "Amendment 1" section for the narrative. Engineering alignment deltas:
+
+| Decision | Outcome |
+|----------|---------|
+| Setup location | Guardian types PIN on Subject device (not on own device). On-device `PinSetupScreen` in the onboarding flow (WP19). |
+| Key hierarchy | `MasterKey = PBKDF2(PIN, random_salt, >=300,000)`; `pinProof = HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")`; `K_req = HKDF(MasterKey, "krypt/v1/approve", req \|\| nonce)`. X25519 `K_pair` removed from the live path. |
+| Subject-side storage | `MasterKeyStore` uses `EncryptedSharedPreferences` with `MasterKeys.AES256_GCM_SPEC`; persists `{salt, MasterKey, pinProof}`. Replaces `KPairStore` in the live flow. (WP19) |
+| Request URL shape | `krypt://request?v=1&req=<uuid>&app=<pkg>&salt=<b64url-16>&pinProof=<b64url-32>&iat=<epoch>&ttl=300` (WP20) |
+| Approval URL shape | `krypt://approve?v=1&req=<uuid>&data=<b64url(nonce\|\|ct\|\|tag)>&iat=<epoch>` - identical shape to original but key derivation source is `MasterKey` instead of `K_pair` (WP20) |
+| Guardian UX | `GuardianActivity` prompts PIN, derives `MasterKey` from PIN + `salt` from URL, compares recomputed `pinProof` to URL's `pinProof` in constant time (`MessageDigest.isEqual`). On match: compose approval. (WP21) |
+| Subject-side consumption | Silent. `ApprovalConsumer` reads `MasterKey` from `MasterKeyStore`, decrypts `data`, checks `OutstandingRequest.consumed=false`, atomically flips to `true`, inserts `UnlockGrant`. No PIN prompt. (WP22) |
+| TTL | `OutstandingRequest.ttlSeconds` default = 300 (was 1800). Grant duration stays 15 min. (WP22) |
+| Unlock UX | Green flash + haptic + toast, no input surface. (WP22) |
+| Superseded WPs | WP04 (X25519 pairing), WP13 (pairing UI), WP14 (Guardian PIN validation), WP15 (approval consumption) - shipped code remains in the tree as historical; amendment WPs rewrite affected paths. |

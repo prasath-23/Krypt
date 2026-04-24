@@ -2,8 +2,27 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted
+**Status:** accepted (Amendment 1 in flight - WP19..WP23)
 **Target branch:** `main`
+
+---
+
+## Amendment 1 (2026-04-24) - Silent-Unlock, Guardian-Sets-PIN-On-Subject-Device
+
+**What changed (executive summary):**
+
+1. **Setup flow inverted.** The Guardian no longer establishes the PIN on *their own* device. Instead, at first-time setup the Guardian physically holds the Subject's device, types the PIN (e.g. `8888`) into a PIN-setup screen on the Subject device, and taps Save. The Subject device computes `MasterKey = PBKDF2(PIN, random_salt, >=300,000 iters)` and stores `{salt, MasterKey, pinProof = HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")}` in Android-Keystore-backed `EncryptedSharedPreferences`. The typed PIN chars are then zeroed from memory. The Subject never learns the PIN.
+2. **X25519 pairing removed.** The `krypt://pair` / `krypt://paired` exchange (WP04) is no longer part of the live flow - the Guardian has no persistent device-bound identity. A Guardian is "whoever has the WhatsApp thread and knows the shared PIN." The X25519 primitive in WP02 remains compiled but unused.
+3. **Request URL now carries a PIN proof.** The Subject device embeds `pinProof` (not `K_pair`-derived material) in `krypt://request?...` so the Guardian can locally verify a typed PIN against the bundled proof before approving.
+4. **Approval encryption keyed from PIN, not K_pair.** The Guardian recomputes `MasterKey = PBKDF2(PIN_typed, salt_from_url, >=300k)` on-the-fly, derives `K_req = HKDF(MasterKey, "krypt/v1/approve", req || nonce)`, and encrypts with AES-256-GCM. The Subject device already holds `MasterKey` in Keystore, so it can silently decrypt - **no PIN keypad ever appears on the Subject device during unlock consumption**.
+5. **Round-trip TTL tightened to 5 minutes.** `OutstandingRequest.ttlSeconds` default changes from 1800 to 300. Single-use enforcement (atomic `consumed` flip) is retained from the original WP15 design.
+6. **Unlock UX is silent.** On successful approval consumption, the Subject device shows a 500 ms green flash + toast + haptic and dismisses the overlay. No input fields.
+
+**Why:** Removing the Subject's ability to enter a PIN eliminates the social-engineering and coercion surface that consumer-grade lockers have. Removing the X25519 pairing step keeps the Guardian device completely stateless. The 5-minute TTL shortens the replay window for captured URLs.
+
+**Scope of the amendment:** Five new work packages `WP19..WP23`. Work packages `WP01, WP02 (X25519 retained but unused), WP05, WP07, WP08, WP09, WP10, WP11, WP12, WP16..WP18` are unchanged and remain in `done`. Work packages `WP04 (X25519 pairing), WP13 (pairing UI), WP14 (Guardian PIN validation), WP15 (approval consumption)` are marked superseded - their shipped code remains in the tree as historical; the amendment WPs rewrite the affected paths.
+
+**FRs touched by this amendment:** FR-007 (proof material source), FR-009 (key source), FR-013 (TTL default), new FR-017..FR-021 added below.
 
 ---
 
@@ -30,11 +49,13 @@ Krypt eliminates both failure modes by moving the unlock authority to a *physica
 
 ## 4. User Scenarios
 
-### US-1 --- First-time setup
+### US-1 --- First-time setup (Amendment 1)
 1. Administrator installs Krypt on the Subject device.
 2. Krypt walks the Administrator through granting three device-level privileges: Accessibility Service, Draw-over-other-apps, and Device-Admin.
-3. Krypt pairs with a Guardian device by exchanging a one-time setup code. The Guardian establishes the master PIN on *their own* device (not the Subject's).
-4. From that moment forward, every app already installed is treated as locked by default.
+3. The Administrator hands the device to the Guardian. Krypt shows a "Set Guardian PIN" screen. The Guardian types a PIN (e.g. `8888`) and taps Save.
+4. The Subject device derives `MasterKey = PBKDF2(PIN, random_salt, >=300,000)` and stores `{salt, MasterKey, pinProof}` in Android-Keystore-backed `EncryptedSharedPreferences`. The typed PIN chars are immediately zeroed.
+5. The Guardian returns the device to the Subject. The Subject never learns the PIN.
+6. From that moment forward, every app already installed is treated as locked by default.
 
 ### US-2 --- A new app is installed
 1. Any actor (Subject, Administrator, system updater, sideload) installs a new package.
@@ -57,10 +78,12 @@ Krypt eliminates both failure modes by moving the unlock authority to a *physica
 4. Guardian types the PIN. Krypt validates the PIN against the cryptographic proof embedded in the URL.
 5. On valid PIN, Krypt generates an approval deep-link URL, encrypted under a key derived from the PIN-verified material, and opens the system Share sheet to send it back to the Subject.
 
-### US-5 --- Subject consumes the approval
+### US-5 --- Subject consumes the approval (Amendment 1 - silent)
 1. Subject taps the approval link in their messenger.
-2. Krypt on the Subject device decrypts the payload, verifies it matches the outstanding request, and dismisses the Locker Screen for a bounded time window (default 15 minutes).
-3. When the window expires, the next foreground event on the app re-triggers the Locker Screen.
+2. Krypt on the Subject device loads the stored `MasterKey` from Keystore-backed storage and silently decrypts the approval payload in the background. **No PIN keypad is shown to the Subject.**
+3. The Subject device verifies the payload `req` matches an outstanding `OutstandingRequest` row with `consumed=false`, atomically flips `consumed=true`, and inserts an `UnlockGrant` row.
+4. The overlay flashes green for 500 ms, triggers a short haptic, shows a toast "Unlocked by Guardian until HH:MM", and is dismissed.
+5. When the grant window expires (default 15 minutes), the next foreground event on the app re-triggers the Locker Screen.
 
 ### US-6 --- Uninstall attempt
 1. Subject attempts to uninstall Krypt from Settings.
@@ -83,9 +106,9 @@ Each requirement is stated as a testable capability.
 | FR-004 | The system MUST post a local notification via a user-visible "Security Alerts" channel within 500 ms of each new install being locked. The notification body MUST contain the locked package name. |
 | FR-005 | The system's manifest MUST NOT declare `android.permission.INTERNET`. This MUST remain auditable by third-party manifest inspection. |
 | FR-006 | The system MUST register a custom deep-link URI scheme that routes both *unlock-request* URLs and *unlock-approval* URLs from any third-party transport app. |
-| FR-007 | Unlock-request URLs MUST be self-contained: all data required to validate a Guardian's PIN MUST travel in the URL. No server lookup, no background sync. |
+| FR-007 | Unlock-request URLs MUST be self-contained: all data required to validate a Guardian's PIN MUST travel in the URL. **Amendment 1:** the validation material is a `pinProof = HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")` embedded alongside the random salt used at setup. No server lookup, no background sync. |
 | FR-008 | Guardian PIN verification MUST apply a slow key-derivation function with a tuned work factor of at least 300,000 PBKDF2-HMAC-SHA256 iterations (or equivalent), such that a correct or incorrect PIN check takes at least 250 ms of CPU time on target-class hardware. |
-| FR-009 | Unlock-approval URLs MUST carry their payload encrypted under an AES-256 key derived from the PIN-verified material, such that an observer of the URL cannot read the grant without the PIN. |
+| FR-009 | Unlock-approval URLs MUST carry their payload encrypted under an AES-256-GCM key derived from the PIN-verified material, such that an observer of the URL cannot read the grant without the PIN. **Amendment 1:** the key material is `K_req = HKDF-SHA-256(MasterKey, salt="krypt/v1/approve", info=req \|\| nonce, 32)`. `MasterKey` is the same on both devices - computed once on the Subject device at setup and recomputed on-the-fly on the Guardian device from the typed PIN + `salt` in the URL. |
 | FR-010 | The interception layer MUST continue to function after 24 hours of screen-off idle, surviving standard OEM battery-optimisation policies (Doze, App Standby). |
 | FR-011 | The system MUST whitelist its own Guardian Popup activity from its own interception, so Guardians can approve requests even on locked-down devices. |
 | FR-012 | Uninstalling the app MUST require Device-Admin to be revoked first. |
@@ -93,6 +116,11 @@ Each requirement is stated as a testable capability.
 | FR-014 | The Subject MUST be able to initiate an unlock request without typing any PIN, and the system MUST compose a shareable deep-link payload for the Subject to send. |
 | FR-015 | The system MUST reject any approval URL whose embedded request-ID does not match an outstanding request, or whose decryption fails. |
 | FR-016 | The system MUST provide an internal mock/seam for the "locked-apps database" such that foundational code can be exercised before a persistent store is wired up. |
+| FR-017 | (Amendment 1) The system MUST provide an on-device PIN-setup flow where the Guardian types the PIN on the Subject device once at setup. The typed PIN characters MUST NOT be written to disk, logged, or displayed readably after submission, and MUST be zeroed from memory immediately after the `MasterKey` is derived. |
+| FR-018 | (Amendment 1) The Subject device MUST NOT prompt for any PIN at any point during approval consumption. Decryption MUST use `MasterKey` already persisted in `EncryptedSharedPreferences` from setup. |
+| FR-019 | (Amendment 1) `OutstandingRequest.ttlSeconds` default MUST be 300 seconds (5 minutes) from request issuance to approval consumption. Requests past TTL MUST be rejected with a clear user-facing error. |
+| FR-020 | (Amendment 1) Each `OutstandingRequest` MUST be single-use. Successful consumption MUST atomically flip `consumed=true` such that a second consume attempt on the same approval URL returns `UnmatchedRequest` (not success). |
+| FR-021 | (Amendment 1) On successful silent approval consumption, the overlay MUST confirm the unlock with a visual cue (>=500 ms green flash or equivalent accessible affordance), a short haptic pulse, and a toast naming the target app. |
 
 ## 6. Success Criteria
 
