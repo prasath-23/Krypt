@@ -80,6 +80,25 @@
             </intent-filter>
         </activity>
 
+        <!-- WP14: Guardian Activity (krypt:// deep-link host). -->
+        <activity
+            android:name=".ui.guardian.GuardianActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Krypt">
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="krypt" android:host="request" />
+                <data android:scheme="krypt" android:host="approve" />
+                <data android:scheme="krypt" android:host="paired" />
+                <data android:scheme="krypt" android:host="pair" />
+            </intent-filter>
+        </activity>
+
         <!-- WP11: Device Admin (FR-012 uninstall friction). -->
         <receiver
             android:name=".service.KryptDeviceAdminReceiver"

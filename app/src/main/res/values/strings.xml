@@ -90,4 +90,10 @@
     <string name="paired_verifying">Verifying pairing reply…</string>
     <string name="paired_success">Paired with %1$s!</string>
     <string name="paired_error">Pairing reply rejected: %1$s</string>
+
+    <!-- Guardian request (WP14) -->
+    <string name="guardian_request_title">Unlock request</string>
+    <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>
+    <string name="guardian_pin_label">Enter PIN</string>
+    <string name="guardian_send_approval">Verify &amp; send approval</string>
 </resources>
