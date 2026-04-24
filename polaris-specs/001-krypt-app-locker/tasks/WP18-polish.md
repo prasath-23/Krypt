@@ -1,7 +1,7 @@
 ---
 work_package_id: WP18
 lane: planned
-dependencies: []
+dependencies: [WP17]
 subtasks: [T085, T086, T087, T088]
 test_status: required
 test_file: tests/e2e/WP18-wp18-polish.spec.js

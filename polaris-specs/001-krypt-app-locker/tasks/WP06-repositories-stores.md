@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 lane: planned
-dependencies: []
+dependencies: [WP05]
 subtasks: [T027, T028, T029, T030, T031]
 test_status: required
 test_file: tests/e2e/WP06-wp06-repositories-stores.spec.js

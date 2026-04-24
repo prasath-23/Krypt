@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 lane: planned
-dependencies: []
+dependencies: [WP01]
 subtasks: [T022, T023, T024, T025, T026]
 test_status: required
 test_file: tests/e2e/WP05-wp05-room-database.spec.js

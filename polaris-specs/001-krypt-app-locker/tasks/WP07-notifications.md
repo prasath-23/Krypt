@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 lane: planned
-dependencies: []
+dependencies: [WP01]
 subtasks: [T032, T033, T034, T035]
 test_status: required
 test_file: tests/e2e/WP07-wp07-notifications.spec.js

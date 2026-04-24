@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 lane: planned
-dependencies: []
+dependencies: [WP01, WP02]
 subtasks: [T012, T013, T014, T015, T016]
 test_status: required
 test_file: tests/e2e/WP03-wp03-deeplink-request-approve.spec.js

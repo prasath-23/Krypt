@@ -1,7 +1,7 @@
 ---
 work_package_id: WP12
 lane: planned
-dependencies: []
+dependencies: [WP01]
 subtasks: [T055, T056, T057, T058, T059]
 test_status: required
 test_file: tests/e2e/WP12-wp12-ui-scaffold-onboarding.spec.js

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 lane: planned
-dependencies: []
+dependencies: [WP01]
 subtasks: [T040, T041, T042, T043, T044]
 test_status: required
 test_file: tests/e2e/WP09-wp09-overlay-manager.spec.js

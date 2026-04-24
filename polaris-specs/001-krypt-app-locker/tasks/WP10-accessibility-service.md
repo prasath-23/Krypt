@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 lane: planned
-dependencies: []
+dependencies: [WP06, WP09]
 subtasks: [T045, T046, T047, T048, T049, T050]
 test_status: required
 test_file: tests/e2e/WP10-wp10-accessibility-service.spec.js

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP16
 lane: planned
-dependencies: []
+dependencies: [WP10]
 subtasks: [T076, T077, T078, T079, T080]
 test_status: required
 test_file: tests/e2e/WP16-wp16-watchdog-battery-hooks.spec.js

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP13
 lane: planned
-dependencies: []
+dependencies: [WP04, WP06, WP12]
 subtasks: [T060, T061, T062, T063, T064]
 test_status: required
 test_file: tests/e2e/WP13-wp13-pairing-ui.spec.js

@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 lane: planned
-dependencies: []
+dependencies: [WP01, WP02]
 subtasks: [T017, T018, T019, T020, T021]
 test_status: required
 test_file: tests/e2e/WP04-wp04-deeplink-pair-paired.spec.js

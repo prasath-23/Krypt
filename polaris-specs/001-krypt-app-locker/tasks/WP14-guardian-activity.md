@@ -1,7 +1,7 @@
 ---
 work_package_id: WP14
 lane: planned
-dependencies: []
+dependencies: [WP03, WP04, WP06, WP12]
 subtasks: [T065, T066, T067, T068, T069, T070]
 test_status: required
 test_file: tests/e2e/WP14-wp14-guardian-activity.spec.js

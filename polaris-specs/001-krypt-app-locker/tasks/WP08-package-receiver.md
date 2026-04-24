@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 lane: planned
-dependencies: []
+dependencies: [WP06, WP07]
 subtasks: [T036, T037, T038, T039]
 test_status: required
 test_file: tests/e2e/WP08-wp08-package-receiver.spec.js

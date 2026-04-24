@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 lane: planned
-dependencies: []
+dependencies: [WP01]
 subtasks: [T051, T052, T053, T054]
 test_status: required
 test_file: tests/e2e/WP11-wp11-device-admin.spec.js

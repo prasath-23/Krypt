@@ -1,7 +1,7 @@
 ---
 work_package_id: WP17
 lane: planned
-dependencies: []
+dependencies: [WP15]
 subtasks: [T081, T082, T083, T084]
 test_status: required
 test_file: tests/e2e/WP17-wp17-e2e-tests.spec.js

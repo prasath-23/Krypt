@@ -1,7 +1,7 @@
 ---
 work_package_id: WP15
 lane: planned
-dependencies: []
+dependencies: [WP10, WP14]
 subtasks: [T071, T072, T073, T074, T075]
 test_status: required
 test_file: tests/e2e/WP15-wp15-approval-consumption.spec.js
