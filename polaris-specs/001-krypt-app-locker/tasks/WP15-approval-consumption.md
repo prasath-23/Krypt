@@ -1,6 +1,6 @@
 ---
 work_package_id: WP15
-lane: "doing"
+lane: "done"
 dependencies: [WP10, WP14]
 base_branch: 001-krypt-app-locker-WP14
 base_commit: a44e20d3cf78b75a892e1c37f3f5a3ffbe4964d7
@@ -8,8 +8,9 @@ created_at: '2026-04-24T07:46:20.164185+00:00'
 subtasks: [T071, T072, T073, T074, T075]
 test_status: required
 test_file: tests/e2e/WP15-wp15-approval-consumption.spec.js
-shell_pid: "8536"
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP15 - Approval consumption + overlay dismiss integration
@@ -171,4 +172,7 @@ polaris implement WP15 --base WP14
 
 ## Activity Log
 
-- 2026-04-24T07:46:22Z – claude – shell_pid=8536 – lane=doing – Assigned agent via workflow command
+- 2026-04-24T07:47:39Z – claude – lane=doing – d
+- 2026-04-24T07:47:47Z – claude – lane=testing – t
+- 2026-04-24T07:47:53Z – claude – lane=for_review – r
+- 2026-04-24T07:48:06Z – claude – lane=done – m
