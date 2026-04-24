@@ -1,10 +1,14 @@
 ---
 work_package_id: WP03
-lane: planned
+lane: "doing"
 dependencies: [WP01, WP02]
+base_branch: 001-krypt-app-locker-WP02
+base_commit: 6c2aebf109594807e377a987e02dacd2dffb7ff9
+created_at: '2026-04-24T06:41:55.828119+00:00'
 subtasks: [T012, T013, T014, T015, T016]
 test_status: required
 test_file: tests/e2e/WP03-wp03-deeplink-request-approve.spec.js
+shell_pid: "11380"
 ---
 
 # WP03 - Deep-link scheme: `krypt://request` + `krypt://approve`
