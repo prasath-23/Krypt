@@ -9,6 +9,7 @@ subtasks: [T027, T028, T029, T030, T031]
 test_status: required
 test_file: tests/e2e/WP06-wp06-repositories-stores.spec.js
 shell_pid: "33752"
+agent: "claude"
 ---
 
 # WP06 - Data layer: repositories, in-memory stores, DataStore settings
@@ -187,3 +188,7 @@ Wrap Room DAOs in repository interfaces (satisfying FR-016's "mock seam" require
 ```
 polaris implement WP06 --base WP05
 ```
+
+## Activity Log
+
+- 2026-04-24T07:18:36Z – claude – shell_pid=33752 – lane=doing – Assigned agent via workflow command
