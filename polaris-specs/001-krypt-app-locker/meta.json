@@ -109,6 +109,22 @@
       "agent": "claude",
       "source": "implement",
       "drift_type": "expansion"
+    },
+    {
+      "amendment_id": "amd-007",
+      "text": "Files changed outside declared WP scope: app/src/main/res/values/strings.xml, .gitignore, app/proguard-rules.pro (and 8 more)",
+      "timestamp": "2026-04-24T07:52:05.358046+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "claude",
+      "source": "implement",
+      "drift_type": "expansion"
     }
   ]
 }

@@ -1,10 +1,11 @@
 ---
 work_package_id: WP16
-lane: planned
+lane: "for_review"
 dependencies: [WP10]
 subtasks: [T076, T077, T078, T079, T080]
 test_status: required
 test_file: tests/e2e/WP16-wp16-watchdog-battery-hooks.spec.js
+agent: "claude"
 ---
 
 # WP16 - Watchdog FGS + WorkManager heartbeat + OEM battery hooks
@@ -186,3 +187,9 @@ Rationale: API 34+ requires a subtype for `specialUse`. The value "accessibility
 ```
 polaris implement WP16 --base WP10
 ```
+
+## Activity Log
+
+- 2026-04-24T07:51:48Z – claude – lane=doing – d
+- 2026-04-24T07:51:55Z – claude – lane=testing – t
+- 2026-04-24T07:52:01Z – claude – lane=for_review – r
