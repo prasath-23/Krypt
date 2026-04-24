@@ -1,6 +1,6 @@
 ---
 work_package_id: WP20
-lane: planned
+lane: "for_review"
 dependencies: [WP19]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
@@ -94,3 +94,7 @@ Legacy WP04 pairing code (`SubjectPairingBuilder`, `GuardianPairingBuilder`, `kr
 - **Clock skew.** Tighter TTL (300s) leaves less room for device-clock drift. Keep the 60-second tolerance constant from WP03 so legitimate drift doesn't trip users.
 - **nonceForHkdf in plaintext.** The 16-byte prefix is not secret - it's input material to HKDF. An attacker seeing it learns nothing without `masterKey`. Test that truncating/tampering those 16 bytes changes the derived `kReq` so AES-GCM auth fails.
 - **Backward-compat with shipped WP03 URLs.** This amendment deliberately breaks the URL format. Since the full v1 is sideload-only and Amendment 1 is pre-GA, no migration handler is required; an old URL simply fails parsing with `MissingParam("pinProof")`.
+
+## Activity Log
+
+- 2026-04-24T18:27:38Z – unknown – lane=for_review – WP20 Amendment 1 URL rework ready. Commit fb066a5 on 001-krypt-app-locker-WP20 (stacked on WP19). Changes: UnlockRequest gains pinProof(32B) + SALT_BYTES=setup salt; default TTL 300s; ApprovalLinkBuilder takes masterKey; data blob = nonceForHkdf(16) || aesNonce(12) || ct || tag; ApprovalConsumer uses MasterKeyStore; KPairStore @Deprecated (legacy pairing still compiles); GuardianRequestScreen + GuardianApprovalConsumeScreen deleted. Tests: 33 JVM tests across 3 Amendment1* files. No third-party dep. Reviewer runs ./gradlew :app:testDebugUnitTest.
