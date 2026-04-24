@@ -7,4 +7,8 @@
 <resources>
     <string name="app_name">Krypt</string>
     <string name="wp01_placeholder_subtitle">Zero-Trust offline app locker</string>
+
+    <!-- Notifications (WP07) -->
+    <string name="notif_app_locked_title">New App Protected</string>
+    <string name="notif_app_locked_body">%1$s (%2$s) has been locked by default</string>
 </resources>

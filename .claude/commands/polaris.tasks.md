@@ -2,8 +2,10 @@
 description: Generate grouped work packages with actionable subtasks and matching prompt files for the feature in one pass.
 ---
 
-
 ## User Input
+
+**Telemetry**: Run: `polaris telemetry record tasks --feature <slug> --phase start --agent {{AGENT_NAME}}`
+
 
 ```text
 $ARGUMENTS
@@ -111,6 +113,77 @@ Include correct implementation command in each WP prompt:
 - Prompt detail: include purpose, steps, files to create/modify, validation checklist, edge cases
 - Think like a reviewer: every requirement must be objectively verifiable
 
-Context: $ARGUMENTS
+## Domain Assignment
+
+For every WP, assign a primary domain based on the majority of its subtasks. Add a `domain` field to the WP frontmatter YAML.
+
+Available domains (must match exactly):
+- `database` - Database migrations, schema design, queries, indexes
+- `api-design` - REST/GraphQL endpoints, validation, error handling, auth
+- `frontend-craft` - UI components, CSS, accessibility, responsive design
+- `backend-logic` - Business logic, services, data processing, error handling
+- `testing-specialist` - Test strategy, fixtures, mocking, coverage
+- `devops-infra` - CI/CD, Docker, Helm, Kubernetes, infrastructure
+- `documentation` - API docs, user guides, architecture docs, changelogs
+
+Rules:
+1. Every WP MUST have exactly one domain (this is required, not optional)
+2. Pick the domain matching the majority of the WP's subtasks
+3. If truly mixed with no clear majority, use `backend-logic` as default
+
+Example frontmatter:
+```yaml
+domain: "database"
+```
+
+## Subagent Eligibility Evaluation
+
+After grouping subtasks into WPs, evaluate each WP for subagent eligibility. A WP is eligible ONLY if ALL of the following are true:
+
+1. The WP has 5 or more subtasks total
+2. At least 3 subtasks are verifiably independent - they touch different files, have no sequential dependency between them, and could be done by different developers without coordination
+3. Each candidate independent subtask is substantial enough to justify a separate agent session (not a trivial 1-2 line change)
+4. You can confidently partition the independent subtasks into groups with ZERO file overlap between groups - no two groups touch the same file
+
+If ALL four criteria are met, add these fields to the WP frontmatter:
+
+```yaml
+subagents: true
+subagent_groups:
+  - tasks: [1, 2]
+    superpower: "database-expert"
+  - tasks: [3, 4]
+    superpower: "api-design"
+  - tasks: [5, 6]
+```
+
+Where each entry contains `tasks` (the subtask T-numbers for one parallel group) and an optional `superpower` (domain expert to inject). Sequential subtasks (where subtask N depends on the output of subtask N-1) must be placed in the same group or kept for the main agent after subagents complete.
+
+### Superpower Assignment
+
+For each subagent group in an eligible WP, evaluate the domain of its subtasks and assign the most appropriate superpower. Available built-in superpowers:
+
+- `database-expert` - Database migrations, schema design, query optimization, index strategy
+- `api-design` - REST/GraphQL API design, OpenAPI specs, endpoint validation, auth patterns
+- `frontend-craft` - React/Vue components, CSS, accessibility, responsive design
+- `backend-logic` - Business logic, service layer, data processing, error handling
+- `testing-specialist` - Test strategy, fixtures, mocking, coverage, edge cases
+- `devops-infra` - CI/CD pipelines, Docker, Helm, Kubernetes, infrastructure as code
+- `documentation` - API docs, user guides, architecture docs, changelogs
+
+Assignment rules:
+1. If the majority of a group's subtasks clearly belong to one domain, assign that superpower
+2. If a group spans multiple domains with no clear majority, omit the superpower field (the group runs as a generic subagent)
+3. Never force-assign a superpower - when in doubt, leave it out
+
+**Safety rules (non-negotiable)**:
+- When in doubt, do NOT set `subagents: true`. Safety over speed.
+- If you cannot guarantee zero file overlap between groups, do NOT flag the WP.
+- Unflagged WPs execute sequentially as normal - there is no penalty for not flagging.
+
+Context: {ARGS}
 
 The combination of tasks.md and prompt files must enable any engineer to pick up a WP and deliver it end-to-end.
+
+
+**Telemetry**: Run: `polaris telemetry record tasks --feature <slug> --phase complete --agent {{AGENT_NAME}}`

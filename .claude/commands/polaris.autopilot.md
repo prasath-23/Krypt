@@ -2,8 +2,10 @@
 description: Run the full Aptean application pipeline autonomously with retry logic.
 ---
 
-
 ## User Input
+
+**Telemetry**: Run: `polaris telemetry record autopilot --feature <slug> --phase start --agent {{AGENT_NAME}}`
+
 
 ```text
 $ARGUMENTS
@@ -41,9 +43,11 @@ Run `/polaris.setup` with Aptean defaults (Suisse Intl, --aptean-* CSS, teal #1A
 
 **2d. Implement**: For each WP in dependency order:
 1. `polaris implement <WP_ID> --feature <slug>` (add `--base <dep>` if deps exist). Verify WP moved to `doing`.
-2. Follow implementation prompt from `polaris-specs/<slug>/tasks/<WP_ID>.md`
-3. Implement fully, run tests, commit
-4. On failure: retry up to limit, then mark failed and skip dependents
+2. **Worktree handoff**: Parse the `cd` command from implement output. Execute it. Verify: `pwd` must contain `.worktrees/` and `git branch --show-current` must NOT show `main` or `master`. If verification fails, STOP and report error.
+3. Follow implementation prompt from `polaris-specs/<slug>/tasks/<WP_ID>.md`
+4. Implement fully, run tests, commit
+5. **Return to main**: `cd` back to the main repo root before processing next WP
+6. On failure: retry up to limit, then mark failed and skip dependents
 
 ### Stage 3: Ship
 
@@ -96,3 +100,6 @@ Display: pipeline stages, succeeded/failed/skipped WP counts, per-WP test result
 ## Error Handling
 
 Never halt silently. Never lose work (committed code preserved). State updated atomically. All commands are cross-platform (Polaris CLI + git).
+
+
+**Telemetry**: Run: `polaris telemetry record autopilot --feature <slug> --phase complete --agent {{AGENT_NAME}}`
