@@ -2,6 +2,9 @@
 work_package_id: WP09
 lane: "for_review"
 dependencies: [WP01]
+base_branch: 001-krypt-app-locker-WP01
+base_commit: 3be5b1c4b9a96067bf5878d3e8d5ddd04b73f01c
+created_at: '2026-04-24T07:28:49.948402+00:00'
 subtasks: [T040, T041, T042, T043, T044]
 test_status: required
 test_file: tests/e2e/WP09-wp09-overlay-manager.spec.js
