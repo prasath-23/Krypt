@@ -62,4 +62,32 @@
     <string name="home_not_paired">Not paired yet</string>
     <string name="home_locked_title">Locked apps</string>
     <string name="home_locked_count">%1$d apps protected</string>
+
+    <!-- Pairing (WP13) -->
+    <string name="role_chooser_title">Choose this device\'s role</string>
+    <string name="role_chooser_body">Decide now whether this device is the one being locked (Subject) or the one holding the PIN (Guardian).</string>
+    <string name="role_chooser_footer">You can only choose once. To switch roles later, uninstall and reinstall Krypt.</string>
+    <string name="role_guardian_title">Guardian</string>
+    <string name="role_guardian_body">This device will hold the PIN and approve unlock requests.</string>
+    <string name="role_subject_title">Subject</string>
+    <string name="role_subject_body">This device will be locked by Krypt; approvals come from the Guardian.</string>
+    <string name="role_choose">Choose</string>
+
+    <string name="pair_subject_title">Pair with your Guardian</string>
+    <string name="pair_subject_body">Generate a pairing link and share it with your Guardian device. Keep this app open until pairing completes.</string>
+    <string name="pair_display_name_label">Display name</string>
+    <string name="pair_generate">Generate pairing link</string>
+    <string name="pair_share">Share via…</string>
+    <string name="pair_waiting">Waiting for your Guardian’s reply…</string>
+
+    <string name="pair_guardian_title">Pair with a Subject device</string>
+    <string name="pair_guardian_body">%1$s wants to pair with this device. Set a PIN for unlock approvals.</string>
+    <string name="pair_pin_label">Set 4–8 digit PIN</string>
+    <string name="pair_pin_confirm_label">Confirm PIN</string>
+    <string name="pair_guardian_confirm">Complete pairing + send reply</string>
+    <string name="pair_error">Pairing error: %1$s</string>
+
+    <string name="paired_verifying">Verifying pairing reply…</string>
+    <string name="paired_success">Paired with %1$s!</string>
+    <string name="paired_error">Pairing reply rejected: %1$s</string>
 </resources>
