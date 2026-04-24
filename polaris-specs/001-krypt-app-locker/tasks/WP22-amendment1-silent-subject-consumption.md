@@ -1,6 +1,6 @@
 ---
 work_package_id: WP22
-lane: planned
+lane: "for_review"
 dependencies: [WP20]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
@@ -86,3 +86,7 @@ Wire the silent approval consumption path on the Subject device. A tap on a `kry
 - **Haptic on silent/DnD.** `Vibrator#vibrate` respects system haptic settings on API 33+. Acceptable - if user silenced haptics, they silenced all haptics.
 - **Approval URL in clipboard.** If the Guardian pastes the URL into WhatsApp, it briefly lives in the clipboard. Android 13+ auto-clears clipboard on content-type classification; we rely on that + user operational hygiene. Out-of-scope to "clear clipboard after consumption".
 - **Silent consumption + visible feedback.** FR-021 is specifically about making the success *visible* so the Subject doesn't think the link did nothing. Without the green flash + toast, a silent unlock would be disorienting.
+
+## Activity Log
+
+- 2026-04-24T18:38:48Z – unknown – lane=for_review – WP22 Amendment 1 silent consumption + UX ready. Commit 31bf251 on 001-krypt-app-locker-WP22. ApprovalTrampolineActivity (translucent, no input surface, silent), UnlockSuccessEffect (haptic+green flash+toast+TalkBack), Theme.Krypt.Trampoline. Manifest: krypt://approve moved from GuardianActivity to ApprovalTrampolineActivity. 2 JVM tests + deferred Robolectric coverage to WP23 androidTest. Reviewer runs ./gradlew :app:testDebugUnitTest; Espresso/androidTest suite in WP23.
