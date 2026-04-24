@@ -9,6 +9,7 @@ subtasks: [T065, T066, T067, T068, T069, T070]
 test_status: required
 test_file: tests/e2e/WP14-wp14-guardian-activity.spec.js
 shell_pid: "35364"
+agent: "claude"
 ---
 
 # WP14 - UI: GuardianActivity (request-consume + PIN UI + approval-emit)
@@ -192,3 +193,7 @@ Build the Guardian-side Activity that handles incoming `krypt://request` URLs: s
 ```
 polaris implement WP14 --base WP12
 ```
+
+## Activity Log
+
+- 2026-04-24T07:43:16Z – claude – shell_pid=35364 – lane=doing – Assigned agent via workflow command
