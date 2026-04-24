@@ -199,4 +199,4 @@ polaris implement WP16 --base WP10
 - 2026-04-24T07:51:55Z -- claude -- lane=testing -- t
 - 2026-04-24T07:52:01Z -- claude -- lane=for_review -- r
 - 2026-04-24T07:52:13Z -- claude -- lane=done -- m
-- 2026-04-24T10:53:16Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:53:16Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted

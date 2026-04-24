@@ -161,4 +161,4 @@ polaris implement WP08 --base WP07
 - 2026-04-24T07:28:01Z -- claude -- lane=testing -- t
 - 2026-04-24T07:28:08Z -- claude -- lane=for_review -- r
 - 2026-04-24T07:28:18Z -- claude -- lane=done -- m
-- 2026-04-24T10:52:43Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:52:43Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted

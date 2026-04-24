@@ -1,5 +1,7 @@
 # Added by Polaris CLI (auto-managed)
 .claude/settings.local.json
+.claude/settings.json
+.claude/helpers/
 .codex/auth.json
 .polaris/.dashboard
 .polaris/telemetry/

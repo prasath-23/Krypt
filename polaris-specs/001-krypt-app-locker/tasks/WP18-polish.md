@@ -193,6 +193,6 @@ polaris implement WP18 --base WP17
 ## Activity Log
 
 - 2026-04-24T08:08:21Z -- claude -- lane=doing -- d
-- 2026-04-24T08:10:43Z – claude – lane=testing – t
-- 2026-04-24T08:10:50Z – claude – lane=for_review – r
-- 2026-04-24T08:10:58Z – claude – lane=done – Final WP on main
+- 2026-04-24T08:10:43Z -- claude -- lane=testing -- t
+- 2026-04-24T08:10:50Z -- claude -- lane=for_review -- r
+- 2026-04-24T08:10:58Z -- claude -- lane=done -- Final WP on main

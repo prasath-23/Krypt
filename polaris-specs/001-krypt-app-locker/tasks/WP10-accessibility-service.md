@@ -240,4 +240,4 @@ polaris implement WP10 --base WP09
 - 2026-04-24T07:33:08Z -- claude -- lane=testing -- t
 - 2026-04-24T07:33:15Z -- claude -- lane=for_review -- r
 - 2026-04-24T07:33:26Z -- claude -- lane=done -- m
-- 2026-04-24T10:52:51Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:52:51Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted
