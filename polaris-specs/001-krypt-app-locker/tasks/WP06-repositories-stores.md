@@ -1,6 +1,6 @@
 ---
 work_package_id: WP06
-lane: "for_review"
+lane: "done"
 dependencies: [WP05]
 base_branch: 001-krypt-app-locker-WP05
 base_commit: f8ad4e3fe0a3c4c11b26ca2e5dd146cafaa27f52
@@ -9,6 +9,8 @@ subtasks: [T027, T028, T029, T030, T031]
 test_status: required
 test_file: tests/e2e/WP06-wp06-repositories-stores.spec.js
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP06 - Data layer: repositories, in-memory stores, DataStore settings
@@ -193,3 +195,4 @@ polaris implement WP06 --base WP05
 - 2026-04-24T07:21:48Z – claude – lane=doing – repos
 - 2026-04-24T07:21:56Z – claude – lane=testing – tested
 - 2026-04-24T07:22:06Z – claude – lane=for_review – WP06 done
+- 2026-04-24T07:22:20Z – claude – lane=done – Merged
