@@ -33,14 +33,14 @@ class PairedReplyMacTamperTest {
     private fun freshPairing(): Triple<UUID, java.security.PrivateKey, String> {
         val subjectKp = X25519KeyAgreement.generateEphemeralKeyPair()
         val subjectId = UUID.fromString("33345678-1234-4abc-8def-123456789abc")
-        val (pairUrl, _) = pairBuilder.build(subjectId, "Alice", subjectKp.private)
+        val (pairUrl, _) = pairBuilder.build(subjectId, "Alice", subjectKp)
         val parsed = (pairParser.parse(pairUrl, clock.nowSeconds()) as Outcome.Ok).value
 
         val guardianKp = X25519KeyAgreement.generateEphemeralKeyPair()
         val (pairedUrl, _) = pairedBuilder.buildWithFreshAgreement(
             incoming = parsed,
             guardianDisplayName = "G",
-            guardianEphPrivate = guardianKp.private,
+            guardianEphKeyPair = guardianKp,
             guardianPubSalt = ByteArray(32) { (it + 1).toByte() },
             guardianKdfIterations = 400_000,
         )

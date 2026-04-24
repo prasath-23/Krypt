@@ -41,7 +41,7 @@ class PairRoundTripTest {
         val (pairUrl, request) = pairBuilder.build(
             subjectId = subjectId,
             subjectDisplayName = "Alice's Pixel",
-            ephPrivate = subjectKp.private,
+            ephKeyPair = subjectKp,
         )
 
         // Guardian side: parse + generate own keypair + compute K_pair.
@@ -52,7 +52,7 @@ class PairRoundTripTest {
         val (pairedUrl, guardianKPair) = pairedBuilder.buildWithFreshAgreement(
             incoming = parsedRequest,
             guardianDisplayName = "Dad's Phone",
-            guardianEphPrivate = guardianKp.private,
+            guardianEphKeyPair = guardianKp,
             guardianPubSalt = ByteArray(32) { (it + 7).toByte() },
             guardianKdfIterations = 400_000,
         )
@@ -79,14 +79,14 @@ class PairRoundTripTest {
     fun pinRotationWithExistingKPairProducesFreshPubSalt() {
         val subjectKp = X25519KeyAgreement.generateEphemeralKeyPair()
         val subjectId = UUID.fromString("22345678-1234-4abc-8def-123456789abc")
-        val (pairUrl, _) = pairBuilder.build(subjectId, "Alice", subjectKp.private)
+        val (pairUrl, _) = pairBuilder.build(subjectId, "Alice", subjectKp)
         val parsed = (pairParser.parse(pairUrl, clockGuardian.nowSeconds()) as Outcome.Ok).value
 
         val guardianKp = X25519KeyAgreement.generateEphemeralKeyPair()
         val (_, kPair) = pairedBuilder.buildWithFreshAgreement(
             incoming = parsed,
             guardianDisplayName = "G",
-            guardianEphPrivate = guardianKp.private,
+            guardianEphKeyPair = guardianKp,
             guardianPubSalt = ByteArray(32) { 0x11 },
             guardianKdfIterations = 400_000,
         )
