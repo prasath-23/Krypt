@@ -63,12 +63,10 @@ fun GuardianRoute(data: Uri?) {
     val url = data.toString()
     when (authority) {
         DeepLinkScheme.AUTHORITY_REQUEST -> GuardianPinScreen(incomingUrl = url)
-        DeepLinkScheme.AUTHORITY_APPROVE -> PendingAmendmentUi(
-            title = "Unlock approval",
-            body = "Approval URLs are consumed silently by ApprovalTrampolineActivity " +
-                "(WP22). If you are seeing this screen, the trampoline's " +
-                "intent-filter has not taken priority for this URL.",
-        )
+        // krypt://approve is owned by ApprovalTrampolineActivity (WP22).
+        // If we see it here, Android's resolver fell through - treat as
+        // unknown so the user isn't silently stuck.
+        DeepLinkScheme.AUTHORITY_APPROVE -> UnknownLink()
         DeepLinkScheme.AUTHORITY_PAIR -> GuardianPairConsumeScreen(incomingUrl = url, onDone = {})
         DeepLinkScheme.AUTHORITY_PAIRED -> SubjectPairedConsumeScreen(incomingUrl = url, onDone = {})
         else -> UnknownLink()

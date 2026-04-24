@@ -106,6 +106,15 @@
     <string name="pin_setup_error_not_numeric">PIN must contain digits only.</string>
     <string name="pin_setup_error_save_failed">Could not save the PIN. Please try again.</string>
 
+    <!-- Approval trampoline (WP22 Amendment 1) -->
+    <string name="approval_toast_unlocked">Unlocked %1$s until %2$s</string>
+    <string name="approval_a11y_announcement">Unlocked by Guardian</string>
+    <string name="approval_error_unreadable">Could not read this approval.</string>
+    <string name="approval_error_unmatched">This approval doesn\'t match a pending unlock request.</string>
+    <string name="approval_error_expired">Your original request expired before the approval arrived.</string>
+    <string name="approval_error_tamper">This approval failed cryptographic verification.</string>
+    <string name="approval_error_not_configured">This device isn\'t set up yet. Open Krypt first.</string>
+
     <!-- Guardian request (WP14 + WP21 Amendment 1) -->
     <string name="guardian_request_title">Unlock request</string>
     <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>

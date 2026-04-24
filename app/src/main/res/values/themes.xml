@@ -13,4 +13,18 @@
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
         <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
     </style>
+
+    <!--
+        WP22 Amendment 1: Translucent no-UI theme for ApprovalTrampolineActivity.
+        The trampoline's job is silent consumption + a 500 ms green flash; it
+        must not flash a white window before the flash effect runs.
+    -->
+    <style name="Theme.Krypt.Trampoline" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
