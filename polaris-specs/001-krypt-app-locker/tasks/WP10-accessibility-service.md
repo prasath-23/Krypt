@@ -2,6 +2,9 @@
 work_package_id: WP10
 lane: "for_review"
 dependencies: [WP06, WP09]
+base_branch: 001-krypt-app-locker-WP09
+base_commit: f0119f03cadcf318ede53f2b23a5263f1725b5bf
+created_at: '2026-04-24T07:31:28.261322+00:00'
 subtasks: [T045, T046, T047, T048, T049, T050]
 test_status: required
 test_file: tests/e2e/WP10-wp10-accessibility-service.spec.js

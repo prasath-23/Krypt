@@ -18,4 +18,9 @@
     <string name="overlay_ask_guardian">Ask Guardian</string>
     <string name="overlay_hint">Your Guardian will receive a secure request link.</string>
     <string name="overlay_footer">Krypt protects this app</string>
+
+    <!-- Accessibility service (WP10) -->
+    <string name="accessibility_service_label">Krypt Locker</string>
+    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and cover locked apps with a Guardian-protected screen. Krypt does not read your app content and does not send any data off the device.</string>
+    <string name="accessibility_service_summary">Guards your locked apps by covering them when launched.</string>
 </resources>
