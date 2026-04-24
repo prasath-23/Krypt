@@ -1,7 +1,7 @@
 ---
 work_package_id: WP22
 lane: planned
-dependencies: []
+dependencies: [WP20]
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
 subtasks: [T114, T115, T116, T117, T118]
