@@ -2,6 +2,9 @@
 work_package_id: WP16
 lane: "for_review"
 dependencies: [WP10]
+base_branch: 001-krypt-app-locker-WP15
+base_commit: 86f5a23e003d76c1e66db864e95dfd47f956afc7
+created_at: '2026-04-24T07:48:45.152391+00:00'
 subtasks: [T076, T077, T078, T079, T080]
 test_status: required
 test_file: tests/e2e/WP16-wp16-watchdog-battery-hooks.spec.js
