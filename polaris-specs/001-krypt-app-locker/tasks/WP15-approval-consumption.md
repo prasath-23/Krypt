@@ -9,6 +9,7 @@ subtasks: [T071, T072, T073, T074, T075]
 test_status: required
 test_file: tests/e2e/WP15-wp15-approval-consumption.spec.js
 shell_pid: "8536"
+agent: "claude"
 ---
 
 # WP15 - Approval consumption + overlay dismiss integration
@@ -167,3 +168,7 @@ Close the loop. On the Subject device, receiving a `krypt://approve` URL decrypt
 ```
 polaris implement WP15 --base WP14
 ```
+
+## Activity Log
+
+- 2026-04-24T07:46:22Z – claude – shell_pid=8536 – lane=doing – Assigned agent via workflow command
