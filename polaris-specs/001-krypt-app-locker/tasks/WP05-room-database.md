@@ -1,13 +1,14 @@
 ---
 work_package_id: WP05
-lane: "done"
-dependencies: [WP01]
+lane: done
+dependencies: []
 subtasks: [T022, T023, T024, T025, T026]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP05-wp05-room-database.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: database
 ---
 
 # WP05 - Data layer: Room database + entities + DAOs

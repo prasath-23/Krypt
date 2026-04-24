@@ -1,16 +1,17 @@
 ---
 work_package_id: WP02
-lane: "done"
-dependencies: [WP01]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP01
 base_commit: 3be5b1c4b9a96067bf5878d3e8d5ddd04b73f01c
 created_at: '2026-04-24T06:15:54.963007+00:00'
 subtasks: [T006, T007, T008, T009, T010, T011]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP02-wp02-crypto-primitives.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: testing-specialist
 ---
 
 # WP02 - Crypto primitives (KDF + HKDF + AES-GCM + X25519)

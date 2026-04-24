@@ -1,16 +1,17 @@
 ---
 work_package_id: WP10
-lane: "done"
-dependencies: [WP06, WP09]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP09
 base_commit: f0119f03cadcf318ede53f2b23a5263f1725b5bf
 created_at: '2026-04-24T07:31:28.261322+00:00'
 subtasks: [T045, T046, T047, T048, T049, T050]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP10-wp10-accessibility-service.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: api-design
 ---
 
 # WP10 - AppLockerAccessibilityService (Interception Layer)

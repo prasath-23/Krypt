@@ -1,13 +1,14 @@
 ---
 work_package_id: WP21
-lane: "planned"
-dependencies: [WP19, WP20]
+lane: planned
+dependencies: []
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
 subtasks: [T110, T111, T112, T113]
 test_status: required
 test_file: tests/e2e/WP21-amendment1-guardian-pin-validation.spec.js
 amendment: 1
+domain: backend-logic
 ---
 
 # WP21 - Amendment 1: Guardian-side PIN validation

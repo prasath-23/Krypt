@@ -1,13 +1,14 @@
 ---
 work_package_id: WP17
-lane: "done"
-dependencies: [WP15]
+lane: done
+dependencies: []
 subtasks: [T081, T082, T083, T084]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP17-wp17-e2e-tests.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: testing-specialist
 ---
 
 # WP17 - E2E tests + manual device script + docs + CI workflow

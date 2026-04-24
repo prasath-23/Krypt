@@ -1,13 +1,14 @@
 ---
 work_package_id: WP18
-lane: "done"
-dependencies: [WP17]
+lane: done
+dependencies: []
 subtasks: [T085, T086, T087, T088]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP18-wp18-polish.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: frontend-craft
 ---
 
 # WP18 - Polish: ProGuard + strings + a11y labels + manifest-audit Gradle task

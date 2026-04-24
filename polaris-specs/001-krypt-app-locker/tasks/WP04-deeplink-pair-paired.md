@@ -1,16 +1,17 @@
 ---
 work_package_id: WP04
-lane: "done"
-dependencies: [WP01, WP02]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP02
 base_commit: 6c2aebf109594807e377a987e02dacd2dffb7ff9
 created_at: '2026-04-24T07:05:25.121078+00:00'
 subtasks: [T017, T018, T019, T020, T021]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP04-wp04-deeplink-pair-paired.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: testing-specialist
 ---
 
 # WP04 - Deep-link scheme: `krypt://pair` + `krypt://paired`

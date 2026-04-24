@@ -1,16 +1,17 @@
 ---
 work_package_id: WP14
-lane: "done"
-dependencies: [WP03, WP04, WP06, WP12]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP13
 base_commit: 9039a3f41d06f5788d2278eb85e46be69a9c7064
 created_at: '2026-04-24T07:43:12.396219+00:00'
 subtasks: [T065, T066, T067, T068, T069, T070]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP14-wp14-guardian-activity.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: frontend-craft
 ---
 
 # WP14 - UI: GuardianActivity (request-consume + PIN UI + approval-emit)

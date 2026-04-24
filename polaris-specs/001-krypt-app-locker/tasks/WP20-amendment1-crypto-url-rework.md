@@ -1,13 +1,14 @@
 ---
 work_package_id: WP20
-lane: "planned"
-dependencies: [WP19]
+lane: planned
+dependencies: []
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
 subtasks: [T105, T106, T107, T108, T109]
 test_status: required
 test_file: tests/e2e/WP20-amendment1-crypto-url-rework.spec.js
 amendment: 1
+domain: backend-logic
 ---
 
 # WP20 - Amendment 1: Request / Approve URL rework (PBKDF2-only, no X25519)

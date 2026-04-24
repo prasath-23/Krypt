@@ -1,13 +1,14 @@
 ---
 work_package_id: WP22
-lane: "planned"
-dependencies: [WP20]
+lane: planned
+dependencies: []
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
 subtasks: [T114, T115, T116, T117, T118]
 test_status: required
 test_file: tests/e2e/WP22-amendment1-silent-subject-consumption.spec.js
 amendment: 1
+domain: frontend-craft
 ---
 
 # WP22 - Amendment 1: Silent Subject-side approval consumption + UX + replay defense

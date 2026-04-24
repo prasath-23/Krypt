@@ -1,16 +1,17 @@
 ---
 work_package_id: WP03
-lane: "done"
-dependencies: [WP01, WP02]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP02
 base_commit: 6c2aebf109594807e377a987e02dacd2dffb7ff9
 created_at: '2026-04-24T06:41:55.828119+00:00'
 subtasks: [T012, T013, T014, T015, T016]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP03-wp03-deeplink-request-approve.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: testing-specialist
 ---
 
 # WP03 - Deep-link scheme: `krypt://request` + `krypt://approve`

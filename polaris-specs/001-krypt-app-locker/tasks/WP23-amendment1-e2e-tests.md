@@ -1,13 +1,14 @@
 ---
 work_package_id: WP23
-lane: "planned"
-dependencies: [WP19, WP20, WP21, WP22]
+lane: planned
+dependencies: []
 base_branch: main
 created_at: '2026-04-24T11:10:00+00:00'
 subtasks: [T119, T120, T121, T122]
 test_status: required
 test_file: tests/e2e/WP23-amendment1-e2e-tests.spec.js
 amendment: 1
+domain: testing-specialist
 ---
 
 # WP23 - Amendment 1: End-to-end tests for silent-unlock flow

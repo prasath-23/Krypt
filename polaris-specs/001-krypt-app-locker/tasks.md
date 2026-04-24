@@ -377,3 +377,128 @@ Critical path: `WP01 -> WP02 -> WP03/04 -> ... -> WP14 -> WP15 -> WP17 -> WP18`.
 ## Commit workflow
 
 Each WP is implemented via `polaris implement WPxx` in its own worktree. Dependencies in frontmatter are enforced (e.g. `polaris implement WP02 --base WP01` picks up WP01's changes). Merge order follows the dependency graph.
+
+---
+
+# Amendment 1 (2026-04-24) - Silent-Unlock, Guardian-Sets-PIN-On-Subject-Device
+
+**Scope:** Five new WPs `WP19..WP23` layered on the accepted WP01..WP18 foundation. Does not reopen prior WPs; instead, adds new code paths that supersede WP04/WP13/WP14/WP15 in the live flow. See `spec.md` "Amendment 1" and `plan.md` "Amendment 1" sections for narrative and engineering alignment.
+
+**Planned:** 5 Work Packages, 23 new subtasks (T100..T122).
+
+## Amendment 1 dependency graph
+
+```
+WP01..WP18 (shipped; see original graph above) - foundation for everything below
+
+WP19 (on-device PIN setup + MasterKeyStore)           base: main
+|-- WP20 (request/approve URL rework, PBKDF2-only)    base: WP19
+|   |-- WP21 (Guardian-side PIN validation)           base: WP20
+|   `-- WP22 (silent Subject-side consumption + UX)   base: WP20
+|       `-- WP23 (E2E tests for Amendment 1)          base: WP22 (also needs WP19, WP20, WP21)
+```
+
+Critical path: `WP19 -> WP20 -> (WP21 [P] WP22) -> WP23`.
+`WP21` and `WP22` touch different Activities and can run in parallel after `WP20`.
+
+---
+
+## WP19 - Amendment 1: On-device PIN setup flow
+
+**Purpose.** Replace the `krypt://pair` round-trip with a first-time setup screen where the Guardian physically types the PIN on the Subject's device. Subject device derives `MasterKey = PBKDF2(PIN, salt, >=300k)` and `pinProof = HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")`, persists both + salt in Android-Keystore-backed `EncryptedSharedPreferences`. Zeroes the typed `CharArray` after derivation. Satisfies amended US-1 and FR-017.
+
+**Subtasks:** T100-T104 (5 subtasks)
+
+- **T100** - `MasterKeyStore` interface + `EncryptedPrefsMasterKeyStore` impl (persists `{salt, masterKey, pinProof}`). Hilt binding.
+- **T101** - `PinSetupScreen` (Compose) + `PinSetupViewModel` with KDF-calibration + zeroing discipline.
+- **T102** - `HmacProvider` (thin `javax.crypto.Mac` wrapper) + RFC 4231 KAT.
+- **T103** - Wire `PinSetupScreen` into `OnboardingScreen`/`MainRoute`; remove legacy pairing nav from Home.
+- **T104** - Unit tests: `MasterKeyStoreTest`, `PinSetupViewModelTest` (asserts zeroing), `HmacProviderTest`.
+
+**Dependencies:** WP01, WP02, WP05, WP06, WP11, WP12 (all shipped).
+**Domain:** `backend-logic` (security-critical storage + crypto glue dominates).
+**Test status:** required.
+
+---
+
+## WP20 - Amendment 1: Request/Approve URL rework (PBKDF2-only)
+
+**Purpose.** Replace the X25519 `K_pair` root with `MasterKey` across the deep-link stack. Add `pinProof` to `krypt://request?...`. Derive `K_req = HKDF(MasterKey, "krypt/v1/approve", req || nonceForHkdf)`; prepend `nonceForHkdf` to the approval `data` blob. Tighten `OutstandingRequest.ttlSeconds` default to 300. Retain atomic single-use flip from WP06. Satisfies amended FR-007, FR-009, FR-019, FR-020.
+
+**Subtasks:** T105-T109 (5 subtasks)
+
+- **T105** - `UnlockRequest`/`Builder`/`Parser` add `pinProof: ByteArray` field; builder loads setup-time `salt+pinProof` from `MasterKeyStore`; contract doc updated.
+- **T106** - `ApprovalLinkBuilder`/`ApprovalConsumer` switch from `K_pair` to `MasterKey`; `data` blob layout becomes `nonceForHkdf(16) || aesNonce(12) || ct || tag`.
+- **T107** - `@Deprecated` annotation on `KPairStore`; no code deletion (keep X25519 primitives compiling).
+- **T108** - Default `ttlSeconds = 300L`; verify `OutstandingRequestDao` atomic check-and-flip method exists.
+- **T109** - `Amendment1RequestRoundTripTest`, `Amendment1ApprovalRoundTripTest`, `Amendment1ReplayDefenseTest` (parallel-consume single-use assertion).
+
+**Dependencies:** WP19.
+**Domain:** `backend-logic` (crypto + protocol).
+**Test status:** required.
+
+---
+
+## WP21 - Amendment 1: Guardian-side PIN validation
+
+**Purpose.** `GuardianActivity` rework: parse incoming `krypt://request?...`, prompt Guardian for PIN, derive `MasterKey` from PIN + salt-from-URL, recompute `pinProof`, compare in constant time (`MessageDigest.isEqual`) against URL's `pinProof`. On match: build approval URL via `ApprovalLinkBuilder` and open system share sheet. On mismatch: "Wrong PIN" with 3-attempt / 60-second lockout. No persistent state on Guardian device.
+
+**Subtasks:** T110-T113 (4 subtasks)
+
+- **T110** - `GuardianPinValidator` pure-logic class (KDF + HMAC + constant-time compare + CharArray zeroing).
+- **T111** - `GuardianActivity` / `GuardianViewModel` / `GuardianPinScreen` rework around new validator; remove X25519 reads.
+- **T112** - Rate-limit / WrongPin UX: 3 attempts, 60 s lockout with countdown. No error-content hints.
+- **T113** - `GuardianPinValidatorTest` (correct PIN, wrong PIN, tamper, zeroing), `GuardianViewModelTest` (rate-limit lockout).
+
+**Dependencies:** WP19, WP20.
+**Domain:** `backend-logic` (validation logic + Activity wiring).
+**Test status:** required.
+
+---
+
+## WP22 - Amendment 1: Silent Subject-side consumption + UX
+
+**Purpose.** `ApprovalTrampolineActivity` - translucent activity that silently invokes `ApprovalConsumer` on tap of `krypt://approve?...`. **No input fields, no PIN keypad, ever.** On success: 500 ms green flash + short haptic + toast + overlay dismiss via `SessionStore`. Satisfies FR-018 and FR-021.
+
+**Subtasks:** T114-T118 (5 subtasks)
+
+- **T114** - `ApprovalTrampolineActivity` with translucent theme + manifest intent-filter for `krypt://approve`.
+- **T115** - `UnlockSuccessEffect` (haptic + green flash + toast + TalkBack announcement).
+- **T116** - Verify `OverlayManager` dismisses synchronously on grant event; wire `SharedFlow` if missing.
+- **T117** - `OverlayManagerTest` addition: grant -> overlay removed within 200 ms.
+- **T118** - `ApprovalTrampolineActivityTest` (Robolectric; asserts NO `EditText` / PIN field present), `UnlockSuccessEffectTest`, `Amendment1FiveMinuteTtlTest`.
+
+**Dependencies:** WP20.
+**Domain:** `frontend-craft` (UX + Activity + overlay effects dominate).
+**Test status:** required.
+
+---
+
+## WP23 - Amendment 1: End-to-end tests
+
+**Purpose.** Instrumented AndroidX Test suite covering the full Amendment 1 flow on a single device (both sides in-process). Includes a hard FR-018 gate asserting no PIN keypad is reachable on the Subject side.
+
+**Subtasks:** T119-T122 (4 subtasks)
+
+- **T119** - `Amendment1HappyPathTest`: setup -> request -> Guardian approve -> silent consume; grant persisted; overlay dismissed.
+- **T120** - `Amendment1WrongPinTest`: 3 wrong attempts -> lockout, no `ACTION_SEND` fired.
+- **T121** - `Amendment1ReplayTest`: expired TTL, double-consume, parallel-consume.
+- **T122** - `Amendment1NoKeypadTest`: asserts no EditText / PIN field in `ApprovalTrampolineActivity` (FR-018 gate).
+
+**Dependencies:** WP19, WP20, WP21, WP22.
+**Domain:** `testing-specialist`.
+**Test status:** required.
+
+---
+
+## Amendment 1 scope summary
+
+| Phase | WPs | Delivers |
+|-------|-----|----------|
+| **Setup rework** | WP19 | On-device PIN setup + MasterKeyStore + HmacProvider |
+| **Protocol rework** | WP20 | PBKDF2-only URL shape; 5-minute TTL; single-use enforcement |
+| **Guardian flow** | WP21 | PIN validation with constant-time compare + lockout |
+| **Subject flow + UX** | WP22 | Silent consumption + green flash + haptic + toast |
+| **Verification** | WP23 | Instrumented e2e + no-keypad gate |
+
+**Implementation order:** WP19 -> WP20 -> (WP21 ‖ WP22) -> WP23. WP21 and WP22 have no file overlap after WP20 merges.

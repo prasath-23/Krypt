@@ -1,16 +1,17 @@
 ---
 work_package_id: WP15
-lane: "done"
-dependencies: [WP10, WP14]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP14
 base_commit: a44e20d3cf78b75a892e1c37f3f5a3ffbe4964d7
 created_at: '2026-04-24T07:46:20.164185+00:00'
 subtasks: [T071, T072, T073, T074, T075]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP15-wp15-approval-consumption.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: database
 ---
 
 # WP15 - Approval consumption + overlay dismiss integration

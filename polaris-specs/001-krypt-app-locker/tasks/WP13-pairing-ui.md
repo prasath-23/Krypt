@@ -1,16 +1,17 @@
 ---
 work_package_id: WP13
-lane: "done"
-dependencies: [WP04, WP06, WP12]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP12
 base_commit: 41e294c609baf852f3349925e071d1c12bb4e379
 created_at: '2026-04-24T07:39:36.792774+00:00'
 subtasks: [T060, T061, T062, T063, T064]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP13-wp13-pairing-ui.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: testing-specialist
 ---
 
 # WP13 - UI: Guardian pairing screens (pair emit + paired consume)

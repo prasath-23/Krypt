@@ -1,16 +1,17 @@
 ---
 work_package_id: WP08
-lane: "done"
-dependencies: [WP06, WP07]
+lane: done
+dependencies: []
 base_branch: 001-krypt-app-locker-WP06
 base_commit: a377c264b0d4577f3843618d6342347980dfde90
 created_at: '2026-04-24T07:26:17.665231+00:00'
 subtasks: [T036, T037, T038, T039]
+agent: claude
 test_status: required
 test_file: tests/e2e/WP08-wp08-package-receiver.spec.js
-agent: "claude"
-reviewed_by: "Prasath Kumar K"
-review_status: "approved"
+review_status: approved
+reviewed_by: Prasath Kumar K
+domain: database
 ---
 
 # WP08 - Package receiver (Default-Deny Engine)
