@@ -1,6 +1,6 @@
 ---
 work_package_id: WP02
-lane: "for_review"
+lane: "done"
 dependencies: [WP01]
 base_branch: 001-krypt-app-locker-WP01
 base_commit: 3be5b1c4b9a96067bf5878d3e8d5ddd04b73f01c
@@ -9,6 +9,8 @@ subtasks: [T006, T007, T008, T009, T010, T011]
 test_status: required
 test_file: tests/e2e/WP02-wp02-crypto-primitives.spec.js
 agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP02 - Crypto primitives (KDF + HKDF + AES-GCM + X25519)
@@ -197,3 +199,4 @@ polaris implement WP02 --base WP01
 =======
 - 2026-04-24T06:15:58Z – claude – shell_pid=35948 – lane=doing – Assigned agent via workflow command
 >>>>>>> 001-krypt-app-locker-WP02
+- 2026-04-24T06:40:54Z – claude – lane=done – Merged to main as 7a4bde9 (merge commit; feat commit 6c2aebf)
