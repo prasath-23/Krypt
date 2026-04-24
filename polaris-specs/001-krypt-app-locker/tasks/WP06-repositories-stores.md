@@ -1,10 +1,11 @@
 ---
 work_package_id: WP06
-lane: planned
+lane: "for_review"
 dependencies: [WP05]
 subtasks: [T027, T028, T029, T030, T031]
 test_status: required
 test_file: tests/e2e/WP06-wp06-repositories-stores.spec.js
+agent: "claude"
 ---
 
 # WP06 - Data layer: repositories, in-memory stores, DataStore settings
@@ -183,3 +184,9 @@ Wrap Room DAOs in repository interfaces (satisfying FR-016's "mock seam" require
 ```
 polaris implement WP06 --base WP05
 ```
+
+## Activity Log
+
+- 2026-04-24T07:21:48Z – claude – lane=doing – repos
+- 2026-04-24T07:21:56Z – claude – lane=testing – tested
+- 2026-04-24T07:22:06Z – claude – lane=for_review – WP06 done
