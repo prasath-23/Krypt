@@ -2,6 +2,9 @@
 work_package_id: WP08
 lane: "for_review"
 dependencies: [WP06, WP07]
+base_branch: 001-krypt-app-locker-WP06
+base_commit: a377c264b0d4577f3843618d6342347980dfde90
+created_at: '2026-04-24T07:26:17.665231+00:00'
 subtasks: [T036, T037, T038, T039]
 test_status: required
 test_file: tests/e2e/WP08-wp08-package-receiver.spec.js

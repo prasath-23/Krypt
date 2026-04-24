@@ -80,14 +80,22 @@
             </intent-filter>
         </activity>
 
+        <!-- WP08: Default-Deny package receiver (FR-003, FR-004). -->
+        <receiver
+            android:name=".receiver.PackageReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <!--
-            The following entries are declared by subsequent WPs:
+            Still to be declared by later WPs:
               - .service.AppLockerAccessibilityService      (WP10)
               - .service.KryptDeviceAdminReceiver           (WP11)
               - .service.KryptWatchdogService               (WP16)
-              - .receiver.PackageReceiver                   (WP08)
               - .ui.guardian.GuardianActivity               (WP14)
-            Leaving them out in WP01 keeps the manifest minimal and buildable.
         -->
 
     </application>
