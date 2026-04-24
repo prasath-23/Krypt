@@ -1,10 +1,16 @@
 ---
 work_package_id: WP07
-lane: planned
+lane: "done"
 dependencies: [WP01]
+base_branch: 001-krypt-app-locker-WP01
+base_commit: 3be5b1c4b9a96067bf5878d3e8d5ddd04b73f01c
+created_at: '2026-04-24T07:23:06.168099+00:00'
 subtasks: [T032, T033, T034, T035]
 test_status: required
 test_file: tests/e2e/WP07-wp07-notifications.spec.js
+agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP07 - Notifications: Security-Alerts channel + helper + runtime permission
@@ -117,3 +123,10 @@ Set up the user-visible "Security Alerts" `NotificationChannel` and a `Notificat
 ```
 polaris implement WP07 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:25:15Z – claude – lane=doing – n
+- 2026-04-24T07:25:20Z – claude – lane=testing – n
+- 2026-04-24T07:25:27Z – claude – lane=for_review – ready
+- 2026-04-24T07:25:38Z – claude – lane=done – Merged
