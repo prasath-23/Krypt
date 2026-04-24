@@ -1,10 +1,11 @@
 ---
 work_package_id: WP04
-lane: planned
+lane: "for_review"
 dependencies: [WP01, WP02]
 subtasks: [T017, T018, T019, T020, T021]
 test_status: required
 test_file: tests/e2e/WP04-wp04-deeplink-pair-paired.spec.js
+agent: "claude"
 ---
 
 # WP04 - Deep-link scheme: `krypt://pair` + `krypt://paired`
@@ -176,3 +177,9 @@ Contracts `contracts/pair.md` and `contracts/paired.md` are authoritative.
 ```
 polaris implement WP04 --base WP02
 ```
+
+## Activity Log
+
+- 2026-04-24T07:10:21Z – claude – lane=doing – pairing impl
+- 2026-04-24T07:10:29Z – claude – lane=testing – tests authored
+- 2026-04-24T07:10:36Z – claude – lane=for_review – WP04 ready
