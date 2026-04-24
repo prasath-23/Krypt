@@ -1,10 +1,11 @@
 ---
 work_package_id: WP15
-lane: planned
+lane: "for_review"
 dependencies: [WP10, WP14]
 subtasks: [T071, T072, T073, T074, T075]
 test_status: required
 test_file: tests/e2e/WP15-wp15-approval-consumption.spec.js
+agent: "claude"
 ---
 
 # WP15 - Approval consumption + overlay dismiss integration
@@ -163,3 +164,9 @@ Close the loop. On the Subject device, receiving a `krypt://approve` URL decrypt
 ```
 polaris implement WP15 --base WP14
 ```
+
+## Activity Log
+
+- 2026-04-24T07:47:39Z – claude – lane=doing – d
+- 2026-04-24T07:47:47Z – claude – lane=testing – t
+- 2026-04-24T07:47:53Z – claude – lane=for_review – r

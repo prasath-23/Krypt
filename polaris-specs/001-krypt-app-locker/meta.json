@@ -77,6 +77,22 @@
       "agent": "claude",
       "source": "implement",
       "drift_type": "expansion"
+    },
+    {
+      "amendment_id": "amd-005",
+      "text": "Files changed outside declared WP scope: app/src/main/AndroidManifest.xml, app/src/main/res/values/strings.xml",
+      "timestamp": "2026-04-24T07:47:58.186990+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "claude",
+      "source": "implement",
+      "drift_type": "expansion"
     }
   ]
 }
