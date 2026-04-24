@@ -1,10 +1,11 @@
 ---
 work_package_id: WP11
-lane: planned
+lane: "for_review"
 dependencies: [WP01]
 subtasks: [T051, T052, T053, T054]
 test_status: required
 test_file: tests/e2e/WP11-wp11-device-admin.spec.js
+agent: "claude"
 ---
 
 # WP11 - Device Admin (uninstall friction)
@@ -173,3 +174,9 @@ Document as a WP17 feeder file for the master manual script.
 ```
 polaris implement WP11 --base WP01
 ```
+
+## Activity Log
+
+- 2026-04-24T07:35:18Z – claude – lane=doing – d
+- 2026-04-24T07:35:24Z – claude – lane=testing – t
+- 2026-04-24T07:35:31Z – claude – lane=for_review – r
