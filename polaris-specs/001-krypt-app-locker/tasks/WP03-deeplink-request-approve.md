@@ -9,6 +9,7 @@ subtasks: [T012, T013, T014, T015, T016]
 test_status: required
 test_file: tests/e2e/WP03-wp03-deeplink-request-approve.spec.js
 shell_pid: "11380"
+agent: "claude"
 ---
 
 # WP03 - Deep-link scheme: `krypt://request` + `krypt://approve`
@@ -190,3 +191,7 @@ Implement the two hot-path deep-link URIs that carry unlock requests (Subject ->
 ```
 polaris implement WP03 --base WP02
 ```
+
+## Activity Log
+
+- 2026-04-24T06:42:00Z – claude – shell_pid=11380 – lane=doing – Assigned agent via workflow command
