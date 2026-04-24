@@ -1,10 +1,14 @@
 ---
 work_package_id: WP12
-lane: planned
+lane: "doing"
 dependencies: [WP01]
+base_branch: 001-krypt-app-locker-WP11
+base_commit: 2f557214fec377607af950fe9e724178204e8a02
+created_at: '2026-04-24T07:36:17.626742+00:00'
 subtasks: [T055, T056, T057, T058, T059]
 test_status: required
 test_file: tests/e2e/WP12-wp12-ui-scaffold-onboarding.spec.js
+shell_pid: "8592"
 ---
 
 # WP12 - UI scaffold: MainActivity + Compose theme + onboarding wizard
