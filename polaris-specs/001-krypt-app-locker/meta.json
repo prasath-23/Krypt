@@ -141,6 +141,54 @@
       "agent": "claude",
       "source": "implement",
       "drift_type": "expansion"
+    },
+    {
+      "amendment_id": "amd-009",
+      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
+      "timestamp": "2026-04-24T08:06:09.519434+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "claude",
+      "source": "implement",
+      "drift_type": "expansion"
+    },
+    {
+      "amendment_id": "amd-010",
+      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
+      "timestamp": "2026-04-24T08:06:47.004595+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "claude",
+      "source": "implement",
+      "drift_type": "expansion"
+    },
+    {
+      "amendment_id": "amd-011",
+      "text": "Files changed outside declared WP scope: .claudeignore, .polaris/scripts/telemetry_hook.py",
+      "timestamp": "2026-04-24T08:07:47.949916+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "claude",
+      "source": "implement",
+      "drift_type": "expansion"
     }
   ]
 }

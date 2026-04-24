@@ -1,10 +1,13 @@
 ---
 work_package_id: WP17
-lane: planned
+lane: "done"
 dependencies: [WP15]
 subtasks: [T081, T082, T083, T084]
 test_status: required
 test_file: tests/e2e/WP17-wp17-e2e-tests.spec.js
+agent: "claude"
+reviewed_by: "Prasath Kumar K"
+review_status: "approved"
 ---
 
 # WP17 - E2E tests + manual device script + docs + CI workflow
@@ -202,3 +205,11 @@ Note: `verifyManifest` is the task introduced in WP18 T088 - include as a forwar
 ```
 polaris implement WP17 --base WP15
 ```
+
+## Activity Log
+
+- 2026-04-24T08:03:59Z -- claude -- lane=doing -- d
+- 2026-04-24T08:04:06Z -- claude -- lane=testing -- t
+- 2026-04-24T08:06:05Z -- claude -- lane=for_review -- Branch behind; feat commit landed on main
+- 2026-04-24T08:06:41Z -- claude -- lane=for_review -- direct to main
+- 2026-04-24T08:07:43Z -- claude -- lane=done -- on main

@@ -135,3 +135,47 @@ dependencies {
 kapt {
     correctErrorTypes = true
 }
+
+// -------------------------------------------------------------------------
+// verifyManifest — WP18 SC-008 gate. Fails the build if the debug APK's
+// manifest declares android.permission.INTERNET. Wired into ./gradlew check.
+// -------------------------------------------------------------------------
+tasks.register("verifyManifest") {
+    group = "verification"
+    description = "Fails the build if INTERNET permission appears in the assembled debug APK."
+    dependsOn("assembleDebug")
+    doLast {
+        val apk = file("build/outputs/apk/debug/app-debug.apk")
+        require(apk.exists()) { "APK not found at $apk; did assembleDebug succeed?" }
+        val buildToolsDir = android.sdkDirectory.resolve("build-tools")
+        val aapt = buildToolsDir.listFiles()?.sortedBy { it.name }?.lastOrNull()
+            ?.resolve(if (org.gradle.internal.os.OperatingSystem.current().isWindows) "aapt.exe" else "aapt")
+            ?: error("aapt not found under $buildToolsDir; install Android SDK build-tools")
+        val processBuilder = ProcessBuilder(aapt.absolutePath, "dump", "permissions", apk.absolutePath)
+        processBuilder.redirectErrorStream(true)
+        val output = processBuilder.start().inputStream.bufferedReader().readText()
+        val forbidden = listOf(
+            "android.permission.INTERNET",
+            "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.ACCESS_WIFI_STATE",
+        )
+        val violations = forbidden.filter { output.contains(it) }
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                "Manifest declares forbidden permission(s): ${violations.joinToString()} (FR-005). " +
+                    "See polaris-specs/001-krypt-app-locker/spec.md section 5.\n\nAudit output:\n$output"
+            )
+        }
+        logger.lifecycle("OK: APK does not declare INTERNET or other network-adjacent permissions.")
+    }
+}
+
+tasks.named("check") {
+    dependsOn("verifyManifest")
+}
+
+// Lint: enforce content-description on Icon/Image (WP18 T087).
+android.lint {
+    error += "MissingContentDescription"
+    warningsAsErrors = false
+}

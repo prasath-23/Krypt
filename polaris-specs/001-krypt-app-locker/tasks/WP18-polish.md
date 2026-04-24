@@ -1,10 +1,11 @@
 ---
 work_package_id: WP18
-lane: planned
+lane: "doing"
 dependencies: [WP17]
 subtasks: [T085, T086, T087, T088]
 test_status: required
 test_file: tests/e2e/WP18-wp18-polish.spec.js
+agent: "claude"
 ---
 
 # WP18 - Polish: ProGuard + strings + a11y labels + manifest-audit Gradle task
@@ -186,3 +187,7 @@ Release hardening. Externalise all hardcoded strings to `res/values/strings.xml`
 ```
 polaris implement WP18 --base WP17
 ```
+
+## Activity Log
+
+- 2026-04-24T08:08:21Z -- claude -- lane=doing -- d
