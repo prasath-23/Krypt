@@ -1,10 +1,11 @@
 ---
 work_package_id: WP03
-lane: planned
+lane: "for_review"
 dependencies: [WP01, WP02]
 subtasks: [T012, T013, T014, T015, T016]
 test_status: required
 test_file: tests/e2e/WP03-wp03-deeplink-request-approve.spec.js
+agent: "claude"
 ---
 
 # WP03 - Deep-link scheme: `krypt://request` + `krypt://approve`
@@ -186,3 +187,9 @@ Implement the two hot-path deep-link URIs that carry unlock requests (Subject ->
 ```
 polaris implement WP03 --base WP02
 ```
+
+## Activity Log
+
+- 2026-04-24T06:55:44Z – claude – lane=doing – WP03 crypto deep-links impl started
+- 2026-04-24T06:56:08Z – claude – lane=testing – 43 tests authored across 4 files
+- 2026-04-24T06:56:17Z – claude – lane=for_review – WP03 ready. Commit on 001-krypt-app-locker-WP03 (based on WP02). 22 source files: Outcome, Clock, CoreModule, KPairStore (shared w/ WP04), Outstanding+UnlockGrant domain + repo interfaces, DeepLinkScheme + Base64Url + UrlCodec, UnlockRequest/Builder/Parser + RequestParseError, ApprovalPayload/Codec/LinkBuilder/LinkParser + ApprovalError/Outcome + ApprovalConsumer. 43 JVM unit tests: request round-trip (14), CBOR codec (10 incl 100-random property test), approval round-trip (9 incl tamper/replay/NotPaired/wrong-KPair/expiry), consumer error branches (9). All JVM-portable (String URLs, not android.net.Uri). Reviewer runs ./gradlew :app:testDebugUnitTest.
