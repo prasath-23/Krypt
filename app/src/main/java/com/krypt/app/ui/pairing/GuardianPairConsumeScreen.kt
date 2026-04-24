@@ -73,7 +73,7 @@ class GuardianPairConsumeViewModel @Inject constructor(
         val (url, kPair) = builder.buildWithFreshAgreement(
             incoming = incoming,
             guardianDisplayName = guardianDisplayName,
-            guardianEphPrivate = guardianKp.private,
+            guardianEphKeyPair = guardianKp,
             guardianPubSalt = pubSalt,
             guardianKdfIterations = iterations,
         )

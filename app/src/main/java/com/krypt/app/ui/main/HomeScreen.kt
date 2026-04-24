@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -17,8 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import com.krypt.app.R
 import com.krypt.app.data.GuardianPairing
 import com.krypt.app.data.GuardianRepository
@@ -37,15 +39,18 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
     val lockedCount: StateFlow<Int> = lockedAppsRepo.observeLockedApps()
         .map { it.size }
-        .stateIn(androidx.lifecycle.viewModelScope.also { @Suppress("UNUSED") }, SharingStarted.Eagerly, 0)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     val pairing: StateFlow<GuardianPairing?> = guardianRepo.observePairing()
-        .stateIn(androidx.lifecycle.viewModelScope, SharingStarted.Eagerly, null)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    viewModel: HomeViewModel = hiltViewModel(),
+    onPairClick: () -> Unit = {},
+) {
     val lockedCount by viewModel.lockedCount.collectAsStateWithLifecycle()
     val pairing by viewModel.pairing.collectAsStateWithLifecycle()
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) }) { inner ->
@@ -72,6 +77,10 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                     )
                 }
             }
+            Button(
+                onClick = onPairClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.home_setup_pairing)) }
         }
     }
 }

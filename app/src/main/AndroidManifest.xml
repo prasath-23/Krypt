@@ -148,13 +148,19 @@
             </intent-filter>
         </receiver>
 
-        <!--
-            Still to be declared by later WPs:
-              - .service.AppLockerAccessibilityService      (WP10)
-              - .service.KryptDeviceAdminReceiver           (WP11)
-              - .service.KryptWatchdogService               (WP16)
-              - .ui.guardian.GuardianActivity               (WP14)
-        -->
+        <!-- Disable WorkManager's auto-init so KryptApplication.workManagerConfiguration
+             (HiltWorkerFactory) is used instead of the default factory. Without this,
+             InitializationProvider fires before Application.onCreate() and AccessibilityHealthWorker
+             gets NoSuchMethodException because Hilt hasn't wired its factory yet. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="@string/androidx_startup"
+                tools:node="remove" />
+        </provider>
 
     </application>
 

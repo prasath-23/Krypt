@@ -21,7 +21,7 @@ import com.krypt.app.ui.theme.KryptTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * Deep-link host for every krypt://* URL. Self-whitelisted by
+ * Deep-link host for every krypt://{authority} URL. Self-whitelisted by
  * [com.krypt.app.service.AppLockerAccessibilityService] so Guardians can
  * complete approvals on devices where Krypt also protects apps (FR-011).
  */

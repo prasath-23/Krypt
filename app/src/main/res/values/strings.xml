@@ -62,6 +62,7 @@
     <string name="home_not_paired">Not paired yet</string>
     <string name="home_locked_title">Locked apps</string>
     <string name="home_locked_count">%1$d apps protected</string>
+    <string name="home_setup_pairing">Set up pairing</string>
 
     <!-- Pairing (WP13) -->
     <string name="role_chooser_title">Choose this device\'s role</string>

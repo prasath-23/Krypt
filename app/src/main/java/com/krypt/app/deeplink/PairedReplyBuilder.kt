@@ -5,7 +5,7 @@ import com.krypt.app.crypto.HmacSha256
 import com.krypt.app.crypto.KdfProvider
 import com.krypt.app.crypto.X25519KeyAgreement
 import com.krypt.app.deeplink.DeepLinkScheme.Params
-import java.security.PrivateKey
+import java.security.KeyPair
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,15 +34,15 @@ class PairedReplyBuilder @Inject constructor(
     fun buildWithFreshAgreement(
         incoming: PairRequest,
         guardianDisplayName: String,
-        guardianEphPrivate: PrivateKey,
+        guardianEphKeyPair: KeyPair,
         guardianPubSalt: ByteArray,
         guardianKdfIterations: Int,
         ttlSeconds: Long = PairedReply.DEFAULT_TTL_SECONDS,
     ): Pair<String, ByteArray> {
         requireValidParams(guardianDisplayName, guardianPubSalt, guardianKdfIterations, ttlSeconds)
 
-        val guardianEphPub = X25519KeyAgreement.derivePublicKey(guardianEphPrivate)
-        val kPair = X25519KeyAgreement.agree(guardianEphPrivate, incoming.subjectEphPub)
+        val guardianEphPub = X25519KeyAgreement.derivePublicKey(guardianEphKeyPair)
+        val kPair = X25519KeyAgreement.agree(guardianEphKeyPair.private, incoming.subjectEphPub)
 
         val url = buildUrl(
             subjectId = incoming.subjectId,

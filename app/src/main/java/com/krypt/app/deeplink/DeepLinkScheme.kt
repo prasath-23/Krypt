@@ -4,7 +4,7 @@ package com.krypt.app.deeplink
  * Centralised constants for Krypt's deep-link wire format.
  *
  * See polaris-specs/001-krypt-app-locker/control-map.md for a high-level
- * summary and contracts/*.md for the per-URL grammar.
+ * summary and the per-URL grammar in contracts/.
  *
  * Every URL in the protocol has shape:
  *   krypt://<authority>?v=1&<params>

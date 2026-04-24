@@ -3,7 +3,7 @@ package com.krypt.app.deeplink
 import com.krypt.app.common.Clock
 import com.krypt.app.crypto.X25519KeyAgreement
 import com.krypt.app.deeplink.DeepLinkScheme.Params
-import java.security.PrivateKey
+import java.security.KeyPair
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,7 +24,7 @@ class PairRequestBuilder @Inject constructor(
     fun build(
         subjectId: UUID,
         subjectDisplayName: String,
-        ephPrivate: PrivateKey,
+        ephKeyPair: KeyPair,
         ttlSeconds: Long = PairRequest.DEFAULT_TTL_SECONDS,
     ): Pair<String, PairRequest> {
         require(subjectDisplayName.length in 1..MAX_NAME_LEN) {
@@ -34,7 +34,7 @@ class PairRequestBuilder @Inject constructor(
             "ttlSeconds ($ttlSeconds) out of 1..$MAX_TTL_SECONDS"
         }
 
-        val ephPub = X25519KeyAgreement.derivePublicKey(ephPrivate)
+        val ephPub = X25519KeyAgreement.derivePublicKey(ephKeyPair)
         val issuedAt = clock.nowSeconds()
 
         val request = PairRequest(

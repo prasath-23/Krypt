@@ -132,7 +132,7 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     private fun isSystemUiPackage(pkg: String): Boolean =
-        pkg in SYSTEM_UI_PKGS || pkg.startsWith("com.android.")
+        pkg in SYSTEM_UI_PKGS
 
     companion object {
         const val GUARDIAN_ACTIVITY_CLASS: String = "com.krypt.app.ui.guardian.GuardianActivity"

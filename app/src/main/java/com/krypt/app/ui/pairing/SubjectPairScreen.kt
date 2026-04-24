@@ -44,7 +44,7 @@ class SubjectPairViewModel @Inject constructor(
         val (url, _) = builder.build(
             subjectId = subjectId,
             subjectDisplayName = subjectDisplayName,
-            ephPrivate = keyPair.private,
+            ephKeyPair = keyPair,
         )
         return url
     }
