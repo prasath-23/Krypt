@@ -55,12 +55,12 @@ WP01 and WP02 are independent and can run in parallel. WP03 and WP04 can also ru
 **Goal:** Replace the existing post-onboarding placeholder Home with a searchable installed-apps list that supports the one-way Lock toggle.
 
 **Subtasks:**
-- [ ] T019 --- Implement `HomeViewModel`: combines `InstalledAppsRepository.allInstalled()` with `LockedAppsRepository.allLockedFlow()`; exposes `StateFlow<List<InstalledAppRow>>` filtered by an editable search query.
-- [ ] T020 --- Build `InstalledAppRow` composable: icon (lazy-loaded), display name, Material 3 `Switch`. The switch's `onCheckedChange` is gated by `isLocked` --- see T022.
-- [ ] T021 --- Build `HomeScreen` composable: search `TextField` at top + `LazyColumn` of `InstalledAppRow` items.
-- [ ] T022 --- Implement the one-way toggle logic. If `isLocked == false` and the user taps to ON → call `LockedAppsRepository.lock(packageName)`. If `isLocked == true` and the user taps → DO NOT change state, instead invoke a `RequestUnlockShareIntent` use case that builds the `krypt://request?...` URL and starts an `ACTION_SEND` chooser. The view model exposes the share intent as a one-shot `Channel<Intent>` consumed by the screen via `LaunchedEffect`.
-- [ ] T023 --- `HomeViewModelTest`: search filtering, `lock(pkg)` writes through repository, attempted unlock emits a `RequestUnlockShareIntent` carrying a URL parseable by `UnlockRequestParser`.
-- [ ] T024 --- Compose UI test for `HomeScreen` (typing in search filters list, toggle ON locks instantly, toggle OFF attempt does NOT change state and emits expected intent via test double).
+- [x] T019 --- Implement `HomeViewModel`: combines `InstalledAppsRepository.allInstalled()` with `LockedAppsRepository.allLockedFlow()`; exposes `StateFlow<List<InstalledAppRow>>` filtered by an editable search query.
+- [x] T020 --- Build `InstalledAppRow` composable: icon (lazy-loaded), display name, Material 3 `Switch`. The switch's `onCheckedChange` is gated by `isLocked` --- see T022.
+- [x] T021 --- Build `HomeScreen` composable: search `TextField` at top + `LazyColumn` of `InstalledAppRow` items.
+- [x] T022 --- Implement the one-way toggle logic. If `isLocked == false` and the user taps to ON → call `LockedAppsRepository.lock(packageName)`. If `isLocked == true` and the user taps → DO NOT change state, instead invoke a `RequestUnlockShareIntent` use case that builds the `krypt://request?...` URL and starts an `ACTION_SEND` chooser. The view model exposes the share intent as a one-shot `Channel<Intent>` consumed by the screen via `LaunchedEffect`.
+- [x] T023 --- `HomeViewModelTest`: search filtering, `lock(pkg)` writes through repository, attempted unlock emits a `RequestUnlockShareIntent` carrying a URL parseable by `UnlockRequestParser`.
+- [x] T024 --- Compose UI test for `HomeScreen` (typing in search filters list, toggle ON locks instantly, toggle OFF attempt does NOT change state and emits expected intent via test double).
 
 ## WP05 --- Navigation rewire + integration e2e
 
