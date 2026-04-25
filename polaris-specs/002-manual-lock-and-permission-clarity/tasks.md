@@ -67,11 +67,11 @@ WP01 and WP02 are independent and can run in parallel. WP03 and WP04 can also ru
 **Goal:** Wire the new Home Screen into the post-onboarding navigation, and add device-resident e2e tests that exercise the full flow end-to-end.
 
 **Subtasks:**
-- [ ] T025 --- Modify `MainActivity` (`AppScreen` enum / `MainRoute` navigation) so that, on `MasterKeyStore.isConfigured() == true` AND `onboardingComplete == true`, the route resolves to `HomeScreen` (not the legacy placeholder).
-- [ ] T026 --- Wire the share-intent dispatcher in `HomeScreen` (collect `viewModel.shareIntents` and call `startActivity(Intent.createChooser(...))`).
-- [ ] T027 --- androidTest `OnboardingMandatoryGateTest`: launches onboarding with 0 permissions; programmatically grants Accessibility/Overlay/Battery; asserts indicators flip to ✓ within 500 ms of `onResume`; asserts Finish becomes enabled at 3/3 and disabled at 2/3.
-- [ ] T028 --- androidTest `ManualLockToggleE2ETest`: from Home, find an unlocked target package, tap toggle; assert `LockedAppsRepository.isLocked(pkg)` is true; relaunch the package and assert the existing Locker Screen overlay covers it within 200 ms (re-using the AndroidX Test orchestration from feature 001 WP23).
-- [ ] T029 --- androidTest `AttemptedUnlockShareSheetTest`: from Home, find a locked target package, tap toggle; intercept the `ACTION_SEND` intent via `Intents.intending(...)`; assert the URL parses through `UnlockRequestParser` and resolves to `Outcome.Ok` with `targetPackage == intendedPackage`.
+- [x] T025 --- Modify `MainActivity` (`AppScreen` enum / `MainRoute` navigation) so that, on `MasterKeyStore.isConfigured() == true` AND `onboardingComplete == true`, the route resolves to `HomeScreen` (not the legacy placeholder).
+- [x] T026 --- Wire the share-intent dispatcher in `HomeScreen` (collect `viewModel.shareIntents` and call `startActivity(Intent.createChooser(...))`).
+- [x] T027 --- androidTest `OnboardingMandatoryGateTest`: launches onboarding with 0 permissions; programmatically grants Accessibility/Overlay/Battery; asserts indicators flip to ✓ within 500 ms of `onResume`; asserts Finish becomes enabled at 3/3 and disabled at 2/3.
+- [x] T028 --- androidTest `ManualLockToggleE2ETest`: from Home, find an unlocked target package, tap toggle; assert `LockedAppsRepository.isLocked(pkg)` is true; relaunch the package and assert the existing Locker Screen overlay covers it within 200 ms (re-using the AndroidX Test orchestration from feature 001 WP23).
+- [x] T029 --- androidTest `AttemptedUnlockShareSheetTest`: from Home, find a locked target package, tap toggle; intercept the `ACTION_SEND` intent via `Intents.intending(...)`; assert the URL parses through `UnlockRequestParser` and resolves to `Outcome.Ok` with `targetPackage == intendedPackage`.
 
 ## Parallelization opportunities
 
