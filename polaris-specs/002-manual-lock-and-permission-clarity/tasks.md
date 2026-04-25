@@ -42,13 +42,13 @@ WP01 and WP02 are independent and can run in parallel. WP03 and WP04 can also ru
 **Goal:** Restructure onboarding to honour Mandatory vs Optional, render the live ✓/✗ indicators with smooth transitions, and gate "Finish" on 3/3 Mandatory.
 
 **Subtasks:**
-- [ ] T012 --- Define `OnboardingStep` sealed type carrying `PermissionKey` and `PermissionClassification`. Five canonical steps (Accessibility, Overlay, Battery, DeviceAdmin, Notifications).
-- [ ] T013 --- Build `PermissionIndicator` Compose component: animated ✓/✗ glyph swap (200--500 ms cross-fade or scale), correct semantic colours (`success.green`, `error.red`), accessible `contentDescription`.
-- [ ] T014 --- Implement `OnboardingViewModel`: drives current step, exposes Mandatory progress (count granted out of 3), gates `canFinish` on 3/3 Mandatory, exposes Skip action that advances on Optional steps only.
-- [ ] T015 --- Rewire `OnboardingScreen`: top progress bar showing only Mandatory progress, "Skip" button rendered only on Optional steps, indicator component rendered on every step card, "Finish" CTA disabled until `canFinish`.
-- [ ] T016 --- Compose UI test for `PermissionIndicator` (granted vs not, content-description per state).
-- [ ] T017 --- `OnboardingViewModelTest` (state machine: skip on Optional, mandatory progress, can-finish gate, transitions when probe state changes).
-- [ ] T018 --- Compose UI test for `OnboardingScreen` (skip optional step navigates forward, finish disabled at <3/3, finish enabled at 3/3).
+- [x] T012 --- Define `OnboardingStep` sealed type carrying `PermissionKey` and `PermissionClassification`. Five canonical steps (Accessibility, Overlay, Battery, DeviceAdmin, Notifications).
+- [x] T013 --- Build `PermissionIndicator` Compose component: animated ✓/✗ glyph swap (200--500 ms cross-fade or scale), correct semantic colours (`success.green`, `error.red`), accessible `contentDescription`.
+- [x] T014 --- Implement `OnboardingViewModel`: drives current step, exposes Mandatory progress (count granted out of 3), gates `canFinish` on 3/3 Mandatory, exposes Skip action that advances on Optional steps only.
+- [x] T015 --- Rewire `OnboardingScreen`: top progress bar showing only Mandatory progress, "Skip" button rendered only on Optional steps, indicator component rendered on every step card, "Finish" CTA disabled until `canFinish`.
+- [x] T016 --- Compose UI test for `PermissionIndicator` (granted vs not, content-description per state).
+- [x] T017 --- `OnboardingViewModelTest` (state machine: skip on Optional, mandatory progress, can-finish gate, transitions when probe state changes).
+- [x] T018 --- Compose UI test for `OnboardingScreen` (skip optional step navigates forward, finish disabled at <3/3, finish enabled at 3/3).
 
 ## WP04 --- Home Screen + manual lock toggle
 
