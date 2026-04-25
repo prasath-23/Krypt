@@ -3,10 +3,14 @@ work_package_id: WP01
 lane: "for_review"
 dependencies: []
 base_branch: main
+base_commit: aacd7e3da562470d36783d660e8b96530222f77c
+created_at: '2026-04-25T06:00:03.992911+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006]
 test_status: required
 test_file: tests/002-manual-lock-and-permission-clarity/WP01-permission-status-infrastructure.spec.js
 domain: backend-logic
+shell_pid: "28136"
+agent: "claude"
 ---
 
 # WP01 - Permission status infrastructure
@@ -125,4 +129,8 @@ This WP intentionally has zero UI. It is the substrate WP03 will consume.
 
 ## Activity Log
 
+<<<<<<< HEAD
 - 2026-04-25T06:05:16Z – unknown – lane=for_review – WP01: PermissionKey/Probe/StateObserver/PermissionModule + 11 unit tests. Commit fce30dd.
+=======
+- 2026-04-25T06:00:07Z – claude – shell_pid=28136 – lane=doing – Assigned agent via workflow command
+>>>>>>> 002-manual-lock-and-permission-clarity-WP01
