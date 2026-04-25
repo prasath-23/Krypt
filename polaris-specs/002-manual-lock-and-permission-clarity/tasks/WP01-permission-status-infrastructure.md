@@ -10,6 +10,7 @@ test_status: required
 test_file: tests/002-manual-lock-and-permission-clarity/WP01-permission-status-infrastructure.spec.js
 domain: backend-logic
 shell_pid: "28136"
+agent: "claude"
 ---
 
 # WP01 - Permission status infrastructure
@@ -125,3 +126,7 @@ This WP intentionally has zero UI. It is the substrate WP03 will consume.
 - Run `./gradlew :app:testDebugUnitTest --tests "com.krypt.app.permission.*"`.
 - Inspect that no UI files were modified --- this WP must touch only `app/src/main/java/com/krypt/app/permission/`, `di/PermissionModule.kt`, and the matching test directory.
 - Implement command: `polaris implement WP01`.
+
+## Activity Log
+
+- 2026-04-25T06:00:07Z – claude – shell_pid=28136 – lane=doing – Assigned agent via workflow command
