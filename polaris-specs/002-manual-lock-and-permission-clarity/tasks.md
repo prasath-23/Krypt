@@ -19,12 +19,12 @@ WP01 and WP02 are independent and can run in parallel. WP03 and WP04 can also ru
 **Goal:** Provide a clean, lifecycle-aware way to read and observe the five permissions Krypt cares about. This is the data layer for the onboarding indicators.
 
 **Subtasks:**
-- [ ] T001 --- Create `PermissionKey` enum (ACCESSIBILITY, OVERLAY, BATTERY, DEVICE_ADMIN, NOTIFICATIONS) and `PermissionClassification` enum (MANDATORY, OPTIONAL).
-- [ ] T002 --- Define `PermissionStatusProbe` interface and implement `AndroidPermissionStatusProbe` that queries OS state for each `PermissionKey`.
-- [ ] T003 --- Implement `PermissionStateObserver` that exposes `StateFlow<Map<PermissionKey, Boolean>>`, re-runs all probes on `onResume`, and subscribes to `AccessibilityManager.AccessibilityStateChangeListener` for sub-second push updates where supported.
-- [ ] T004 --- Add Hilt bindings for `PermissionStatusProbe` and `PermissionStateObserver` (new `UiModule.kt` or extension of `CoreModule`).
-- [ ] T005 --- Robolectric unit tests for `AndroidPermissionStatusProbe` (one assertion per `PermissionKey`).
-- [ ] T006 --- Unit tests for `PermissionStateObserver` (verify lifecycle re-poll + listener-driven updates with a fake probe).
+- [x] T001 --- Create `PermissionKey` enum (ACCESSIBILITY, OVERLAY, BATTERY, DEVICE_ADMIN, NOTIFICATIONS) and `PermissionClassification` enum (MANDATORY, OPTIONAL).
+- [x] T002 --- Define `PermissionStatusProbe` interface and implement `AndroidPermissionStatusProbe` that queries OS state for each `PermissionKey`.
+- [x] T003 --- Implement `PermissionStateObserver` that exposes `StateFlow<Map<PermissionKey, Boolean>>`, re-runs all probes on `onResume`, and subscribes to `AccessibilityManager.AccessibilityStateChangeListener` for sub-second push updates where supported.
+- [x] T004 --- Add Hilt bindings for `PermissionStatusProbe` and `PermissionStateObserver` (new `UiModule.kt` or extension of `CoreModule`).
+- [x] T005 --- Robolectric unit tests for `AndroidPermissionStatusProbe` (one assertion per `PermissionKey`).
+- [x] T006 --- Unit tests for `PermissionStateObserver` (verify lifecycle re-poll + listener-driven updates with a fake probe).
 
 ## WP02 --- Installed apps repository
 
