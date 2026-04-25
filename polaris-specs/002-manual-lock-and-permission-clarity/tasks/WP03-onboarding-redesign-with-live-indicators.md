@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 lane: planned
-dependencies: []
+dependencies: [WP01]
 base_branch: main
 subtasks: [T012, T013, T014, T015, T016, T017, T018]
 test_status: required
