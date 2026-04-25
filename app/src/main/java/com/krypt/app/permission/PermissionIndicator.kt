@@ -7,8 +7,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -46,7 +46,7 @@ fun PermissionIndicator(
             )
         } else {
             Icon(
-                imageVector = Icons.Filled.Cancel,
+                imageVector = Icons.Filled.Close,
                 contentDescription = stringResource(R.string.permission_indicator_denied),
                 tint = MaterialTheme.colorScheme.error,
             )
