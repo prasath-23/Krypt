@@ -89,4 +89,4 @@ Wire the silent approval consumption path on the Subject device. A tap on a `kry
 
 ## Activity Log
 
-- 2026-04-24T18:38:48Z – unknown – lane=for_review – WP22 Amendment 1 silent consumption + UX ready. Commit 31bf251 on 001-krypt-app-locker-WP22. ApprovalTrampolineActivity (translucent, no input surface, silent), UnlockSuccessEffect (haptic+green flash+toast+TalkBack), Theme.Krypt.Trampoline. Manifest: krypt://approve moved from GuardianActivity to ApprovalTrampolineActivity. 2 JVM tests + deferred Robolectric coverage to WP23 androidTest. Reviewer runs ./gradlew :app:testDebugUnitTest; Espresso/androidTest suite in WP23.
+- 2026-04-24T18:38:48Z -- unknown -- lane=for_review -- WP22 Amendment 1 silent consumption + UX ready. Commit 31bf251 on 001-krypt-app-locker-WP22. ApprovalTrampolineActivity (translucent, no input surface, silent), UnlockSuccessEffect (haptic+green flash+toast+TalkBack), Theme.Krypt.Trampoline. Manifest: krypt://approve moved from GuardianActivity to ApprovalTrampolineActivity. 2 JVM tests + deferred Robolectric coverage to WP23 androidTest. Reviewer runs ./gradlew :app:testDebugUnitTest; Espresso/androidTest suite in WP23.

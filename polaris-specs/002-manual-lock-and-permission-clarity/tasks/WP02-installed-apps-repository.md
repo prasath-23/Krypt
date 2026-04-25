@@ -1,6 +1,6 @@
 ---
 work_package_id: WP02
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: e8cd6edf7902f13052760e6cb300c49c0a4c4acf
@@ -98,3 +98,7 @@ Build the data source for the new Home Screen --- a sorted, filtered list of ins
 - Confirm that `AndroidInstalledAppsRepository` does NOT call any UI APIs (it's pure data).
 - Confirm `AppIconCache.MAX_BYTES = 16 MB` matches the plan.md figure.
 - Implement command: `polaris implement WP02`.
+
+## Activity Log
+
+- 2026-04-25T06:07:47Z – unknown – lane=for_review – WP02: InstalledAppsRepository, AppIconCache, HomeModule + 11 unit tests. Commit 9564333.

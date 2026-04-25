@@ -197,4 +197,4 @@ polaris implement WP18 --base WP17
 - 2026-04-24T08:10:43Z -- claude -- lane=testing -- t
 - 2026-04-24T08:10:50Z -- claude -- lane=for_review -- r
 - 2026-04-24T08:10:58Z -- claude -- lane=done -- Final WP on main
-- 2026-04-24T10:59:49Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:59:49Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted

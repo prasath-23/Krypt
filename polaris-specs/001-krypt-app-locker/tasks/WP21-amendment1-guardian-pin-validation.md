@@ -92,4 +92,4 @@ Rework `GuardianActivity` so the Guardian types the PIN, the app derives `Master
 
 ## Activity Log
 
-- 2026-04-24T18:33:04Z – unknown – lane=for_review – WP21 Amendment 1 Guardian PIN validation ready. Commit eca6a20 on 001-krypt-app-locker-WP21 (stacks on WP20). GuardianPinValidator (constant-time compare, CharArray zero), GuardianPinViewModel (3-attempt/60s in-memory lockout), GuardianPinScreen (numeric PIN field + share-sheet on success), GuardianActivity routes krypt://request here. 15 tests (7 validator + 8 ViewModel). Reviewer runs ./gradlew :app:testDebugUnitTest.
+- 2026-04-24T18:33:04Z -- unknown -- lane=for_review -- WP21 Amendment 1 Guardian PIN validation ready. Commit eca6a20 on 001-krypt-app-locker-WP21 (stacks on WP20). GuardianPinValidator (constant-time compare, CharArray zero), GuardianPinViewModel (3-attempt/60s in-memory lockout), GuardianPinScreen (numeric PIN field + share-sheet on success), GuardianActivity routes krypt://request here. 15 tests (7 validator + 8 ViewModel). Reviewer runs ./gradlew :app:testDebugUnitTest.

@@ -189,4 +189,4 @@ polaris implement WP13 --base WP12
 - 2026-04-24T07:42:15Z -- claude -- lane=for_review -- r
 - 2026-04-24T07:42:29Z -- claude -- lane=done -- m
 - 2026-04-24T10:53:06Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted
-- 2026-04-24T10:59:30Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:59:30Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted

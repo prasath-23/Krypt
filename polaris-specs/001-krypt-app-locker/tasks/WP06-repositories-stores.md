@@ -198,4 +198,4 @@ polaris implement WP06 --base WP05
 - 2026-04-24T07:22:06Z -- claude -- lane=for_review -- WP06 done
 - 2026-04-24T07:22:20Z -- claude -- lane=done -- Merged
 - 2026-04-24T10:52:35Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted
-- 2026-04-24T10:59:00Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:59:00Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted

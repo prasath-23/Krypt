@@ -199,4 +199,4 @@ polaris implement WP02 --base WP01
 - 2026-04-24T06:27:38Z -- claude -- lane=for_review -- WP02 ready for review. Commit: 6c2aebf feat(WP02) on branch 001-krypt-app-locker-WP02 (based on WP01). 10 source files: KdfProvider (PBKDF2-HMAC-SHA256 with MIN_ITERATIONS=300k + linear-scale calibration), KeyDeriver (HKDF-SHA-256 RFC 5869), AesGcmCipher (AES-256-GCM with explicit nonce), X25519KeyAgreement (RFC 7748, API 29/30 XDH caveat documented), SecureRandomSource (interface + real + Hilt bindings), CryptoModule. 34 JVM tests across 4 test files including RFC 5869 and RFC 7748 KATs. Reviewer runs ./gradlew :app:testDebugUnitTest; AES-GCM tamper/AAD tests, X25519 tests have assumeNoException to skip if JCE provider lacks XDH.
 - 2026-04-24T06:40:54Z -- claude -- lane=done -- Merged to main as 7a4bde9 (merge commit; feat commit 6c2aebf)
 - 2026-04-24T10:52:15Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted
-- 2026-04-24T10:58:43Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:58:43Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted

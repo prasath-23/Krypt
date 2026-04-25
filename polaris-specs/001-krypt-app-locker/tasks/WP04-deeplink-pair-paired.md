@@ -191,4 +191,4 @@ polaris implement WP04 --base WP02
 - 2026-04-24T07:10:36Z -- claude -- lane=for_review -- WP04 ready
 - 2026-04-24T07:12:07Z -- claude -- lane=done -- Merged
 - 2026-04-24T10:52:24Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted
-- 2026-04-24T10:58:52Z – claude – lane=done – All WPs implemented and reviewed; feature accepted
+- 2026-04-24T10:58:52Z -- claude -- lane=done -- All WPs implemented and reviewed; feature accepted
