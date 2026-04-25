@@ -30,6 +30,12 @@
     <string name="device_admin_disable_warning">Disabling Krypt device admin will allow anyone to uninstall Krypt and remove protection from your locked apps. Are you sure?</string>
     <string name="device_admin_explanation">Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first.</string>
 
+    <!-- Permission indicators (feature 002, WP03) -->
+    <string name="permission_indicator_granted">Permission granted</string>
+    <string name="permission_indicator_denied">Permission not granted</string>
+    <string name="onboarding_mandatory_progress">Required permissions: %1$d of %2$d</string>
+    <string name="onboarding_skip">Skip</string>
+
     <!-- Onboarding (WP12) -->
     <string name="onboarding_title">Welcome to Krypt</string>
     <string name="onboarding_step_of">Step %1$d of %2$d</string>

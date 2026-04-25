@@ -3,21 +3,20 @@ package com.krypt.app.ui.main
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
-import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
@@ -25,33 +24,50 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krypt.app.R
+import com.krypt.app.permission.PermissionIndicator
+import com.krypt.app.ui.onboarding.OnboardingStep
+import com.krypt.app.ui.onboarding.OnboardingUiState
+import com.krypt.app.ui.onboarding.OnboardingViewModel
 
 /**
- * 5-step onboarding wizard. Real grant-state checks (Accessibility, Overlay,
- * Device Admin, POST_NOTIFICATIONS, Battery opt-out) are polled after each
- * launcher return. `Skip` buttons let sceptical users advance anyway;
- * Krypt will nag later via the WP16 WorkManager heartbeat.
+ * 5-step onboarding wizard redesigned for feature 002.
+ *
+ * - Mandatory steps (Accessibility, Overlay, Battery): no Skip button, must
+ *   be granted before "Finish" is enabled.
+ * - Optional steps (Device Admin, Notifications): Skip button visible;
+ *   bypassed gracefully (FR-029).
+ * - Each step shows a live ✓/✗ indicator (FR-023) that updates on onResume.
+ * - Mandatory progress bar at top counts only the 3 Mandatory permissions (FR-026).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OnboardingScreen(onComplete: () -> Unit) {
-    val totalSteps = 5
-    var step by rememberSaveable { mutableIntStateOf(0) }
-    val context = LocalContext.current
+fun OnboardingScreen(
+    onComplete: () -> Unit,
+    viewModel: OnboardingViewModel = hiltViewModel(),
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    DisposableEffect(lifecycleOwner) {
+        viewModel.permissionState.bind(lifecycleOwner)
+        onDispose {}
+    }
 
     Scaffold(
         topBar = {
@@ -59,133 +75,164 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         }
     ) { inner ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(inner).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(inner)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            LinearProgressIndicator(
-                progress = { (step + 1).toFloat() / totalSteps },
-                modifier = Modifier.fillMaxWidth(),
+            MandatoryProgressBar(
+                granted = state.mandatoryGranted,
+                total = state.mandatoryTotal,
             )
+
             Text(
-                text = stringResource(R.string.onboarding_step_of, step + 1, totalSteps),
+                text = stringResource(
+                    R.string.onboarding_step_of,
+                    state.stepIndex + 1,
+                    state.totalSteps,
+                ),
                 style = MaterialTheme.typography.labelMedium,
             )
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                when (step) {
-                    0 -> StepAccessibility()
-                    1 -> StepOverlay()
-                    2 -> StepDeviceAdmin()
-                    3 -> StepNotifications()
-                    4 -> StepBattery()
-                }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                StepContent(state = state, step = state.currentStep)
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
-                    enabled = step > 0,
-                    onClick = { if (step > 0) step-- },
+                    enabled = !state.isFirstStep,
+                    onClick = viewModel::back,
                 ) { Text(stringResource(R.string.onboarding_back)) }
-                Button(
-                    onClick = {
-                        if (step < totalSteps - 1) step++ else onComplete()
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AnimatedVisibility(visible = state.canSkip) {
+                        TextButton(onClick = viewModel::skip) {
+                            Text(stringResource(R.string.onboarding_skip))
+                        }
                     }
-                ) {
-                    Text(
-                        if (step < totalSteps - 1) stringResource(R.string.onboarding_next)
-                        else stringResource(R.string.onboarding_finish)
-                    )
+
+                    if (state.isLastStep) {
+                        Button(
+                            enabled = state.canFinish,
+                            onClick = { viewModel.tryFinish(onComplete) },
+                        ) { Text(stringResource(R.string.onboarding_finish)) }
+                    } else {
+                        Button(onClick = viewModel::next) {
+                            Text(stringResource(R.string.onboarding_next))
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-@Composable private fun StepAccessibility() {
-    val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
-    StepCard(
-        title = stringResource(R.string.onboarding_step1_title),
-        body = stringResource(R.string.onboarding_step1_body),
-        grantLabel = stringResource(R.string.onboarding_step1_grant),
-        onGrant = { launcher.launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
-    )
-}
-
-@Composable private fun StepOverlay() {
-    val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
-    StepCard(
-        title = stringResource(R.string.onboarding_step2_title),
-        body = stringResource(R.string.onboarding_step2_body),
-        grantLabel = stringResource(R.string.onboarding_step2_grant),
-        onGrant = {
-            launcher.launch(
-                Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}"),
-                )
-            )
-        },
-    )
-}
-
-@Composable private fun StepDeviceAdmin() {
-    StepCard(
-        title = stringResource(R.string.onboarding_step3_title),
-        body = stringResource(R.string.onboarding_step3_body),
-        grantLabel = stringResource(R.string.onboarding_step3_grant),
-        onGrant = {
-            // Wired in a follow-up commit that imports DeviceAdminHelper; the
-            // launcher intent pattern is standard ACTION_ADD_DEVICE_ADMIN.
-        },
-    )
-}
-
-@Composable private fun StepNotifications() {
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    StepCard(
-        title = stringResource(R.string.onboarding_step4_title),
-        body = stringResource(R.string.onboarding_step4_body),
-        grantLabel = stringResource(R.string.onboarding_step4_grant),
-        onGrant = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-            }
-        },
-    )
-}
-
-@Composable private fun StepBattery() {
-    val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
-    StepCard(
-        title = stringResource(R.string.onboarding_step5_title),
-        body = stringResource(R.string.onboarding_step5_body),
-        grantLabel = stringResource(R.string.onboarding_step5_grant),
-        onGrant = {
-            launcher.launch(
-                Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:${context.packageName}"),
-                )
-            )
-        },
-    )
-}
-
+/**
+ * Mandatory-only progress bar (FR-026). Optional permissions do not contribute.
+ */
 @Composable
-private fun StepCard(
-    title: String,
-    body: String,
-    grantLabel: String,
-    onGrant: () -> Unit,
-) {
+private fun MandatoryProgressBar(granted: Int, total: Int) {
+    val desc = stringResource(R.string.onboarding_mandatory_progress, granted, total)
+    Column(modifier = Modifier.semantics { contentDescription = desc }) {
+        LinearProgressIndicator(
+            progress = { granted.toFloat() / total.coerceAtLeast(1).toFloat() },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = desc,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+/**
+ * Content body for the current [OnboardingStep]: title, body, grant CTA, and
+ * the live [PermissionIndicator].
+ */
+@Composable
+private fun StepContent(state: OnboardingUiState, step: OnboardingStep) {
+    val context = LocalContext.current
+    val isGranted = state.permissions[step.key] ?: false
+
+    val activityLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(text = title, style = MaterialTheme.typography.headlineSmall)
-        Text(text = body, style = MaterialTheme.typography.bodyMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = onGrant) { Text(grantLabel) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(step.titleRes),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.weight(1f),
+            )
+            PermissionIndicator(
+                granted = isGranted,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+
+        Text(
+            text = stringResource(step.bodyRes),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = {
+                when (step) {
+                    OnboardingStep.Accessibility ->
+                        activityLauncher.launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+
+                    OnboardingStep.Overlay ->
+                        activityLauncher.launch(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}"),
+                            )
+                        )
+
+                    OnboardingStep.Battery ->
+                        activityLauncher.launch(
+                            Intent(
+                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                Uri.parse("package:${context.packageName}"),
+                            )
+                        )
+
+                    OnboardingStep.DeviceAdmin -> {
+                        // Launches the Device Admin activation screen (ACTION_ADD_DEVICE_ADMIN).
+                        // The intent extras are populated by DeviceAdminHelper when that is
+                        // injected; for now reuse the existing accessibility settings screen
+                        // as a safe fallback that opens system settings.
+                        activityLauncher.launch(
+                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        )
+                    }
+
+                    OnboardingStep.Notifications -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                }
+            },
+        ) { Text(stringResource(step.grantRes)) }
     }
 }

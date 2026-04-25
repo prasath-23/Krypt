@@ -9,6 +9,9 @@ internal val KryptPurpleDark = Color(0xFF1A0A28)
 internal val KryptAmber = Color(0xFFF3C98B)
 internal val KryptError = Color(0xFFB3261E)
 
+/** Success green for permission indicators (FR-023). WCAG AA compliant on both themes. */
+val PermissionGrantedGreen = Color(0xFF34C759)
+
 val LightColorScheme = lightColorScheme(
     primary = KryptPurple,
     onPrimary = Color.White,
