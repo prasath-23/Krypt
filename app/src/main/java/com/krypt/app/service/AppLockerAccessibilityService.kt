@@ -1,24 +1,31 @@
 package com.krypt.app.service
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.util.Log
 import android.util.LruCache
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
+import com.krypt.app.R
 import com.krypt.app.data.LockState
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.deeplink.UnlockRequestBuilder
 import com.krypt.app.di.ApplicationScope
+import com.krypt.app.security.MasterKeyStore
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -32,6 +39,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
     @Inject lateinit var lockedAppsRepo: LockedAppsRepository
     @Inject lateinit var sessionStore: LockerSessionStore
     @Inject lateinit var overlayManager: OverlayManager
+    @Inject lateinit var unlockRequestBuilder: UnlockRequestBuilder
+    @Inject lateinit var masterKeyStore: MasterKeyStore
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
     @Volatile private var lockedPackagesCache: Set<String> = emptySet()
@@ -104,9 +113,48 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     private fun onAskGuardianClicked(pkg: String) {
-        // WP14 wires the real Share-sheet emit for krypt://request. Here we
-        // just log; the OverlayManager callback contract is stable.
-        Log.i(TAG, "ask-guardian requested for pkg=$pkg (wired by WP14)")
+        appScope.launch {
+            try {
+                val salt = masterKeyStore.loadSalt()
+                val pinProof = masterKeyStore.loadPinProof()
+                if (salt == null || pinProof == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@AppLockerAccessibilityService,
+                            "Set up a Guardian PIN first.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val displayName = displayNameFor(pkg)
+                val (url, _) = unlockRequestBuilder.build(
+                    setupSalt = salt,
+                    pinProof = pinProof,
+                    targetPackage = pkg,
+                )
+
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, url)
+                    putExtra(Intent.EXTRA_SUBJECT, "Krypt unlock request: $displayName")
+                }
+                val chooser = Intent.createChooser(
+                    sendIntent,
+                    getString(R.string.home_share_chooser_title),
+                ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+
+                withContext(Dispatchers.Main) {
+                    // Hide the overlay so the chooser isn't visually buried under it.
+                    overlayManager.hide()
+                    startActivity(chooser)
+                }
+                Log.i(TAG, "share chooser launched for pkg=$pkg")
+            } catch (t: Throwable) {
+                Log.e(TAG, "ask-guardian failed for pkg=$pkg", t)
+            }
+        }
     }
 
     private fun displayNameFor(pkg: String): String {
