@@ -1,6 +1,6 @@
 ---
 work_package_id: WP01
-lane: "planned"
+lane: "for_review"
 dependencies: []
 base_branch: main
 subtasks: [T001, T002, T003, T004, T005, T006]
@@ -122,3 +122,7 @@ This WP intentionally has zero UI. It is the substrate WP03 will consume.
 - Run `./gradlew :app:testDebugUnitTest --tests "com.krypt.app.permission.*"`.
 - Inspect that no UI files were modified --- this WP must touch only `app/src/main/java/com/krypt/app/permission/`, `di/PermissionModule.kt`, and the matching test directory.
 - Implement command: `polaris implement WP01`.
+
+## Activity Log
+
+- 2026-04-25T06:05:16Z – unknown – lane=for_review – WP01: PermissionKey/Probe/StateObserver/PermissionModule + 11 unit tests. Commit fce30dd.

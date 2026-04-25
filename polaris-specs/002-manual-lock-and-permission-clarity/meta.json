@@ -6,5 +6,23 @@
   "source_description": "Add a check and indicate the permission enabled or not in live - it should show the permission enabled or not. If not show x in red and enabled show tick in green. It should be in real time when enabled in backend; the transition should be smooth. It can be shown only in the permission enabling place; no other place is necessary. It is to make the permission enabled and required settings can be accessible for the application. Second, this application needs the manual control to only lock any app already installed; to unlock use the default method of sharing the link.",
   "created_at": "2026-04-25T00:00:00Z",
   "target_branch": "main",
-  "vcs": "git"
+  "vcs": "git",
+  "amendments": [
+    {
+      "amendment_id": "amd-001",
+      "text": "Files changed outside declared WP scope: .gitignore, app/build.gradle.kts, app/proguard-rules.pro (and 8 more)",
+      "timestamp": "2026-04-25T06:05:22.155857+00:00",
+      "affected_sections": [],
+      "artifacts_updated": {
+        "spec_sections": [],
+        "plan_files": [],
+        "wps_regenerated": [],
+        "wps_locked": [],
+        "wps_created": []
+      },
+      "agent": "unknown",
+      "source": "implement",
+      "drift_type": "expansion"
+    }
+  ]
 }
