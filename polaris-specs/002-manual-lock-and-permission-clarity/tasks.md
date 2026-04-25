@@ -31,11 +31,11 @@ WP01 and WP02 are independent and can run in parallel. WP03 and WP04 can also ru
 **Goal:** Build the data source that powers the Home Screen --- every non-system installed app, sorted by display name, with deferred icon loading.
 
 **Subtasks:**
-- [ ] T007 --- Define `InstalledAppMeta(packageName, displayName)` data class.
-- [ ] T008 --- Define `InstalledAppsRepository` interface; implement `AndroidInstalledAppsRepository` using `PackageManager.getInstalledApplications` filtered by `(flags and FLAG_SYSTEM) == 0` plus the existing curated allowlist used by feature 001's auto-locker.
-- [ ] T009 --- Implement `AppIconCache` (LRU `Bitmap` cache, ~16 MB cap) and a deferred icon loader that returns a callable `() -> Drawable` for each row.
-- [ ] T010 --- Hilt binding for `InstalledAppsRepository` and `AppIconCache`.
-- [ ] T011 --- Unit tests: system-app filtering, alphabetical ordering, icon-cache eviction behaviour.
+- [x] T007 --- Define `InstalledAppMeta(packageName, displayName)` data class.
+- [x] T008 --- Define `InstalledAppsRepository` interface; implement `AndroidInstalledAppsRepository` using `PackageManager.getInstalledApplications` filtered by `(flags and FLAG_SYSTEM) == 0` plus the existing curated allowlist used by feature 001's auto-locker.
+- [x] T009 --- Implement `AppIconCache` (LRU `Bitmap` cache, ~16 MB cap) and a deferred icon loader that returns a callable `() -> Drawable` for each row.
+- [x] T010 --- Hilt binding for `InstalledAppsRepository` and `AppIconCache`.
+- [x] T011 --- Unit tests: system-app filtering, alphabetical ordering, icon-cache eviction behaviour.
 
 ## WP03 --- Onboarding redesign with live indicators
 
