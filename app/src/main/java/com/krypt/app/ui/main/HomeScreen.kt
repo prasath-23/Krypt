@@ -1,78 +1,120 @@
 package com.krypt.app.ui.main
 
-import androidx.compose.foundation.layout.Arrangement
+import android.content.Intent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
 import com.krypt.app.R
-import com.krypt.app.data.LockedAppsRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import javax.inject.Inject
+import com.krypt.app.ui.home.HomeViewModel
+import com.krypt.app.ui.home.InstalledAppRow
+import com.krypt.app.ui.home.UserMessage
+import kotlinx.coroutines.flow.consumeAsFlow
 
-@HiltViewModel
-class HomeViewModel @Inject constructor(
-    lockedAppsRepo: LockedAppsRepository,
-) : ViewModel() {
-    val lockedCount: StateFlow<Int> = lockedAppsRepo.observeLockedApps()
-        .map { it.size }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
-}
-
+/**
+ * Primary Home Screen: a searchable, scrollable list of all installed
+ * non-system apps with a one-way lock toggle per row (feature 002).
+ *
+ * Toggle ON: locks the app instantly (no Guardian required, FR-032).
+ * Toggle OFF attempted: does NOT unlock; dispatches a Guardian request URL
+ * via the system share sheet instead (FR-033).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
-    val lockedCount by viewModel.lockedCount.collectAsStateWithLifecycle()
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) }) { inner ->
+fun HomeScreen(
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
+    val ctx = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(lifecycleOwner) { viewModel.refresh() }
+
+    LaunchedEffect(Unit) {
+        viewModel.shareIntents.consumeAsFlow().collect { intent ->
+            ctx.startActivity(
+                Intent.createChooser(intent, ctx.getString(R.string.home_share_chooser_title))
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.userMessages.consumeAsFlow().collect { msg ->
+            when (msg) {
+                UserMessage.MasterKeyMissing ->
+                    snackbarHostState.showSnackbar("PIN not set up yet. Complete setup first.")
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { inner ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(inner).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(inner),
         ) {
-            // Amendment 1: Reaching Home means Guardian PIN setup is already
-            // complete (MainRoute gates on MasterKeyStore.isConfigured). The
-            // legacy "Set up pairing" button + GuardianRepository-driven
-            // status are no longer part of the live flow.
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = viewModel::setQuery,
+                placeholder = { Text(stringResource(R.string.home_search_hint)) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
+            if (state.rows.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
-                        stringResource(R.string.home_pairing_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_pin_configured),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = if (state.query.isBlank())
+                            stringResource(R.string.home_empty_loading)
+                        else
+                            stringResource(R.string.home_empty_no_match, state.query),
                     )
                 }
-            }
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        stringResource(R.string.home_locked_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_locked_count, lockedCount),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(
+                        items = state.rows,
+                        key = { it.packageName },
+                    ) { row ->
+                        InstalledAppRow(
+                            state = row,
+                            iconCache = viewModel.iconCache,
+                            onToggle = { viewModel.onToggle(row) },
+                        )
+                        HorizontalDivider()
+                    }
                 }
             }
         }

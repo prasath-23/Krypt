@@ -14,7 +14,11 @@ import javax.inject.Singleton
 interface LockedAppsRepository {
     suspend fun checkIfAppIsLocked(pkg: String): Boolean
     suspend fun lockNewlyInstalledApp(pkg: String, displayName: String)
+    /** Manually lock an already-installed app (feature 002 Home Screen). */
+    suspend fun lock(packageName: String, displayName: String, source: LockSource = LockSource.MANUAL)
     fun observeLockedApps(): Flow<List<LockedApp>>
+    /** Emits the live set of locked package names for the Home Screen list (feature 002). */
+    fun allLockedFlow(): Flow<Set<String>>
     suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long)
     suspend fun findByPackage(pkg: String): LockedApp?
 }
@@ -44,8 +48,31 @@ class RoomLockedAppsRepository @Inject constructor(
         )
     }
 
+    override suspend fun lock(packageName: String, displayName: String, source: LockSource) {
+        val now = clock.nowMs()
+        val existing = dao.findByPackage(packageName)
+        if (existing != null && existing.lockState == LockState.LOCKED) return
+        dao.insert(
+            LockedAppEntity(
+                packageName = packageName,
+                displayName = displayName,
+                lockState = LockState.LOCKED,
+                lockSource = source,
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
+            )
+        )
+    }
+
     override fun observeLockedApps(): Flow<List<LockedApp>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
+
+    override fun allLockedFlow(): Flow<Set<String>> =
+        dao.observeAll().map { list ->
+            list.filter { it.lockState == LockState.LOCKED }
+                .map { it.packageName }
+                .toSet()
+        }
 
     override suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long) {
         dao.updateLockState(pkg, LockState.UNLOCKED, clock.nowMs())

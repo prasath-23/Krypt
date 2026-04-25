@@ -30,6 +30,13 @@
     <string name="device_admin_disable_warning">Disabling Krypt device admin will allow anyone to uninstall Krypt and remove protection from your locked apps. Are you sure?</string>
     <string name="device_admin_explanation">Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first.</string>
 
+    <!-- Home Screen app-locker list (feature 002, WP04) -->
+    <string name="home_search_hint">Search apps</string>
+    <string name="home_share_chooser_title">Send unlock request to Guardian</string>
+    <string name="home_label_locked">Locked</string>
+    <string name="home_empty_loading">Loading apps...</string>
+    <string name="home_empty_no_match">No apps match "%1$s"</string>
+
     <!-- Permission indicators (feature 002, WP03) -->
     <string name="permission_indicator_granted">Permission granted</string>
     <string name="permission_indicator_denied">Permission not granted</string>
