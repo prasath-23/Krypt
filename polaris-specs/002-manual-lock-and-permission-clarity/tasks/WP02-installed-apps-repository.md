@@ -1,12 +1,15 @@
 ---
 work_package_id: WP02
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: main
+base_commit: e8cd6edf7902f13052760e6cb300c49c0a4c4acf
+created_at: '2026-04-25T06:05:35.753768+00:00'
 subtasks: [T007, T008, T009, T010, T011]
 test_status: required
 test_file: tests/002-manual-lock-and-permission-clarity/WP02-installed-apps-repository.spec.js
 domain: backend-logic
+shell_pid: "18456"
 ---
 
 # WP02 - Installed apps repository
