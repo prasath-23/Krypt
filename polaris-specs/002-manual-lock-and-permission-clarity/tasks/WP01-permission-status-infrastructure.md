@@ -1,12 +1,15 @@
 ---
 work_package_id: WP01
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: main
+base_commit: aacd7e3da562470d36783d660e8b96530222f77c
+created_at: '2026-04-25T06:00:03.992911+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006]
 test_status: required
 test_file: tests/002-manual-lock-and-permission-clarity/WP01-permission-status-infrastructure.spec.js
 domain: backend-logic
+shell_pid: "28136"
 ---
 
 # WP01 - Permission status infrastructure
