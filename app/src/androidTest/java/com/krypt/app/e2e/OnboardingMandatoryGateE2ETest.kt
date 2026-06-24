@@ -45,6 +45,13 @@ class OnboardingMandatoryGateE2ETest {
     @Inject lateinit var permissionState: PermissionStateObserver
     @Inject lateinit var fakeProbe: FakeE2EPermissionStatusProbe
 
+    @dagger.Module
+    @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+    abstract class FakePermissionModule {
+        @dagger.Binds
+        abstract fun bindProbe(fake: FakeE2EPermissionStatusProbe): PermissionStatusProbe
+    }
+
     @Before
     fun setUp() {
         hiltRule.inject()
