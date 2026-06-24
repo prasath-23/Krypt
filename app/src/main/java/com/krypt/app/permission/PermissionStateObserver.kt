@@ -52,13 +52,15 @@ class PermissionStateObserver @Inject constructor(
         refresh()
     }
 
-    private val a11yUri: Uri = Settings.Secure.getUriFor(
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-    )
+    private val a11yUri: Uri by lazy {
+        Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+    }
 
-    private val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-        override fun onChange(selfChange: Boolean) {
-            refresh()
+    private val contentObserver by lazy {
+        object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                refresh()
+            }
         }
     }
 

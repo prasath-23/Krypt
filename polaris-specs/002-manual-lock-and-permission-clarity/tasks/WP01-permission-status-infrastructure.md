@@ -1,6 +1,8 @@
 ---
 work_package_id: WP01
-lane: "for_review"
+lane: "done"
+review_status: approved
+reviewed_by: Prasath Kumar K
 dependencies: []
 base_branch: main
 base_commit: aacd7e3da562470d36783d660e8b96530222f77c
@@ -129,8 +131,5 @@ This WP intentionally has zero UI. It is the substrate WP03 will consume.
 
 ## Activity Log
 
-<<<<<<< HEAD
-- 2026-04-25T06:05:16Z – unknown – lane=for_review – WP01: PermissionKey/Probe/StateObserver/PermissionModule + 11 unit tests. Commit fce30dd.
-=======
 - 2026-04-25T06:00:07Z – claude – shell_pid=28136 – lane=doing – Assigned agent via workflow command
->>>>>>> 002-manual-lock-and-permission-clarity-WP01
+- 2026-04-25T06:05:16Z – unknown – lane=for_review – WP01: PermissionKey/Probe/StateObserver/PermissionModule + 11 unit tests. Commit fce30dd.

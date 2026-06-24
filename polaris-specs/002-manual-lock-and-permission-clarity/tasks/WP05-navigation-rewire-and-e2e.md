@@ -1,6 +1,8 @@
 ---
 work_package_id: WP05
-lane: planned
+lane: "done"
+review_status: approved
+reviewed_by: Prasath Kumar K
 dependencies: [WP03, WP04]
 base_branch: main
 subtasks: [T025, T026, T027, T028, T029]
@@ -116,3 +118,8 @@ Wire the new `HomeScreen` into Krypt's post-onboarding navigation, and add devic
 - Manual smoke: install the debug APK on a real device, complete onboarding, then add WhatsApp to the locked list --- confirm the Locker Screen appears on the next launch.
 - Manual smoke 2: tap the WhatsApp toggle off --- confirm the share sheet opens with the URL, and the toggle stays ON.
 - Implement command: `polaris implement WP05 --base WP04`.
+
+## Activity Log
+
+- 2026-04-25T06:24:23Z – unknown – lane=doing – Starting WP05 on branch 002-manual-lock-and-permission-clarity-WP05
+- 2026-04-25T06:26:49Z – unknown – lane=for_review – WP05: navigation wired (MainRoute already correct), ManualLockTestModule, 3 e2e test files. Commit 9df8fac.

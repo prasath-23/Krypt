@@ -1,6 +1,8 @@
 ---
 work_package_id: WP04
-lane: planned
+lane: "done"
+review_status: approved
+reviewed_by: Prasath Kumar K
 dependencies: [WP02]
 base_branch: main
 subtasks: [T019, T020, T021, T022, T023, T024]
@@ -134,3 +136,7 @@ Replace the current post-onboarding placeholder Home with a searchable list of i
 - Build and run on a device with 100+ installed apps. Verify scroll fluidity and that toggle taps respond within one frame.
 - Confirm via `adb shell dumpsys clipboard` (or just by sharing into Notes) that the URL emitted on a locked-toggle tap parses through `UnlockRequestParser` cleanly --- the most important contract this WP fulfils.
 - Implement command: `polaris implement WP04 --base WP02`.
+
+## Activity Log
+
+- 2026-04-25T06:23:22Z – unknown – lane=for_review – WP04 complete: HomeViewModel + InstalledAppRow + HomeScreen + LockedAppsRepository extension + 11 unit tests. Commit af58f8f.

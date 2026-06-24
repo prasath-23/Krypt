@@ -1,6 +1,8 @@
 ---
 work_package_id: WP03
-lane: planned
+lane: "done"
+review_status: approved
+reviewed_by: Prasath Kumar K
 dependencies: [WP01]
 base_branch: main
 subtasks: [T012, T013, T014, T015, T016, T017, T018]
@@ -143,3 +145,8 @@ Restructure the existing five-step onboarding into Mandatory + Optional groups, 
 - Run on a device, ideally Xiaomi/MIUI: grant permissions one at a time and watch the indicators flip.
 - Verify via `adb shell` that `Settings.canDrawOverlays` is in fact off then on, then back to off when revoked, and the indicator reflects each change after returning to the app.
 - Implement command: `polaris implement WP03 --base WP01`.
+
+## Activity Log
+
+- 2026-04-25T06:12:31Z – unknown – lane=doing – Starting WP03 implementation on branch 002-manual-lock-and-permission-clarity-WP03
+- 2026-04-25T06:18:03Z – unknown – lane=for_review – WP03 complete. Commit b88eced on 002-manual-lock-and-permission-clarity-WP03.

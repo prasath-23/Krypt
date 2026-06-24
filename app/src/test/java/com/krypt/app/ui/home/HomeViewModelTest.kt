@@ -6,15 +6,10 @@ import com.krypt.app.data.LockedApp
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockSource as LS
 import com.krypt.app.data.LockState
-import com.krypt.app.deeplink.UnlockRequest
-import com.krypt.app.deeplink.UnlockRequestBuilder
-import com.krypt.app.security.MasterKeyStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,8 +33,6 @@ class HomeViewModelTest {
 
     private val installedRepo = mockk<InstalledAppsRepository>(relaxed = true)
     private val lockedRepo = mockk<LockedAppsRepository>(relaxed = true)
-    private val requestBuilder = mockk<UnlockRequestBuilder>(relaxed = true)
-    private val masterKeyStore = mockk<MasterKeyStore>(relaxed = true)
     private val iconCache = mockk<AppIconCache>(relaxed = true)
 
     private val lockedSetFlow = MutableStateFlow<Set<String>>(emptySet())
@@ -56,7 +49,7 @@ class HomeViewModelTest {
         )
         every { lockedRepo.allLockedFlow() } returns lockedSetFlow
 
-        vm = HomeViewModel(installedRepo, lockedRepo, requestBuilder, masterKeyStore, iconCache)
+        vm = HomeViewModel(installedRepo, lockedRepo, iconCache)
     }
 
     @After
@@ -104,43 +97,14 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun onToggle_locked_doesNotCallLock_emitsShareIntent() = runTest {
+    fun onToggle_locked_callsUnlockRepository() = runTest {
         lockedSetFlow.value = setOf("com.b")
         testDispatcher.scheduler.advanceUntilIdle()
         val row = vm.state.value.rows.first { it.packageName == "com.b" }
 
-        val salt = ByteArray(16) { 1 }
-        val pinProof = ByteArray(32) { 2 }
-        coEvery { masterKeyStore.loadSalt() } returns salt
-        coEvery { masterKeyStore.loadPinProof() } returns pinProof
-
-        val url = "krypt://request?pkg=com.b"
-        val fakeRequest = mockk<UnlockRequest>(relaxed = true)
-        every { requestBuilder.build(salt, pinProof, "com.b", any(), any()) } returns (url to fakeRequest)
-
         vm.onToggle(row)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 0) { lockedRepo.lock(any(), any(), any()) }
-
-        val intent = vm.shareIntents.tryReceive().getOrNull()
-        assertEquals(url, intent?.getStringExtra(Intent.EXTRA_TEXT))
-    }
-
-    @Test
-    fun onToggle_locked_masterKeyMissing_emitsUserMessage() = runTest {
-        lockedSetFlow.value = setOf("com.b")
-        testDispatcher.scheduler.advanceUntilIdle()
-        val row = vm.state.value.rows.first { it.packageName == "com.b" }
-
-        coEvery { masterKeyStore.loadSalt() } returns null
-        coEvery { masterKeyStore.loadPinProof() } returns null
-
-        vm.onToggle(row)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        val msg = vm.userMessages.tryReceive().getOrNull()
-        assertTrue(msg is UserMessage.MasterKeyMissing)
-        coVerify(exactly = 0) { requestBuilder.build(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { lockedRepo.unlock("com.b") }
     }
 }

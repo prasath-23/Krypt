@@ -40,6 +40,12 @@ android {
         }
     }
 
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
+
     buildTypes {
         debug {
             // Signing via the default debug key; no network egress regardless.

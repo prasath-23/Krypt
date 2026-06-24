@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.LruCache
+import androidx.core.graphics.drawable.toBitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +18,7 @@ import javax.inject.Singleton
  * The cache budget is capped at [MAX_BYTES] (16 MB) to avoid OOM on devices
  * with hundreds of installed apps. Eviction is automatic when the budget is
  * exceeded. The cache is NOT thread-safe for *mutation* of the underlying
- * [Drawable] objects — callers MUST treat the returned instance as read-only.
+ * [Bitmap] objects — callers MUST treat the returned instance as read-only.
  *
  * Use [loadAsync] from a Compose [androidx.compose.runtime.produceState] key to
  * lazy-load per row without blocking the UI thread.
@@ -26,13 +27,9 @@ import javax.inject.Singleton
 class AppIconCache @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    private val lru = object : LruCache<String, Drawable>(MAX_BYTES) {
-        override fun sizeOf(key: String, value: Drawable): Int {
-            return if (value is BitmapDrawable) {
-                value.bitmap?.byteCount ?: FALLBACK_ICON_BYTES
-            } else {
-                FALLBACK_ICON_BYTES
-            }
+    private val lru = object : LruCache<String, Bitmap>(MAX_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int {
+            return value.byteCount
         }
     }
 
@@ -40,19 +37,20 @@ class AppIconCache @Inject constructor(
      * Synchronous icon load (must be called on a background thread / IO dispatcher).
      * Returns a generic placeholder on [android.content.pm.PackageManager.NameNotFoundException].
      */
-    fun load(packageName: String): Drawable {
+    fun load(packageName: String): Bitmap {
         lru.get(packageName)?.let { return it }
         val icon = try {
             context.packageManager.getApplicationIcon(packageName)
         } catch (_: Exception) {
             context.packageManager.defaultActivityIcon
         }
-        lru.put(packageName, icon)
-        return icon
+        val bitmap = icon.toBitmap()
+        lru.put(packageName, bitmap)
+        return bitmap
     }
 
     /** Coroutine-safe wrapper for use from Compose [androidx.compose.runtime.produceState]. */
-    suspend fun loadAsync(packageName: String): Drawable =
+    suspend fun loadAsync(packageName: String): Bitmap =
         withContext(Dispatchers.IO) { load(packageName) }
 
     companion object {

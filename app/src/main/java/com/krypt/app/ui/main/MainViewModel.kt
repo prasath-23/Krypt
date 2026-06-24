@@ -45,4 +45,11 @@ class MainViewModel @Inject constructor(
             _masterKeyConfigured.value = masterKeyStore.isConfigured()
         }
     }
+
+    private val _appEntryUnlocked = MutableStateFlow(false)
+    val appEntryUnlocked: StateFlow<Boolean> = _appEntryUnlocked.asStateFlow()
+
+    fun markAppEntryUnlocked() {
+        _appEntryUnlocked.value = true
+    }
 }

@@ -40,11 +40,15 @@ class MainActivity : ComponentActivity() {
 fun MainRoute(viewModel: MainViewModel = hiltViewModel()) {
     val onboardingComplete by viewModel.onboardingComplete.collectAsStateWithLifecycle()
     val masterKeyConfigured by viewModel.masterKeyConfigured.collectAsStateWithLifecycle()
+    val appEntryUnlocked by viewModel.appEntryUnlocked.collectAsStateWithLifecycle()
 
     when {
         !onboardingComplete -> OnboardingScreen(onComplete = viewModel::markOnboardingComplete)
         !masterKeyConfigured -> PinSetupScreen(
             onDone = viewModel::refreshMasterKeyConfigured,
+        )
+        !appEntryUnlocked -> AppEntryPinScreen(
+            onSuccess = viewModel::markAppEntryUnlocked
         )
         else -> HomeScreen()
     }

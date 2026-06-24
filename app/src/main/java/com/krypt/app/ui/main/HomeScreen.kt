@@ -31,8 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krypt.app.R
 import com.krypt.app.ui.home.HomeViewModel
 import com.krypt.app.ui.home.InstalledAppRow
-import com.krypt.app.ui.home.UserMessage
-import kotlinx.coroutines.flow.consumeAsFlow
 
 /**
  * Primary Home Screen: a searchable, scrollable list of all installed
@@ -53,23 +51,6 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(lifecycleOwner) { viewModel.refresh() }
-
-    LaunchedEffect(Unit) {
-        viewModel.shareIntents.consumeAsFlow().collect { intent ->
-            ctx.startActivity(
-                Intent.createChooser(intent, ctx.getString(R.string.home_share_chooser_title))
-            )
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.userMessages.consumeAsFlow().collect { msg ->
-            when (msg) {
-                UserMessage.MasterKeyMissing ->
-                    snackbarHostState.showSnackbar("PIN not set up yet. Complete setup first.")
-            }
-        }
-    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },

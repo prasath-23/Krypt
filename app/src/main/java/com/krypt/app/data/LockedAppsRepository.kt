@@ -20,6 +20,7 @@ interface LockedAppsRepository {
     /** Emits the live set of locked package names for the Home Screen list (feature 002). */
     fun allLockedFlow(): Flow<Set<String>>
     suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long)
+    suspend fun unlock(pkg: String)
     suspend fun findByPackage(pkg: String): LockedApp?
 }
 
@@ -75,6 +76,10 @@ class RoomLockedAppsRepository @Inject constructor(
         }
 
     override suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long) {
+        dao.updateLockState(pkg, LockState.UNLOCKED, clock.nowMs())
+    }
+
+    override suspend fun unlock(pkg: String) {
         dao.updateLockState(pkg, LockState.UNLOCKED, clock.nowMs())
     }
 

@@ -44,8 +44,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
     @Volatile private var lockedPackagesCache: Set<String> = emptySet()
-    private var lockedAppsFlow: StateFlow<Set<String>>? = null
-    private var flowJob: Job? = null
+    private val serviceJob = kotlinx.coroutines.SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
     private val nameCache = LruCache<String, String>(64)
     private val iconCache = LruCache<String, Drawable>(64)
@@ -59,12 +59,10 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     private fun subscribeToLockedAppsFlow() {
-        val flow = lockedAppsRepo.observeLockedApps()
-            .map { list -> list.filter { it.lockState == LockState.LOCKED }.map { it.packageName }.toSet() }
-            .stateIn(appScope, SharingStarted.Eagerly, emptySet())
-        lockedAppsFlow = flow
-        flowJob = appScope.launch {
-            flow.collect { set -> lockedPackagesCache = set }
+        serviceScope.launch {
+            lockedAppsRepo.allLockedFlow().collect { set ->
+                lockedPackagesCache = set
+            }
         }
     }
 
@@ -108,7 +106,7 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
-        flowJob?.cancel()
+        serviceJob.cancel()
         super.onDestroy()
     }
 

@@ -217,12 +217,14 @@ private fun StepContent(state: OnboardingUiState, step: OnboardingStep) {
                         )
 
                     OnboardingStep.DeviceAdmin -> {
-                        // Launches the Device Admin activation screen (ACTION_ADD_DEVICE_ADMIN).
-                        // The intent extras are populated by DeviceAdminHelper when that is
-                        // injected; for now reuse the existing accessibility settings screen
-                        // as a safe fallback that opens system settings.
+                        val adminComponent = android.content.ComponentName(
+                            context, com.krypt.app.service.KryptDeviceAdminReceiver::class.java
+                        )
                         activityLauncher.launch(
-                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                putExtra(android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION, context.getString(R.string.device_admin_explanation))
+                            }
                         )
                     }
 

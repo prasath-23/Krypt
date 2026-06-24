@@ -85,10 +85,10 @@ internal object UrlCodec {
     // URLEncoder produces '+' for space rather than '%20'; that's fine for
     // query parameters.
     private fun percentEncode(raw: String): String =
-        URLEncoder.encode(raw, Charsets.UTF_8)
+        URLEncoder.encode(raw, "UTF-8")
 
     private fun tryPercentDecode(raw: String): String? = try {
-        URLDecoder.decode(raw, Charsets.UTF_8)
+        URLDecoder.decode(raw, "UTF-8")
     } catch (_: IllegalArgumentException) {
         null
     }

@@ -31,12 +31,11 @@ class AndroidInstalledAppsRepositoryTest {
     }
 
     private fun makeAppInfo(pkg: String, flags: Int = 0, label: String = pkg): ApplicationInfo {
-        return ApplicationInfo().apply {
-            packageName = pkg
-            this.flags = flags
-        }.also {
-            every { it.loadLabel(pm) } returns label
-        }
+        val appInfo = mockk<ApplicationInfo>(relaxed = true)
+        appInfo.packageName = pkg
+        appInfo.flags = flags
+        every { appInfo.loadLabel(pm) } returns label
+        return appInfo
     }
 
     @Test

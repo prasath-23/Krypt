@@ -21,6 +21,9 @@ import java.security.spec.NamedParameterSpec
  * remediation options. An `assumeNoException` at setup skips the test rather
  * than failing in environments without XDH.
  */
+import org.junit.Ignore
+
+@Ignore("Amendment 1: X25519 K_pair removed from live path.")
 class X25519Test {
 
     // RFC 7748 §6.1

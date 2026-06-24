@@ -1,6 +1,6 @@
 package com.krypt.app.ui.home
 
-import android.graphics.drawable.Drawable
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,7 +37,7 @@ fun InstalledAppRow(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val icon: Drawable? by produceState<Drawable?>(initialValue = null, state.packageName) {
+    val icon: Bitmap? by produceState<Bitmap?>(initialValue = null, state.packageName) {
         value = iconCache.loadAsync(state.packageName)
     }
 
@@ -48,7 +48,7 @@ fun InstalledAppRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AppIcon(drawable = icon, modifier = Modifier.size(48.dp))
+        AppIcon(bitmap = icon, modifier = Modifier.size(48.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -73,8 +73,8 @@ fun InstalledAppRow(
 }
 
 @Composable
-private fun AppIcon(drawable: Drawable?, modifier: Modifier = Modifier) {
-    val bmp: ImageBitmap? = drawable?.toBitmap()?.asImageBitmap()
+private fun AppIcon(bitmap: Bitmap?, modifier: Modifier = Modifier) {
+    val bmp: ImageBitmap? = bitmap?.asImageBitmap()
     if (bmp != null) {
         Image(
             bitmap = bmp,
