@@ -96,8 +96,12 @@ class ManifestAuditTest {
         val nodes = doc.getElementsByTagName("uses-permission")
 
         val out = mutableSetOf<String>()
+        val toolsNs = "http://schemas.android.com/tools"
         for (i in 0 until nodes.length) {
             val el = nodes.item(i) as Element
+            if (el.getAttributeNS(toolsNs, "node") == "remove") {
+                continue
+            }
             val name = el.getAttributeNS(androidNs, "name")
             if (name.isNotBlank()) out.add(name)
         }

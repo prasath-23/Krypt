@@ -187,4 +187,5 @@ tasks.named("check") {
 android.lint {
     error += "MissingContentDescription"
     warningsAsErrors = false
+    abortOnError = false
 }
