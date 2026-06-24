@@ -69,9 +69,7 @@ class AttemptedUnlockShareSheetE2ETest {
         // Stub the ACTION_CHOOSER so the share sheet doesn't actually open
         androidx.test.espresso.intent.Intents.intending(hasAction(Intent.ACTION_CHOOSER))
             .respondWith(
-                androidx.test.espresso.intent.rule.IntentsRule().let {
-                    androidx.test.espresso.intent.ActivityResult(0, null)
-                }
+                android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK, null)
             )
     }
 

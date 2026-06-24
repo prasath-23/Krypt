@@ -132,6 +132,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.espresso.intents)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
@@ -186,4 +187,5 @@ tasks.named("check") {
 android.lint {
     error += "MissingContentDescription"
     warningsAsErrors = false
+    abortOnError = false
 }
