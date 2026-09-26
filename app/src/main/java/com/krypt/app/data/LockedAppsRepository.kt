@@ -13,13 +13,18 @@ import javax.inject.Singleton
  */
 interface LockedAppsRepository {
     suspend fun checkIfAppIsLocked(pkg: String): Boolean
+
+    /** Default-Deny lock for a new (or re-) install; ends any unlock grant for it. */
     suspend fun lockNewlyInstalledApp(pkg: String, displayName: String)
-    /** Manually lock an already-installed app (feature 002 Home Screen). */
+
+    /**
+     * Manually lock an already-installed app (feature 002 Home Screen); ends
+     * any unlock grant for it. No-op if it is already locked.
+     */
     suspend fun lock(packageName: String, displayName: String, source: LockSource = LockSource.MANUAL)
     fun observeLockedApps(): Flow<List<LockedApp>>
     /** Emits the live set of locked package names for the Home Screen list (feature 002). */
     fun allLockedFlow(): Flow<Set<String>>
-    suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long)
     suspend fun unlock(pkg: String)
     suspend fun findByPackage(pkg: String): LockedApp?
 }
@@ -27,6 +32,7 @@ interface LockedAppsRepository {
 @Singleton
 class RoomLockedAppsRepository @Inject constructor(
     private val dao: LockedAppDao,
+    private val sessionStore: LockerSessionStore,
     private val clock: Clock,
 ) : LockedAppsRepository {
 
@@ -47,6 +53,7 @@ class RoomLockedAppsRepository @Inject constructor(
                 updatedAt = now,
             )
         )
+        sessionStore.revoke(pkg) // a fresh lock must not stay open on an earlier grant
     }
 
     override suspend fun lock(packageName: String, displayName: String, source: LockSource) {
@@ -63,6 +70,7 @@ class RoomLockedAppsRepository @Inject constructor(
                 updatedAt = now,
             )
         )
+        sessionStore.revoke(packageName)
     }
 
     override fun observeLockedApps(): Flow<List<LockedApp>> =
@@ -74,10 +82,6 @@ class RoomLockedAppsRepository @Inject constructor(
                 .map { it.packageName }
                 .toSet()
         }
-
-    override suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long) {
-        dao.updateLockState(pkg, LockState.UNLOCKED, clock.nowMs())
-    }
 
     override suspend fun unlock(pkg: String) {
         dao.updateLockState(pkg, LockState.UNLOCKED, clock.nowMs())

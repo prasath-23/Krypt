@@ -1,5 +1,7 @@
 package com.krypt.app.deeplink
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.krypt.app.common.Outcome
 import com.krypt.app.crypto.X25519KeyAgreement
 import com.krypt.app.deeplink.DeepLinkScheme.Params
@@ -11,6 +13,7 @@ import javax.inject.Singleton
  * Parses `krypt://pair?...` URLs on the Guardian device.
  * Tolerates up to [CLOCK_SKEW_SECONDS] of wall-clock drift.
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU) // X25519 key classes; legacy pairing only
 @Singleton
 class PairRequestParser @Inject constructor() {
 

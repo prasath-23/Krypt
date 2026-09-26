@@ -1,5 +1,7 @@
 package com.krypt.app.crypto
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.KeyPair
@@ -21,7 +23,13 @@ import java.security.spec.XECPublicKeySpec
  *   4. Both sides now hold the same 32-byte K_pair which is used to derive
  *      per-request AES-256 keys via [KeyDeriver].
  *
- * ## API-29/30 caveat (research.md R4)
+ * ## API level (research.md R4)
+ *
+ * The key-spec classes used here (`NamedParameterSpec`, `XECPublicKey`,
+ * `XECPublicKeySpec`) exist only on API 33+, hence `@RequiresApi`. Since
+ * Amendment 1 nothing in the live app calls this; only JVM tests do.
+ *
+ * Original note:
  *
  * `KeyPairGenerator.getInstance("XDH")` is only guaranteed on API 31+
  * (Conscrypt 2.5+). On API 29/30, this class will throw
@@ -36,11 +44,12 @@ import java.security.spec.XECPublicKeySpec
  * The JVM unit tests run under JDK 11+ where `XDH` is always available, so
  * the tests do NOT depend on the Android-side fallback path.
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU) // NamedParameterSpec / XEC key specs
 object X25519KeyAgreement {
 
     private const val ALGORITHM = "XDH"
     private const val CURVE = "X25519"
-    private val PARAMS = NamedParameterSpec(CURVE)
+    private val PARAMS by lazy { NamedParameterSpec(CURVE) }
 
     const val PUBLIC_KEY_LEN = 32
     const val SHARED_SECRET_LEN = 32

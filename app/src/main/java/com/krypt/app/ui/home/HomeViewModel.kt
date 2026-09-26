@@ -17,13 +17,9 @@ import javax.inject.Inject
  * Drives the Home Screen (feature 002).
  *
  * Exposes a reactive [StateFlow<HomeUiState>] that combines the live installed-apps
- * list, the locked-app set, and the current search query. Toggle taps are
- * one-way (FR-032 / FR-033):
- *
- *  - Unlocked -> Locked: instant write to [LockedAppsRepository] (atomic).
- *  - Locked -> (attempted unlock): does NOT write; emits a `krypt://request?...`
- *    share [Intent] via [shareIntents] so the screen can dispatch it via the
- *    system chooser.
+ * list, the locked-app set, and the current search query. The Home Screen is
+ * only reachable after the Guardian PIN, so a toggle tap writes straight to
+ * [LockedAppsRepository] in either direction.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -64,13 +60,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Handle a toggle tap on [row].
-     *
-     * - If [row] is unlocked: lock it immediately (FR-032).
-     * - If [row] is locked: do NOT unlock; emit a share intent with the Guardian
-     *   request URL instead (FR-033). The toggle UI must NOT change state.
-     */
+    /** Handle a toggle tap on [row]: lock an unlocked app, unlock a locked one. */
     fun onToggle(row: InstalledAppRowState) {
         if (!row.isLocked) {
             viewModelScope.launch {

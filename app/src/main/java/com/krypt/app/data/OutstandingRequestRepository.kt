@@ -35,6 +35,9 @@ interface OutstandingRequestRepository {
         nowMs: Long,
         grant: UnlockGrant,
     ): Long?
+
+    /** Delete requests that expired, or were consumed more than a day ago. */
+    suspend fun pruneStale(nowMs: Long)
 }
 
 /**

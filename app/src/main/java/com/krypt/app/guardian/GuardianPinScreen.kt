@@ -1,6 +1,5 @@
 package com.krypt.app.guardian
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -32,14 +32,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krypt.app.R
+import com.krypt.app.ui.common.lockoutCountdown
+import com.krypt.app.ui.common.pinLockoutMessage
+import com.krypt.app.ui.link.shareTextChooser
 
 /**
  * Amendment 1 Guardian PIN entry screen. Routed from [GuardianActivity]
  * when a `krypt://request?...` URL is opened on the Guardian's device.
  *
  * Inputs: the incoming URL (from the intent).
- * Outputs: fires an ACTION_SEND intent with the approval URL when
- * validation succeeds.
+ * Outputs: opens the share sheet with the approval message when validation
+ * succeeds.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +84,13 @@ fun GuardianPinScreen(
                     )
                 }
                 is GuardianPinState.Ready -> {
+                    val lockoutLeftMs = lockoutCountdown(
+                        s.lockoutRetryInMs,
+                        onFinished = viewModel::lockoutElapsed,
+                    )
+                    LaunchedEffect(s.errorMessage) {
+                        if (s.errorMessage != null) pin = ""
+                    }
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
@@ -105,9 +115,15 @@ fun GuardianPinScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = s.lockoutRetryInMs == null,
                     )
-                    s.errorMessage?.let { err ->
+                    val error = when (val err = s.errorMessage) {
+                        is ErrorMessage.WrongPin ->
+                            pluralStringResource(R.plurals.pin_error_wrong, err.attemptsLeft, err.attemptsLeft)
+                        is ErrorMessage.Lockout -> pinLockoutMessage(lockoutLeftMs)
+                        null -> null
+                    }
+                    error?.let {
                         Text(
-                            text = errorText(err),
+                            text = it,
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -126,17 +142,14 @@ fun GuardianPinScreen(
                     )
                 }
                 is GuardianPinState.Approved -> {
+                    val message = stringResource(
+                        R.string.approval_share_text,
+                        s.request.targetPackage,
+                        s.approvalUrl,
+                    )
                     LaunchedEffect(s.approvalUrl) {
                         pin = ""
-                        context.startActivity(
-                            Intent.createChooser(
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, s.approvalUrl)
-                                },
-                                null,
-                            )
-                        )
+                        context.startActivity(shareTextChooser(context, message, null))
                         onDone()
                     }
                     Text(
@@ -154,13 +167,4 @@ private fun messageFor(key: String): String = when (key) {
     "request_expired" -> stringResource(R.string.guardian_error_expired)
     "request_corrupt" -> stringResource(R.string.guardian_error_corrupt)
     else -> stringResource(R.string.guardian_error_unreadable)
-}
-
-@Composable
-private fun errorText(err: ErrorMessage): String = when (err) {
-    is ErrorMessage.WrongPin -> stringResource(R.string.guardian_error_wrong_pin, err.attemptsLeft)
-    is ErrorMessage.Lockout -> stringResource(
-        R.string.guardian_error_lockout,
-        (err.retryInMs / 1000L).coerceAtLeast(1L),
-    )
 }

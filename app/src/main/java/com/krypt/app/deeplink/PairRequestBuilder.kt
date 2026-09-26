@@ -1,5 +1,7 @@
 package com.krypt.app.deeplink
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.krypt.app.common.Clock
 import com.krypt.app.crypto.X25519KeyAgreement
 import com.krypt.app.deeplink.DeepLinkScheme.Params
@@ -16,6 +18,7 @@ import javax.inject.Singleton
  * Guardian's `krypt://paired` reply is received and consumed via
  * [PairedReplyVerifier].
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU) // X25519 key classes; legacy pairing only
 @Singleton
 class PairRequestBuilder @Inject constructor(
     private val clock: Clock,

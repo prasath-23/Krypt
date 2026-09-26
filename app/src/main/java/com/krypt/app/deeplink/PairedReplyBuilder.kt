@@ -1,5 +1,7 @@
 package com.krypt.app.deeplink
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.krypt.app.common.Clock
 import com.krypt.app.crypto.HmacSha256
 import com.krypt.app.crypto.KdfProvider
@@ -20,6 +22,7 @@ import javax.inject.Singleton
  *    (and the Guardian's previous ephPub, since Subject persists it too) but
  *    rotates pubSalt + kdfIterations and re-signs.
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU) // X25519 key classes; legacy pairing only
 @Singleton
 class PairedReplyBuilder @Inject constructor(
     private val clock: Clock,

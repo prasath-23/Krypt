@@ -2,6 +2,8 @@ package com.krypt.app.ui.home
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,12 +14,15 @@ import javax.inject.Singleton
 /**
  * Production implementation of [InstalledAppsRepository].
  *
- * Uses [android.content.pm.PackageManager.getInstalledApplications] and
- * filters out:
- *  - System apps (FLAG_SYSTEM and FLAG_UPDATED_SYSTEM_APP)
+ * Uses [PackageManager.getInstalledPackages] and filters out:
+ *  - System apps (FLAG_SYSTEM without FLAG_UPDATED_SYSTEM_APP)
  *  - Krypt's own package
- *  - A curated allowlist of OS launcher / IME / setup packages that would
- *    confuse the user if locked (same filter logic as [PackageReceiver]).
+ *  - A curated denylist of OS launcher packages that would confuse the user
+ *    if locked.
+ *
+ * The same filter decides which new installs are auto-locked
+ * ([com.krypt.app.receiver.NewInstallLocker]), so an app the auto-locker
+ * skips is also absent from the Home list (FR-036).
  *
  * Results are sorted using a locale-aware [Collator] so non-Latin app names
  * (Hindi, Chinese, Arabic) sort correctly.
@@ -31,21 +36,43 @@ class AndroidInstalledAppsRepository @Inject constructor(
         Collator.getInstance().apply { strength = Collator.PRIMARY }
     }
 
+    @Suppress("DEPRECATION") // The PackageInfoFlags overloads need API 33.
     override suspend fun allInstalled(): List<InstalledAppMeta> =
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
-            pm.getInstalledApplications(0)
-                .filter { info -> isUserApp(info, context.packageName) }
-                .map { info ->
-                    InstalledAppMeta(
-                        packageName = info.packageName,
-                        displayName = info.loadLabel(pm).toString(),
-                    )
-                }
+            pm.getInstalledPackages(0)
+                .mapNotNull { it.toUserAppMeta(pm) }
                 .sortedWith(Comparator { a, b ->
                     collator.compare(a.displayName, b.displayName)
                 })
         }
+
+    @Suppress("DEPRECATION")
+    override suspend fun find(packageName: String): InstalledAppMeta? =
+        withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            try {
+                pm.getPackageInfo(packageName, 0).toUserAppMeta(pm)
+            } catch (_: PackageManager.NameNotFoundException) {
+                null
+            }
+        }
+
+    @Suppress("DEPRECATION")
+    override suspend fun kryptInstalledAtMs(): Long =
+        withContext(Dispatchers.IO) {
+            context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
+        }
+
+    private fun PackageInfo.toUserAppMeta(pm: PackageManager): InstalledAppMeta? {
+        val info = applicationInfo ?: return null
+        if (!isUserApp(info, context.packageName)) return null
+        return InstalledAppMeta(
+            packageName = info.packageName,
+            displayName = info.loadLabel(pm).toString(),
+            firstInstallTimeMs = firstInstallTime,
+        )
+    }
 
     private fun isUserApp(info: ApplicationInfo, selfPackage: String): Boolean {
         if (info.packageName == selfPackage) return false

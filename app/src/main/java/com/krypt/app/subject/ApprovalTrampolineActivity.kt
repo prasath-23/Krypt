@@ -1,5 +1,6 @@
 package com.krypt.app.subject
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -11,7 +12,6 @@ import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.deeplink.ApprovalConsumer
 import com.krypt.app.deeplink.ApprovalError
 import com.krypt.app.deeplink.ApprovalOutcome
-import com.krypt.app.service.OverlayManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,9 +21,10 @@ import javax.inject.Inject
  * deep-links.
  *
  * Presents ZERO interactive surface (FR-018). The moment the URL arrives
- * we call [ApprovalConsumer.consume], and on success we play a 500 ms
- * green-flash + haptic + toast and finish. On error we show a brief toast
- * and finish. No PIN keypad, no buttons, no text fields.
+ * we call [ApprovalConsumer.consume]. On success we record the grant (which
+ * also closes the app's lock screen), play a 500 ms green-flash + haptic +
+ * toast, open the now-unlocked app, and finish. On error we show a brief
+ * toast and finish. No PIN keypad, no buttons, no text fields.
  *
  * Registered in the manifest with [Theme.Krypt.Trampoline] (translucent)
  * so no white window frame is ever visible.
@@ -34,7 +35,6 @@ class ApprovalTrampolineActivity : ComponentActivity() {
     @Inject lateinit var consumer: ApprovalConsumer
     @Inject lateinit var successEffect: UnlockSuccessEffect
     @Inject lateinit var sessionStore: LockerSessionStore
-    @Inject lateinit var overlayManager: OverlayManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,13 +67,22 @@ class ApprovalTrampolineActivity : ComponentActivity() {
 
     private suspend fun onUnlockSuccess(outcome: ApprovalOutcome) {
         sessionStore.recordGrant(outcome.targetPackage, outcome.grantExpiresAtMs)
-        overlayManager.hide()
         successEffect.play(
             activity = this,
             targetPackage = outcome.targetPackage,
             grantExpiresAtMs = outcome.grantExpiresAtMs,
         )
+        openUnlockedApp(outcome.targetPackage)
         finish()
+    }
+
+    private fun openUnlockedApp(pkg: String) {
+        val launch = packageManager.getLaunchIntentForPackage(pkg) ?: return
+        try {
+            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: ActivityNotFoundException) {
+            // Uninstalled or disabled since the request; the grant still stands.
+        }
     }
 
     private fun onUnlockError(error: ApprovalError) {

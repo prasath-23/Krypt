@@ -2,51 +2,44 @@ package com.krypt.app.e2e
 
 import android.content.Intent
 import android.net.Uri
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.common.Clock
-import com.krypt.app.crypto.AesGcmCipher
-import com.krypt.app.crypto.HmacProvider
-import com.krypt.app.crypto.KdfProvider
-import com.krypt.app.crypto.SecureRandomSource
+import com.krypt.app.common.Outcome
 import com.krypt.app.data.LockerSessionStore
-import com.krypt.app.data.OutstandingRequest
 import com.krypt.app.data.OutstandingRequestRepository
+import com.krypt.app.data.UnlockGrantDao
 import com.krypt.app.deeplink.ApprovalLinkBuilder
+import com.krypt.app.deeplink.Base64Url
+import com.krypt.app.deeplink.UnlockRequest
 import com.krypt.app.deeplink.UnlockRequestBuilder
+import com.krypt.app.deeplink.UnlockRequestIssuer
+import com.krypt.app.deeplink.UnlockRequestParser
+import com.krypt.app.guardian.GuardianPinValidator
 import com.krypt.app.security.MasterKeyStore
 import com.krypt.app.subject.ApprovalTrampolineActivity
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.UUID
 import javax.inject.Inject
 
 /**
- * T119 — Full Amendment 1 silent-unlock happy path on a single device.
- *
- * Scenario (in-process):
- *   1. Seed [MasterKeyStore] with a deterministic {salt, masterKey,
- *      pinProof}, mirroring what [com.krypt.app.ui.setup.PinSetupViewModel]
- *      would have produced at setup.
- *   2. Build a krypt://request URL via [UnlockRequestBuilder], persist the
- *      [OutstandingRequest] row to the real Room database.
- *   3. Build a krypt://approve URL via [ApprovalLinkBuilder] with the same
- *      masterKey. (Skips the Guardian-device UI — that path is covered by
- *      GuardianPinViewModelTest.)
- *   4. Launch [ApprovalTrampolineActivity] with the approval URL.
- *   5. Assert: [LockerSessionStore] shows the package unlocked, the
- *      OutstandingRequest row is consumed, and the grant exists.
- *
- * We skip the Compose UI hop on the Guardian side because its logic is
- * fully covered in JVM unit tests; the goal here is the real device-side
- * wiring end-to-end.
+ * The whole unlock round trip on one device, through the real Room
+ * database and the silent [ApprovalTrampolineActivity]:
+ *   Subject issues a request (UnlockRequestIssuer saves the pending row)
+ *   -> Guardian parses it, checks the PIN, builds the approval
+ *   -> Subject taps the approval link -> grant recorded, app unlocked.
+ * Plus the ways an approval must be refused.
  */
 @RunWith(AndroidJUnit4::class)
 @HiltAndroidTest
@@ -54,80 +47,119 @@ class Amendment1HappyPathTest {
 
     @get:Rule val hilt = HiltAndroidRule(this)
 
-    @Inject lateinit var masterKeyStore: MasterKeyStore
-    @Inject lateinit var outstandingRepo: OutstandingRequestRepository
-    @Inject lateinit var sessionStore: LockerSessionStore
+    @Inject lateinit var state: TestState
+    @Inject lateinit var issuer: UnlockRequestIssuer
+    @Inject lateinit var requestParser: UnlockRequestParser
     @Inject lateinit var requestBuilder: UnlockRequestBuilder
+    @Inject lateinit var validator: GuardianPinValidator
     @Inject lateinit var approvalBuilder: ApprovalLinkBuilder
-    @Inject lateinit var hmac: HmacProvider
-    @Inject lateinit var kdf: KdfProvider
-    @Inject lateinit var rng: SecureRandomSource
+    @Inject lateinit var outstandingRepo: OutstandingRequestRepository
+    @Inject lateinit var grantDao: UnlockGrantDao
+    @Inject lateinit var sessionStore: LockerSessionStore
+    @Inject lateinit var masterKeyStore: MasterKeyStore
     @Inject lateinit var clock: Clock
 
     private val targetPackage = "com.example.target"
-    private val setupPin = "1234"
 
     @Before
     fun setUp() {
         hilt.inject()
+        state.reset(onboardingComplete = true, pinConfigured = true)
+    }
+
+    /** Subject asks; the Guardian approves with [pin]. */
+    private fun approval(pin: String = TEST_PIN): Pair<String, UnlockRequest> = runBlocking {
+        val requestUrl = (issuer.issue(targetPackage) as Outcome.Ok).value
+        val request = (requestParser.parse(requestUrl, clock.nowSeconds()) as Outcome.Ok).value
+        val key = validator.validate(pin.toCharArray(), request, request.kdfIterations)
+        assertTrue("Guardian must accept the right PIN: $key", key is Outcome.Ok)
+        approvalBuilder.build((key as Outcome.Ok).value, request, grantDurationMinutes = 20) to request
+    }
+
+    private fun tap(approvalUrl: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(approvalUrl), targetContext, ApprovalTrampolineActivity::class.java)
+        ActivityScenario.launch<ApprovalTrampolineActivity>(intent).use { scenario ->
+            val deadline = System.currentTimeMillis() + 10_000
+            while (scenario.state != Lifecycle.State.DESTROYED && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50)
+            }
+        }
+    }
+
+    /** The `unlock_grants` rows: the record of which request authorised each grant. */
+    private fun activeGrants() = runBlocking { grantDao.observeActiveAt(clock.nowMs()).first() }
+
+    @Test
+    fun requestApproveTap_unlocksTheApp() {
+        val (approvalUrl, request) = approval()
+
+        tap(approvalUrl)
+
+        assertTrue("request consumed", runBlocking { outstandingRepo.findById(request.requestId)!!.consumed })
+        assertEquals(listOf(targetPackage), activeGrants().map { it.targetPackage })
+        assertTrue(sessionStore.isUnlockedNow(targetPackage))
     }
 
     @Test
-    fun endToEnd_seedSetupThenConsume_yieldsActiveGrant() = runBlocking {
-        // 1. Seed setup equivalent of PinSetupViewModel.save("1234").
-        val salt = ByteArray(MasterKeyStore.SALT_BYTES) { it.toByte() }
-        val masterKey = kdf.derive(
-            setupPin.toCharArray(),
-            salt,
-            KdfProvider.MIN_ITERATIONS,
-            MasterKeyStore.MASTER_KEY_BYTES,
-        )
-        val pinProof = hmac.sha256(
-            masterKey,
-            MasterKeyStore.PIN_PROOF_LABEL.toByteArray(Charsets.UTF_8),
-        )
-        masterKeyStore.save(salt, masterKey, pinProof)
+    fun wrongPin_isRejectedByTheGuardian() = runBlocking {
+        val requestUrl = (issuer.issue(targetPackage) as Outcome.Ok).value
+        val request = (requestParser.parse(requestUrl, clock.nowSeconds()) as Outcome.Ok).value
 
-        // 2. Subject builds request + persists OutstandingRequest row.
-        val (_, request) = requestBuilder.build(salt, pinProof, targetPackage)
-        outstandingRepo.insert(
-            OutstandingRequest(
-                requestId = request.requestId,
-                targetPackage = request.targetPackage,
-                salt = request.salt,
-                issuedAtMs = clock.nowMs(),
-                expiresAtMs = clock.nowMs() + request.ttlSeconds * 1000L,
-                consumed = false,
-            )
-        )
+        val result = validator.validate("0000".toCharArray(), request, request.kdfIterations)
 
-        // 3. Guardian (simulated) builds approval with same MasterKey.
-        val approvalUrl = approvalBuilder.build(masterKey, request, grantDurationMinutes = 20)
-        masterKey.fill(0)
+        assertTrue(result is Outcome.Err)
+    }
 
-        // 4. Subject taps approval → ApprovalTrampolineActivity.
-        val intent = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse(approvalUrl),
-            androidx.test.platform.app.InstrumentationRegistry
-                .getInstrumentation().targetContext,
-            ApprovalTrampolineActivity::class.java,
-        )
-        ActivityScenario.launch<ApprovalTrampolineActivity>(intent).use { scenario ->
-            // Trampoline finishes itself after play(); wait for terminal state.
-            scenario.onActivity {
-                // No-op; existence of this Activity is what we care about.
-            }
-            // Give lifecycleScope time to consume + recordGrant.
-            Thread.sleep(2000L)
+    @Test
+    fun replayedApproval_grantsNothingMore() {
+        val (approvalUrl, _) = approval()
+        tap(approvalUrl)
+        sessionStore.expireAll()
+
+        tap(approvalUrl)
+
+        assertEquals(1, activeGrants().size)
+        assertFalse("a replay must not unlock again", sessionStore.isUnlockedNow(targetPackage))
+    }
+
+    @Test
+    fun approvalForARequestThisDeviceNeverIssued_grantsNothing() {
+        val masterKey = runBlocking { state.setUpPin() }
+        val salt = runBlocking { masterKeyStore.loadSalt()!! }
+        val pinProof = runBlocking { masterKeyStore.loadPinProof()!! }
+        val (_, foreignRequest) = requestBuilder.build(salt, pinProof, targetPackage)
+        val approvalUrl = approvalBuilder.build(masterKey, foreignRequest)
+
+        tap(approvalUrl)
+
+        assertTrue(activeGrants().isEmpty())
+        assertFalse(sessionStore.isUnlockedNow(targetPackage))
+    }
+
+    @Test
+    fun tamperedApproval_grantsNothingAndLeavesTheRequestOpen() {
+        val (approvalUrl, request) = approval()
+        val tampered = approvalUrl.replace(Regex("data=[^&]+")) { match ->
+            val bytes = Base64Url.decode(match.value.substringAfter("data="))
+            bytes[bytes.size / 2] = (bytes[bytes.size / 2].toInt() xor 0x01).toByte()
+            "data=${Base64Url.encode(bytes)}"
         }
 
-        // 5. Assertions.
-        val storedRequest = outstandingRepo.findById(request.requestId)!!
-        assertTrue("Request must be consumed", storedRequest.consumed)
-        assertTrue(
-            "SessionStore must report ${targetPackage} as unlocked",
-            sessionStore.isUnlockedNow(targetPackage),
-        )
+        tap(tampered)
+
+        assertTrue(activeGrants().isEmpty())
+        assertFalse(runBlocking { outstandingRepo.findById(request.requestId)!!.consumed })
+    }
+
+    @Test
+    fun grantSurvivesAProcessRestart() {
+        val (approvalUrl, _) = approval()
+        tap(approvalUrl)
+
+        // A fresh store, as in the next process after this one died.
+        assertNotNull("no boot count on this device, so no grant can survive a restart", clock.bootCount())
+        val restarted = LockerSessionStore(targetContext, clock).apply { restore() }
+
+        assertTrue(restarted.isUnlockedNow(targetPackage))
     }
 }

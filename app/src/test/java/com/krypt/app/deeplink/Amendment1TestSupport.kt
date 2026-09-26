@@ -55,6 +55,14 @@ internal class FakeOutstandingRequestRepository : OutstandingRequestRepository {
         grants += grant.copy(id = id)
         id
     }
+
+    var pruneCalls: Int = 0
+        private set
+
+    override suspend fun pruneStale(nowMs: Long) {
+        pruneCalls++
+        requests.values.removeAll { it.expiresAtMs < nowMs }
+    }
 }
 
 /**

@@ -142,6 +142,7 @@ expiresAt       INTEGER NOT NULL  -- typically grantedAt + defaultGrantDurationM
 - A grant is consumed by the Locker overlay: if `now < grant.expiresAt`, the overlay is not shown.
 - Multiple grants for the same package can exist; the overlay checks `max(expiresAt) > now`.
 - On process death, grants survive because they're persisted. On process restart, `LockerSessionStore` rebuilds its in-memory cache from `SELECT * FROM unlock_grants WHERE expiresAt > now`.
+- **Amendment 2:** the rows are now only the record of which request authorised each grant, and they are not read back. `LockerSessionStore` saves each grant itself on the monotonic clock (`elapsedRealtime`), tagged with the boot count. It restores grants only within the same boot, so a reboot ends them and changing the date can't stretch or revive one. See spec.md, Amendment 2, item 7.
 
 ---
 

@@ -1,6 +1,7 @@
 package com.krypt.app.deeplink
 
 import com.krypt.app.common.Outcome
+import com.krypt.app.crypto.KdfProvider
 import com.krypt.app.deeplink.DeepLinkScheme.Params
 import java.util.UUID
 import javax.inject.Inject
@@ -62,6 +63,15 @@ class UnlockRequestParser @Inject constructor() {
             return Outcome.err(RequestParseError.BadPinProofLength)
         }
 
+        // Optional so requests from builds that predate `kdfIter` still parse;
+        // those fall back to the floor, which is what the Guardian used before.
+        val kdfIterations = when (val raw = parsed.params[Params.KDF_ITER]) {
+            null -> KdfProvider.MIN_ITERATIONS
+            else -> raw.toIntOrNull()
+                ?.takeIf { it in KdfProvider.MIN_ITERATIONS..KdfProvider.MAX_ITERATIONS }
+                ?: return Outcome.err(RequestParseError.BadKdfIterations)
+        }
+
         val issuedAtString = parsed.params[Params.ISSUED_AT]
             ?: return Outcome.err(RequestParseError.MissingParam(Params.ISSUED_AT))
         val issuedAt = issuedAtString.toLongOrNull()
@@ -94,6 +104,7 @@ class UnlockRequestParser @Inject constructor() {
                 pinProof = pinProof,
                 issuedAt = issuedAt,
                 ttlSeconds = ttlSeconds,
+                kdfIterations = kdfIterations,
             )
         )
     }

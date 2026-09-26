@@ -10,8 +10,18 @@
     <style name="Theme.Krypt" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
-        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+
+    <!--
+        Amendment 2: LockScreenActivity. The window background is the lock
+        screen's gradient, so the first frame the system draws for the
+        activity already hides the locked app, before Compose runs.
+    -->
+    <style name="Theme.Krypt.LockScreen" parent="Theme.Krypt">
+        <item name="android:windowBackground">@drawable/lock_screen_background</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <!--

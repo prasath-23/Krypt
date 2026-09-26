@@ -1,60 +1,73 @@
 package com.krypt.app.service
 
 import android.accessibilityservice.AccessibilityService
+import android.app.ActivityOptions
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
-import android.os.SystemClock
+import android.telecom.TelecomManager
 import android.util.Log
-import android.util.LruCache
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Toast
-import com.krypt.app.R
-import com.krypt.app.data.LockState
+import android.view.inputmethod.InputMethodManager
+import androidx.core.content.ContextCompat
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
-import com.krypt.app.deeplink.UnlockRequestBuilder
 import com.krypt.app.di.ApplicationScope
-import com.krypt.app.security.MasterKeyStore
+import com.krypt.app.receiver.NewInstallLocker
+import com.krypt.app.ui.lock.LockScreenActivity
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * FR-001 interception core. Observes TYPE_WINDOW_STATE_CHANGED, decides if
- * the foregrounded package is locked, and shows / hides the pre-inflated
- * overlay. FR-011 self-whitelist: GuardianActivity is never overlaid.
+ * FR-001 interception core. Observes TYPE_WINDOW_STATE_CHANGED and, when a
+ * locked package without an active grant reaches the foreground, replaces it
+ * with [LockScreenActivity] (Amendment 2: locked apps are blocked, not
+ * covered by an overlay). Krypt's own windows - the lock screen itself and
+ * the Guardian popup (FR-011) - are never blocked.
+ *
+ * Also hosts the parts of Krypt that must keep running: the new-install
+ * auto-lock (FR-003, via [NewInstallLocker]) and grant expiry for an app
+ * that is still open when its grant ends (FR-013, via [GrantExpiryWatcher]).
  */
 @AndroidEntryPoint
 class AppLockerAccessibilityService : AccessibilityService() {
 
     @Inject lateinit var lockedAppsRepo: LockedAppsRepository
     @Inject lateinit var sessionStore: LockerSessionStore
-    @Inject lateinit var overlayManager: OverlayManager
-    @Inject lateinit var unlockRequestBuilder: UnlockRequestBuilder
-    @Inject lateinit var masterKeyStore: MasterKeyStore
+    @Inject lateinit var newInstallLocker: NewInstallLocker
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
     @Volatile private var lockedPackagesCache: Set<String> = emptySet()
-    private val serviceJob = kotlinx.coroutines.SupervisorJob()
+
+    /** The app the user is in; keyboard and notification-shade windows don't change it. */
+    private var foregroundPackage: String? = null
+
+    private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
-    private val nameCache = LruCache<String, String>(64)
-    private val iconCache = LruCache<String, Drawable>(64)
+    private var watchingInstalls = false
+    private val packageAddedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.data?.schemeSpecificPart ?: return
+            val replacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
+            launchSafely("auto-lock $pkg") { newInstallLocker.onPackageAdded(pkg, replacing) }
+        }
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        overlayManager.preinflate()
-        overlayManager.bindAskGuardian(::onAskGuardianClicked)
         subscribeToLockedAppsFlow()
+        GrantExpiryWatcher(serviceScope, sessionStore, ::onGrantExpired).start()
+        watchNewInstalls()
+        KryptWatchdogService.start(this)
         Log.i(TAG, "connected")
     }
 
@@ -66,39 +79,30 @@ class AppLockerAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun watchNewInstalls() {
+        ContextCompat.registerReceiver(
+            this,
+            packageAddedReceiver,
+            IntentFilter(Intent.ACTION_PACKAGE_ADDED).apply { addDataScheme("package") },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        watchingInstalls = true
+        launchSafely("new-install catch-up") { newInstallLocker.catchUp() }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val ev = event ?: return
         if (ev.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val pkg = ev.packageName?.toString() ?: return
-        val className = ev.className?.toString()
+        if (!isTransientWindow(pkg, ev.className)) foregroundPackage = pkg
 
         if (pkg == packageName) return
+        if (pkg !in lockedPackagesCache) return
+        if (sessionStore.isUnlockedNow(pkg)) return
+        if (isNeverBlocked(pkg)) return
 
-        // FR-011: whitelist our own Guardian Popup.
-        if (className == GUARDIAN_ACTIVITY_CLASS) {
-            overlayManager.hide()
-            return
-        }
-
-        if (isSystemUiPackage(pkg)) {
-            overlayManager.hide()
-            return
-        }
-
-        if (sessionStore.isUnlockedNow(pkg)) {
-            overlayManager.hide()
-            return
-        }
-
-        if (pkg in lockedPackagesCache) {
-            val t0 = SystemClock.elapsedRealtime()
-            overlayManager.show(pkg, displayNameFor(pkg), iconFor(pkg))
-            val dt = SystemClock.elapsedRealtime() - t0
-            Log.d(TAG_LATENCY, "pkg=$pkg show_ms=$dt")
-        } else {
-            overlayManager.hide()
-        }
+        blockLaunch(pkg)
     }
 
     override fun onInterrupt() {
@@ -106,88 +110,88 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        if (watchingInstalls) {
+            try {
+                unregisterReceiver(packageAddedReceiver)
+            } catch (_: IllegalArgumentException) {
+                // Already unregistered.
+            }
+        }
         serviceJob.cancel()
         super.onDestroy()
     }
 
-    private fun onAskGuardianClicked(pkg: String) {
+    /** A grant ran out: if its app is still open, block it now. */
+    private fun onGrantExpired(pkg: String) {
+        if (pkg != foregroundPackage || pkg !in lockedPackagesCache) return
+        if (sessionStore.isUnlockedNow(pkg) || isNeverBlocked(pkg)) return
+        blockLaunch(pkg)
+    }
+
+    /**
+     * Close the locked app and show the lock screen. The app is sent behind
+     * the home screen first, so it is never directly under the lock screen:
+     * if Krypt's process dies (a crash, an update), Android removes the lock
+     * screen and the home screen shows, not the app. Leaving the lock screen
+     * also goes to the home screen, and bringing the app back (launcher,
+     * Recents, a notification) fires another event.
+     */
+    private fun blockLaunch(pkg: String) {
+        val home = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_HOME)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Started together with no transition animation, so the app is
+        // hidden immediately and the home screen never flashes up.
+        val noAnimation = ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle()
+        try {
+            startActivities(arrayOf(home, LockScreenActivity.intentFor(this, pkg)), noAnimation)
+            Log.i(TAG, "blocked pkg=$pkg")
+        } catch (t: Throwable) {
+            Log.e(TAG, "could not show lock screen for pkg=$pkg", t)
+        }
+    }
+
+    /** Keyboards and the notification shade open over an app without leaving it. */
+    private fun isTransientWindow(pkg: String, className: CharSequence?): Boolean =
+        pkg == SYSTEM_UI_PACKAGE || className?.toString() == SOFT_INPUT_WINDOW_CLASS
+
+    /**
+     * Packages that stay usable even when they are in the locked list:
+     * blocking the home app would bounce between Home and the lock screen
+     * forever, blocking a keyboard would stop typing in every app, and
+     * blocking the dialer would stop incoming calls being answered. Resolved
+     * only on the block path, so a newly chosen launcher or keyboard counts
+     * straight away.
+     */
+    private fun isNeverBlocked(pkg: String): Boolean {
+        val home = packageManager.resolveActivity(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+            PackageManager.MATCH_DEFAULT_ONLY,
+        )?.activityInfo?.packageName
+        if (pkg == home) return true
+
+        val dialer = getSystemService(TelecomManager::class.java)?.defaultDialerPackage
+        if (pkg == dialer) return true
+
+        val keyboards = getSystemService(InputMethodManager::class.java)?.enabledInputMethodList
+        return keyboards?.any { it.packageName == pkg } == true
+    }
+
+    private fun launchSafely(what: String, block: suspend () -> Unit) {
         appScope.launch {
             try {
-                val salt = masterKeyStore.loadSalt()
-                val pinProof = masterKeyStore.loadPinProof()
-                if (salt == null || pinProof == null) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            this@AppLockerAccessibilityService,
-                            "Set up a Guardian PIN first.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                    return@launch
-                }
-
-                val displayName = displayNameFor(pkg)
-                val (url, _) = unlockRequestBuilder.build(
-                    setupSalt = salt,
-                    pinProof = pinProof,
-                    targetPackage = pkg,
-                )
-
-                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, url)
-                    putExtra(Intent.EXTRA_SUBJECT, "Krypt unlock request: $displayName")
-                }
-                val chooser = Intent.createChooser(
-                    sendIntent,
-                    getString(R.string.home_share_chooser_title),
-                ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-
-                withContext(Dispatchers.Main) {
-                    // Hide the overlay so the chooser isn't visually buried under it.
-                    overlayManager.hide()
-                    startActivity(chooser)
-                }
-                Log.i(TAG, "share chooser launched for pkg=$pkg")
-            } catch (t: Throwable) {
-                Log.e(TAG, "ask-guardian failed for pkg=$pkg", t)
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "$what failed", e)
             }
         }
     }
 
-    private fun displayNameFor(pkg: String): String {
-        nameCache.get(pkg)?.let { return it }
-        val name = try {
-            packageManager.getApplicationInfo(pkg, 0).loadLabel(packageManager).toString()
-        } catch (_: PackageManager.NameNotFoundException) {
-            pkg
-        }
-        nameCache.put(pkg, name)
-        return name
-    }
-
-    private fun iconFor(pkg: String): Drawable? {
-        iconCache.get(pkg)?.let { return it }
-        val icon = try {
-            packageManager.getApplicationIcon(pkg)
-        } catch (_: PackageManager.NameNotFoundException) {
-            null
-        }
-        if (icon != null) iconCache.put(pkg, icon)
-        return icon
-    }
-
-    private fun isSystemUiPackage(pkg: String): Boolean =
-        pkg in SYSTEM_UI_PKGS
-
-    companion object {
-        const val GUARDIAN_ACTIVITY_CLASS: String = "com.krypt.app.ui.guardian.GuardianActivity"
-        private const val TAG = "KryptA11y"
-        const val TAG_LATENCY = "KryptA11yLatency"
-        private val SYSTEM_UI_PKGS: Set<String> = setOf(
-            "com.android.systemui",
-            "com.google.android.apps.nexuslauncher",
-            "com.google.android.googlequicksearchbox",
-        )
+    private companion object {
+        const val TAG = "KryptA11y"
+        const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+        const val SOFT_INPUT_WINDOW_CLASS = "android.inputmethodservice.SoftInputWindow"
     }
 }

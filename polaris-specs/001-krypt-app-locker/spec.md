@@ -2,8 +2,62 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendment 2 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 2 (2026-09-26) - Block Locked Apps Instead of Covering Them
+
+**What changed:**
+
+1. **Locked apps are blocked, not covered.** Previously a locked app launched normally and a `WindowManager` overlay (`OverlayManager`) was drawn on top of it, with the app running underneath. Now `AppLockerAccessibilityService` replaces the locked app with Krypt's own lock-screen Activity (`LockScreenActivity`) as soon as the app reaches the foreground. The overlay is removed.
+   - The locked app is sent behind the home screen as the lock screen opens, so it is never directly under Krypt's screen. If Krypt's process dies (a crash, an update), Android removes the lock screen and the home screen shows, not the app.
+   - Leaving the lock screen (Back, or "Go to home screen") always goes to the home screen, never back into the locked app.
+   - Re-opening the app by any route (launcher, Recents, a notification) brings the lock screen back.
+2. **Access comes only from the Guardian.** The lock screen's "Ask Guardian" button sends the `krypt://request` link. When the Subject taps the Guardian's approval link, the app opens automatically and stays usable for the grant window. There is no PIN entry on the lock screen, so FR-018 still holds.
+3. **Requests are recorded when issued.** `UnlockRequestIssuer` now saves the `OutstandingRequest` row at the moment it builds the request link. Before this change nothing saved the row, so `ApprovalConsumer` rejected every approval as `UnmatchedRequest`.
+4. **The request link carries the PBKDF2 iteration count.** `krypt://request` gains `kdfIter`, the iteration count the Subject calibrated at PIN setup. The Guardian now derives the key with that count. Before, it used its own local setting (300,000 by default), which rejected the correct PIN whenever the Subject had calibrated higher. See `contracts/request.md`.
+5. **Some packages are never blocked,** even if they appear in the locked list: the default home app, enabled keyboards, and the default dialer. Blocking the home app would bounce between Home and the lock screen forever. Blocking a keyboard would stop typing in every app. Blocking the dialer would stop incoming calls from being answered.
+6. **New installs are locked reliably.** Android 8+ never delivered `ACTION_PACKAGE_ADDED` to the manifest-declared `PackageReceiver`, so no new install was ever auto-locked. `NewInstallLocker` now handles it instead:
+   - A receiver registered at runtime by the accessibility service locks new installs as they happen.
+   - A catch-up scan runs whenever the service connects. It locks any app installed after Krypt that was missed. It skips apps whose lock row was written after they were installed (already locked, or unlocked by the Guardian on purpose).
+   - A reinstall counts as a new install.
+   - The filter is the same one the Home list uses (FR-036).
+7. **Grants survive process restarts, can't be stretched or revived, and end on time.**
+   - Grants are timed on the monotonic clock (`elapsedRealtime`), so changing the date neither extends a grant nor brings an ended one back.
+   - `LockerSessionStore` saves each grant on that clock, tagged with the boot it belongs to (`Settings.Global.BOOT_COUNT`). When Krypt's process restarts in the same boot, it gets back exactly the time it had left. Before this, an approved app re-locked whenever Krypt's process restarted.
+   - A reboot restarts the monotonic clock and ends every grant, so the Subject asks again. So does a device that doesn't report a boot count. A grant is never restored from the wall clock: setting the date back and restarting could otherwise revive any old grant, again and again.
+   - An app that is still open when its grant ends is blocked at that moment (FR-013), not at its next window change.
+   - Locking an app again (a reinstall, or the Home toggle) ends any grant it still has, including across a restart.
+   - The `unlock_grants` rows remain the record of which request authorised each grant. They are no longer read to decide access.
+8. **The Guardian PIN is harder to guess.**
+   - Both PIN screens share a persistent `PinAttemptLimiter`: the Krypt entry screen and the Guardian approval screen.
+   - The 3rd wrong PIN locks for 30 s, the 4th-5th for 2 min, the 6th-7th for 10 min, and every later one for an hour.
+   - Before this, the entry screen had no limit, and the approval screen's limit reset whenever it was reopened, so the Subject could guess through their own request link.
+   - An attempt counts from the moment its (slow, PBKDF2) check starts, and it is on disk before the check runs. Closing or killing Krypt mid-check can't make a guess free. A correct PIN clears it, and so does finding that no PIN is set up yet.
+   - Lockouts are timed on the monotonic clock. A reboot during a lockout starts it over, because the wall clock can be moved forward to end it early.
+   - Leaving Krypt (Home button, Recents, screen off) locks its Home Screen again. Before this, it stayed unlocked until the process died.
+9. **Links that aren't tappable can still be used.** Many messaging apps only make `https://` links tappable. The shared messages now say what to do if the link doesn't open, and there are three fallbacks:
+   - "Paste link" (Krypt's onboarding and PIN screens) opens a copied request or approval.
+   - "Paste approval link" on the lock screen opens a copied approval.
+   - "Open in Krypt" appears as a share target and a text-selection action.
+10. **Legacy pairing links removed.** `krypt://pair` and `krypt://paired` are no longer handled, and their dead screens are deleted. A crafted link could reach a screen that overwrote this device's PBKDF2 iteration setting, which would break the PIN and every approval. It could also crash Krypt below API 33.
+11. **Smaller fixes.**
+    - The missing `VIBRATE` permission is added; the FR-021 unlock haptic silently failed without it.
+    - A proper "Krypt protection is off" alert replaces the health check's misuse of "New App Protected".
+    - Starting the watchdog from the background can no longer crash Krypt on Android 12+.
+    - The Home list refreshes on resume.
+
+**FRs touched:**
+- FR-001: the locked app must not be usable. The lock screen replaces it instead of covering it.
+- FR-002: the lock screen may be closed, but closing it only ever leads to the home screen.
+- FR-003 / FR-004: new installs are now actually locked and announced.
+- FR-007: the request link now includes `kdfIter`.
+- FR-013: grants expire even while their app is open. They survive process restarts but not reboots.
+- FR-021: the haptic now works.
+
+`SYSTEM_ALERT_WINDOW` is retained because it lets Krypt start its lock screen from the background.
 
 ---
 

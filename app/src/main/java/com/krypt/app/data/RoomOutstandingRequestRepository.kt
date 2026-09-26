@@ -53,6 +53,10 @@ class RoomOutstandingRequestRepository @Inject constructor(
         }
     }
 
+    override suspend fun pruneStale(nowMs: Long) {
+        requestDao.pruneOld(now = nowMs, pruneBefore = nowMs - CONSUMED_RETENTION_MS)
+    }
+
     private fun OutstandingRequestEntity.toDomain(): OutstandingRequest = OutstandingRequest(
         requestId = UUID.fromString(requestId),
         targetPackage = targetPackage,
@@ -61,6 +65,11 @@ class RoomOutstandingRequestRepository @Inject constructor(
         expiresAtMs = expiresAt,
         consumed = consumed != 0,
     )
+
+    private companion object {
+        /** Consumed rows are kept for a day as a record of recent unlocks. */
+        const val CONSUMED_RETENTION_MS = 24 * 60 * 60 * 1000L
+    }
 }
 
 /** Room-backed impl of [UnlockGrantRepository] (interface from WP03). */

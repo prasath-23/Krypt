@@ -3,6 +3,7 @@ package com.krypt.app.ui.main
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
@@ -14,11 +15,21 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            KryptTheme { MainRoute() }
+            KryptTheme { MainRoute(viewModel) }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Leaving Krypt (Home button, Recents, screen off) closes the Home
+        // Screen, so the Subject cannot reopen it without the Guardian PIN.
+        if (!isChangingConfigurations) viewModel.lockAppEntry()
     }
 }
 

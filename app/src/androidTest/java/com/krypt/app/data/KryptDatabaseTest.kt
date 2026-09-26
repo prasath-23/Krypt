@@ -157,4 +157,30 @@ class KryptDatabaseTest {
         val active = grants.observeActiveAt(now = 2_000).first()
         assertEquals(1, active.size)
     }
+
+    @Test
+    fun unlockGrantPruneExpiredDropsOnlyExpiredGrants() = runBlocking {
+        grants.insert(UnlockGrantEntity(requestId = "a", targetPackage = "com.a", grantedAt = 1_000, expiresAt = 5_000))
+        grants.insert(UnlockGrantEntity(requestId = "b", targetPackage = "com.b", grantedAt = 1_000, expiresAt = 2_000))
+
+        assertEquals(1, grants.pruneExpired(now = 3_000))
+        assertEquals(listOf("com.a"), grants.observeActiveAt(now = 0).first().map { it.targetPackage })
+    }
+
+    @Test
+    fun outstandingPruneOldDropsExpiredAndOldConsumedRequests() = runBlocking {
+        fun request(id: String, issuedAt: Long, expiresAt: Long, consumed: Int) = OutstandingRequestEntity(
+            requestId = id, targetPackage = "com.example.app", salt = ByteArray(16),
+            issuedAt = issuedAt, expiresAt = expiresAt, consumed = consumed,
+        )
+        outstanding.insert(request("expired", issuedAt = 1_000, expiresAt = 2_000, consumed = 0))
+        outstanding.insert(request("oldConsumed", issuedAt = 1_000, expiresAt = 9_000, consumed = 1))
+        outstanding.insert(request("open", issuedAt = 4_000, expiresAt = 9_000, consumed = 0))
+
+        outstanding.pruneOld(now = 5_000, pruneBefore = 3_000)
+
+        assertNull(outstanding.findById("expired"))
+        assertNull(outstanding.findById("oldConsumed"))
+        assertNotNull(outstanding.findById("open"))
+    }
 }

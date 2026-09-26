@@ -23,12 +23,16 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -41,9 +45,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krypt.app.R
 import com.krypt.app.permission.PermissionIndicator
+import com.krypt.app.ui.link.pasteKryptLinkAction
 import com.krypt.app.ui.onboarding.OnboardingStep
 import com.krypt.app.ui.onboarding.OnboardingUiState
 import com.krypt.app.ui.onboarding.OnboardingViewModel
+import kotlinx.coroutines.launch
 
 /**
  * 5-step onboarding wizard redesigned for feature 002.
@@ -63,6 +69,14 @@ fun OnboardingScreen(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val noLinkMessage = stringResource(R.string.link_not_found)
+    // A Guardian-only phone lands here: let the Guardian open a request link
+    // copied from a messaging app that does not make it tappable.
+    val pasteLink = pasteKryptLinkAction {
+        scope.launch { snackbarHostState.showSnackbar(noLinkMessage) }
+    }
 
     DisposableEffect(lifecycleOwner) {
         viewModel.permissionState.bind(lifecycleOwner)
@@ -71,8 +85,14 @@ fun OnboardingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.onboarding_title)) })
-        }
+            TopAppBar(
+                title = { Text(stringResource(R.string.onboarding_title)) },
+                actions = {
+                    TextButton(onClick = pasteLink) { Text(stringResource(R.string.paste_link)) }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { inner ->
         Column(
             modifier = Modifier

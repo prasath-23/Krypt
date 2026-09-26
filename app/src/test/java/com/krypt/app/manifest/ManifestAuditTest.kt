@@ -1,5 +1,6 @@
 package com.krypt.app.manifest
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -59,8 +60,9 @@ class ManifestAuditTest {
         // If any of these ever disappears, a feature breaks silently and this
         // test is the canary.
         val required = listOf(
-            "android.permission.SYSTEM_ALERT_WINDOW"       to "FR-001/FR-002 (overlay)",
+            "android.permission.SYSTEM_ALERT_WINDOW"       to "FR-001 (start the lock screen from the background)",
             "android.permission.POST_NOTIFICATIONS"        to "FR-004 (Security-Alerts channel)",
+            "android.permission.VIBRATE"                   to "FR-021 (unlock haptic)",
             "android.permission.QUERY_ALL_PACKAGES"        to "enumerate apps for lock list (research.md R6)",
             "android.permission.RECEIVE_BOOT_COMPLETED"    to "rebind Accessibility after reboot",
             "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "FR-010 (Doze survival)",
@@ -76,9 +78,19 @@ class ManifestAuditTest {
         }
     }
 
+    @Test
+    fun manifestOnlyHandlesRequestAndApprovalLinks() {
+        // The legacy krypt://pair and krypt://paired screens could overwrite
+        // this device's PBKDF2 settings (Amendment 2 removed them).
+        val kryptHosts = attributeValues("data", "host")
+        assertEquals(setOf("request", "approve"), kryptHosts)
+    }
+
     // --------------------------------------------------------------------
 
-    private fun declaredPermissions(): Set<String> {
+    private fun declaredPermissions(): Set<String> = attributeValues("uses-permission", "name")
+
+    private fun attributeValues(tag: String, attribute: String): Set<String> {
         val manifestFile = File(manifestPath)
         if (!manifestFile.exists()) {
             fail(
@@ -93,17 +105,16 @@ class ManifestAuditTest {
         }.newDocumentBuilder().parse(manifestFile)
 
         val androidNs = "http://schemas.android.com/apk/res/android"
-        val nodes = doc.getElementsByTagName("uses-permission")
+        val toolsNs = "http://schemas.android.com/tools"
+        val nodes = doc.getElementsByTagName(tag)
 
         val out = mutableSetOf<String>()
-        val toolsNs = "http://schemas.android.com/tools"
         for (i in 0 until nodes.length) {
             val el = nodes.item(i) as Element
-            if (el.getAttributeNS(toolsNs, "node") == "remove") {
-                continue
-            }
-            val name = el.getAttributeNS(androidNs, "name")
-            if (name.isNotBlank()) out.add(name)
+            // tools:node="remove" drops the element from the merged manifest.
+            if (el.getAttributeNS(toolsNs, "node") == "remove") continue
+            val value = el.getAttributeNS(androidNs, attribute)
+            if (value.isNotBlank()) out.add(value)
         }
         return out
     }
