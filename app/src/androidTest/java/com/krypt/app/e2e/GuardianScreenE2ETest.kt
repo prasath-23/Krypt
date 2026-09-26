@@ -5,12 +5,13 @@ import android.app.Instrumentation
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.core.content.IntentCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
@@ -20,7 +21,10 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
 import androidx.test.espresso.intent.VerificationModes.times
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.common.Outcome
+import com.krypt.app.deeplink.ApprovalConsumer
 import com.krypt.app.deeplink.UnlockRequestIssuer
+import com.krypt.app.guardian.MINUTES_FIELD_TAG
+import com.krypt.app.guardian.PIN_FIELD_TAG
 import com.krypt.app.ui.guardian.GuardianActivity
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -29,6 +33,7 @@ import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.equalTo
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -49,6 +54,7 @@ class GuardianScreenE2ETest {
 
     @Inject lateinit var state: TestState
     @Inject lateinit var issuer: UnlockRequestIssuer
+    @Inject lateinit var consumer: ApprovalConsumer
 
     @Before
     fun setUp() {
@@ -73,7 +79,7 @@ class GuardianScreenE2ETest {
 
     private fun ComposeTestRule.enterGuardianPin(pin: String) {
         awaitText("Verify & send approval")
-        onNode(hasSetTextAction()).performTextInput(pin)
+        onNodeWithTag(PIN_FIELD_TAG).performTextInput(pin)
         onNodeWithText("Verify & send approval").performClick()
     }
 
@@ -96,6 +102,40 @@ class GuardianScreenE2ETest {
                 ),
             )
         )
+    }
+
+    @Test
+    fun theDurationThePickedChip_isWhatTheApprovalUnlocks() {
+        open(issueRequest()).use {
+            compose.awaitText("30 min")
+            compose.onNodeWithText("30 min").performClick()
+            compose.awaitText("Allows: 30 minutes, one time")
+            compose.enterGuardianPin(TEST_PIN)
+            compose.awaitText("Approval sent", substring = true)
+        }
+        val shared = Intents.getIntents()
+            .first { it.action == Intent.ACTION_CHOOSER }
+            .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
+            .getStringExtra(Intent.EXTRA_TEXT)!!
+        assertEquals(true, shared.contains("Krypt approval for com.example.target: 30 minutes, one time."))
+
+        // The request was issued on this device, so it can consume its own approval.
+        val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
+        val grant = (runBlocking { consumer.consume(url) } as Outcome.Ok).value
+        assertEquals(30 * 60_000L, grant.grantExpiresAtMs - grant.grantedAtMs)
+    }
+
+    @Test
+    fun unusableTypedMinutes_blockTheApproval() {
+        open(issueRequest()).use {
+            compose.awaitText("Set minutes")
+            compose.onNodeWithText("Set minutes").performClick()
+            compose.onNodeWithTag(MINUTES_FIELD_TAG).performTextInput("0")
+            compose.awaitText("Enter a number of minutes from 1 to 1440.")
+            compose.onNodeWithTag(PIN_FIELD_TAG).performTextInput(TEST_PIN)
+            compose.onNodeWithText("Verify & send approval").assertIsNotEnabled()
+        }
+        intended(hasAction(Intent.ACTION_CHOOSER), times(0))
     }
 
     @Test

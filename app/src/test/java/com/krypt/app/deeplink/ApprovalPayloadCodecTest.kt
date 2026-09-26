@@ -134,6 +134,50 @@ class ApprovalPayloadCodecTest {
         )
     }
 
+    /**
+     * The one-time payload on the wire, byte for byte, as every Krypt
+     * install since Amendment 1 reads it. Changing it would make approvals
+     * from this Guardian unreadable on older child phones.
+     */
+    @Test
+    fun oneTimePayload_encodesToTheAmendment1Bytes() {
+        val req = "11111111-1111-4111-8111-111111111111"
+        val payload = ApprovalPayload(v = "1", req = req, app = "com.example.target", durMin = 15, iat = 1_700_000_000L)
+
+        val expected = cbor(durMin = byteArrayOf(0x0f), req = req)
+
+        assertArrayEquals(expected, ApprovalPayloadCodec.encode(payload))
+    }
+
+    @Test
+    fun decodeRejectsDurationsOutsideOneMinuteToOneDay() {
+        val req = "11111111-1111-4111-8111-111111111111"
+        val zero = cbor(durMin = byteArrayOf(0x00), req = req)
+        val dayAndAMinute = cbor(durMin = byteArrayOf(0x19, 0x05, 0xA1.toByte()), req = req) // uint16 1441
+        val aDay = cbor(durMin = byteArrayOf(0x19, 0x05, 0xA0.toByte()), req = req)          // uint16 1440
+
+        assertThrows(IllegalArgumentException::class.java) { ApprovalPayloadCodec.decode(zero) }
+        assertThrows(IllegalArgumentException::class.java) { ApprovalPayloadCodec.decode(dayAndAMinute) }
+        assertEquals(1440, ApprovalPayloadCodec.decode(aDay).durMin)
+    }
+
+    @Test
+    fun payloadRejectsDurationsOutsideOneMinuteToOneDay() {
+        assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(durMin = 0) }
+        assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(durMin = 24 * 60 + 1) }
+    }
+
+    /** The canonical 5-entry map, built by hand from contracts/approve.md. */
+    private fun cbor(durMin: ByteArray, req: String): ByteArray {
+        val app = "com.example.target"
+        return byteArrayOf(0xA5.toByte()) +
+            byteArrayOf(0x01, 0x61) + "1".toByteArray() +
+            byteArrayOf(0x02, 0x78, req.length.toByte()) + req.toByteArray() +
+            byteArrayOf(0x03, (0x60 or app.length).toByte()) + app.toByteArray() +
+            byteArrayOf(0x04) + durMin +
+            byteArrayOf(0x05, 0x1A, 0x65, 0x53, 0xF1.toByte(), 0x00) // uint32 1_700_000_000
+    }
+
     private fun randomPackage(rng: Random): String {
         val parts = rng.nextInt(2, 5)
         return (0 until parts).joinToString(".") {

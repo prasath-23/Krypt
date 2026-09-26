@@ -2,6 +2,7 @@ package com.krypt.app.guardian
 
 import com.krypt.app.common.Outcome
 import com.krypt.app.common.TestClock
+import com.krypt.app.deeplink.AccessChoice
 import com.krypt.app.deeplink.ApprovalLinkBuilder
 import com.krypt.app.deeplink.RequestParseError
 import com.krypt.app.deeplink.UnlockRequest
@@ -12,6 +13,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -66,7 +68,7 @@ class GuardianPinViewModelTest {
         every { parser.parse(any(), any()) } returns Outcome.ok(sampleRequest)
         coEvery { validator.validate(any(), sampleRequest, any()) } returns
             Outcome.err(GuardianPinValidator.ValidationError.WrongPin)
-        every { approvalBuilder.build(any<ByteArray>(), sampleRequest, any()) } returns APPROVAL_URL
+        every { approvalBuilder.build(any<ByteArray>(), sampleRequest, any<AccessChoice>()) } returns APPROVAL_URL
     }
 
     @After
@@ -245,6 +247,72 @@ class GuardianPinViewModelTest {
             2,
             readyState(vm).attemptsLeft,
         )
+    }
+
+    @Test
+    fun theApprovalAllowsFifteenMinutesOnce_unlessChanged() = runTest {
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        assertEquals(AccessChoice.OneTime(15), readyState(vm).form.choice)
+
+        vm.approve("1234".toCharArray())
+
+        assertEquals(AccessChoice.OneTime(15), (vm.state.value as GuardianPinState.Approved).access)
+        verify { approvalBuilder.build(any<ByteArray>(), sampleRequest, AccessChoice.OneTime(15)) }
+    }
+
+    @Test
+    fun aPickedDuration_isWhatTheApprovalAllows() = runTest {
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        vm.pickMinutes(30)
+        vm.approve("1234".toCharArray())
+
+        assertEquals(AccessChoice.OneTime(30), (vm.state.value as GuardianPinState.Approved).access)
+        verify { approvalBuilder.build(any<ByteArray>(), sampleRequest, AccessChoice.OneTime(30)) }
+    }
+
+    @Test
+    fun typedMinutes_areWhatTheApprovalAllows() = runTest {
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        vm.editMinutes("45")
+        vm.approve("1234".toCharArray())
+
+        verify { approvalBuilder.build(any<ByteArray>(), sampleRequest, AccessChoice.OneTime(45)) }
+    }
+
+    @Test
+    fun unusableTypedMinutes_sendNothing_andCostNoAttempt() = runTest {
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        for (text in listOf("", "0", "1441")) {
+            vm.editMinutes(text)
+            assertEquals("choice for \"$text\"", null, readyState(vm).form.choice)
+            vm.approve("1234".toCharArray())
+        }
+
+        coVerify(exactly = 0) { validator.validate(any(), any(), any()) }
+        assertTrue(vm.state.value is GuardianPinState.Ready)
+        assertEquals("no attempt was counted", 2, limiter.beginAttempt())
+    }
+
+    @Test
+    fun theChosenDuration_survivesAWrongPin() = runTest {
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.pickMinutes(60)
+
+        vm.approve("0000".toCharArray())
+
+        assertEquals(AccessChoice.OneTime(60), readyState(vm).form.choice)
     }
 
     private companion object {

@@ -62,7 +62,8 @@ internal object ApprovalPayloadCodec {
         val iat    = readKeyAndUnsigned(reader, expectedKey = 5)
         reader.requireExhausted()
 
-        require(durMin in 1..Int.MAX_VALUE) { "durMin out of range: $durMin" }
+        // Bounded here too, so the child's phone never trusts a longer unlock than any Guardian can grant.
+        require(durMin in 1..AccessChoice.MAX_MINUTES) { "durMin out of range: $durMin" }
         require(iat > 0) { "iat must be positive" }
 
         return ApprovalPayload(

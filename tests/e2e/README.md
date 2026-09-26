@@ -48,7 +48,7 @@ On a real device nothing unbinds it.
 | PIN gate | The right PIN opens Home (10). Leaving Krypt locks it again (12). | A wrong PIN is refused (09). |
 | Home | The toggle locks an app (11). A Guardian unlock shows with its time left while the switch stays on (26b). | "Lock now" ends the unlock, and the app is blocked again (26c). |
 | Ask Guardian | The request link is shared and the pending request saved (16). | Asking before a PIN exists is refused (04). A request link pasted as an approval is refused (16b). |
-| Guardian | The right PIN shares an approval (21). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
+| Guardian | The right PIN shares an approval (21). The Guardian can choose how long it unlocks the app (27: 30 minutes). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
 | Unlock | The approval link opens the app (23). The app opens freely during the grant (24). The grant survives a process restart (26). The copy-and-paste path works (27). An app still open when its grant ends is blocked (30). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
 | Health | The accessibility health check is scheduled (29). The "protection is off" alert itself is tested by the instrumented `AccessibilityHealthWorkerTest`, because WorkManager won't run a periodic job early. | |
 | Uninstall | Device Admin blocks uninstalling Krypt (31). | |

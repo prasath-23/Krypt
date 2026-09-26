@@ -32,7 +32,8 @@
 
     <!-- Sharing and opening Krypt links (Amendment 2) -->
     <string name="request_share_text">Krypt unlock request for %1$s.\nTap the link to review it. If it doesn\'t open, copy this whole message, open Krypt and tap Paste link.\n%2$s</string>
-    <string name="approval_share_text">Krypt approval for %1$s.\nTap the link to unlock it. If it doesn\'t open, copy this whole message, open the locked app and tap Paste approval link.\n%2$s</string>
+    <!-- %1$s: the app; %2$s: what the approval allows, e.g. "30 minutes, one time"; %3$s: the link. -->
+    <string name="approval_share_text">Krypt approval for %1$s: %2$s.\nTap the link to unlock it. If it doesn\'t open, copy this whole message, open the locked app and tap Paste approval link.\n%3$s</string>
     <string name="paste_link">Paste link</string>
     <string name="link_receiver_label">Open in Krypt</string>
     <string name="link_not_found">No Krypt link found. Copy the whole message that contains the link first.</string>
@@ -137,6 +138,26 @@
     <string name="guardian_request_title">Unlock request</string>
     <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>
     <string name="guardian_pin_label">Enter PIN</string>
+    <string name="guardian_allow_for">Allow for</string>
+    <string name="guardian_set_minutes">Set minutes</string>
+    <string name="guardian_minutes_label">Minutes (1–1440)</string>
+    <string name="guardian_minutes_error">Enter a number of minutes from 1 to 1440.</string>
+    <!-- %1$s: what the approval will allow, e.g. "30 minutes, one time". -->
+    <string name="guardian_allows">Allows: %1$s</string>
+    <!-- %1$s: a duration, e.g. "30 minutes". -->
+    <string name="access_one_time">%1$s, one time</string>
+    <plurals name="chip_minutes">
+        <item quantity="one">%d min</item>
+        <item quantity="other">%d min</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
     <string name="guardian_send_approval">Verify &amp; send approval</string>
     <string name="guardian_validating">Verifying PIN…</string>
     <string name="guardian_sent">Approval sent. You can close this screen.</string>

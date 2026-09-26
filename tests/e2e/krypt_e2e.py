@@ -662,7 +662,7 @@ def lock_now_ends_unlock():
     home()
 
 
-@case("27 copy-and-paste path: Chrome unlocked with Paste approval link")
+@case("27 copy-and-paste path, with the Guardian allowing 30 minutes: Chrome unlocked for 30 min")
 def paste_approval_path():
     launch(CHROME)
     wait_top(re.escape(LOCK_SCREEN))
@@ -671,10 +671,13 @@ def paste_approval_path():
     expect(request, "no request link for Chrome")
     dismiss_share_sheet()
     open_link(request.group(0))
+    tap_text(r"^30 min$", timeout=20)
+    expect(wait_text(r"^Allows: 30 minutes, one time$", 10), "30 minutes not selected")
     tap_text(r"^Enter PIN$", timeout=20)
     type_pin(PIN)
     tap_text(r"Verify & send approval")
-    expect(shared_text(APPROVAL_TIMEOUT), "no approval share sheet")
+    text = shared_text(APPROVAL_TIMEOUT)
+    expect("30 minutes, one time" in text, f"share text: {text!r}")
     copy_from_share_sheet()
     dismiss_share_sheet()
     launch(CHROME)
@@ -682,6 +685,8 @@ def paste_approval_path():
     tap_text(r"^Paste approval link$")
     top = wait_top(re.escape(CHROME) + r"/", 20)
     expect(CHROME in top, f"top is {top}")
+    grants = db(f"select (expiresAt - grantedAt) / 60000 from unlock_grants where targetPackage='{CHROME}'")
+    expect(grants == [(30,)], f"Chrome's grant: {grants}")
     home()
 
 

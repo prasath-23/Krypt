@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.krypt.app.common.Clock
 import com.krypt.app.common.Outcome
+import com.krypt.app.deeplink.AccessChoice
 import com.krypt.app.deeplink.ApprovalLinkBuilder
 import com.krypt.app.deeplink.UnlockRequest
 import com.krypt.app.deeplink.UnlockRequestParser
@@ -22,11 +23,13 @@ import javax.inject.Inject
  * Flow:
  *   1. Activity hands us the incoming URL via [parseIncoming].
  *   2. UI renders the parsed request (app + PIN field).
- *   3. Guardian taps Approve -> [approve] calls the validator with the
- *      request's own PBKDF2 iteration count (the Subject's setup value, not
- *      this device's settings). On success, builds the approval URL via
- *      [ApprovalLinkBuilder] and emits the URL through [state] so the
- *      Activity can fire an ACTION_SEND intent.
+ *   3. Guardian picks how long to allow ([pickMinutes], [editMinutes]; 15
+ *      minutes unless changed) and taps Approve -> [approve] calls the
+ *      validator with the request's own PBKDF2 iteration count (the
+ *      Subject's setup value, not this device's settings). On success,
+ *      builds the approval URL for that choice via [ApprovalLinkBuilder] and
+ *      emits the URL through [state] so the Activity can fire an
+ *      ACTION_SEND intent.
  *   4. Every attempt counts against the persistent [PinAttemptLimiter]
  *      shared with the Krypt entry screen from the moment its check starts,
  *      so leaving mid-check doesn't make a guess free. The 3rd wrong PIN
@@ -63,8 +66,23 @@ class GuardianPinViewModel @Inject constructor(
         }
     }
 
-    fun approve(pin: CharArray, grantDurationMinutes: Int = ApprovalLinkBuilder.DEFAULT_GRANT_MINUTES) {
+    /** The Guardian tapped a duration chip. */
+    fun pickMinutes(minutes: Int) = updateForm { it.copy(minutes = AccessForm.Amount.Preset(minutes)) }
+
+    /** The Guardian is typing their own number of minutes. */
+    fun editMinutes(text: String) = updateForm { it.copy(minutes = AccessForm.Amount.Custom(text)) }
+
+    private fun updateForm(change: (AccessForm) -> AccessForm) {
+        val ready = (_state.value as? GuardianPinState.Ready) ?: return
+        _state.value = ready.copy(form = change(ready.form))
+    }
+
+    fun approve(pin: CharArray) {
         val ready = (_state.value as? GuardianPinState.Ready) ?: run {
+            pin.fill(' ')
+            return
+        }
+        val access = ready.form.choice ?: run {
             pin.fill(' ')
             return
         }
@@ -85,12 +103,13 @@ class GuardianPinViewModel @Inject constructor(
                         val approvalUrl = approvalBuilder.build(
                             masterKey = masterKey,
                             request = ready.request,
-                            grantDurationMinutes = grantDurationMinutes,
+                            access = access,
                         )
                         limiter.recordSuccess()
                         _state.value = GuardianPinState.Approved(
                             request = ready.request,
                             approvalUrl = approvalUrl,
+                            access = access,
                         )
                     } finally {
                         masterKey.fill(0)
@@ -157,11 +176,15 @@ sealed interface GuardianPinState {
         val attemptsLeft: Int,
         val lockoutRetryInMs: Long?,
         val errorMessage: ErrorMessage?,
+        /** What the approval will allow; kept across wrong PINs and lockouts. */
+        val form: AccessForm = AccessForm(),
     ) : GuardianPinState
     data class Validating(val request: UnlockRequest) : GuardianPinState
     data class Approved(
         val request: UnlockRequest,
         val approvalUrl: String,
+        /** What the approval allows. */
+        val access: AccessChoice,
     ) : GuardianPinState
     data class FatalError(val messageKey: String) : GuardianPinState
 }

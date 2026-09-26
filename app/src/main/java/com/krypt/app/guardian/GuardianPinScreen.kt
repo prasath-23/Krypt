@@ -2,14 +2,20 @@ package com.krypt.app.guardian
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -24,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krypt.app.R
+import com.krypt.app.deeplink.AccessChoice
 import com.krypt.app.ui.common.lockoutCountdown
 import com.krypt.app.ui.common.pinLockoutMessage
 import com.krypt.app.ui.link.shareTextChooser
@@ -70,6 +78,8 @@ fun GuardianPinScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(inner)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -103,6 +113,11 @@ fun GuardianPinScreen(
                             )
                         }
                     }
+                    AllowFor(
+                        form = s.form,
+                        onPickMinutes = viewModel::pickMinutes,
+                        onEditMinutes = viewModel::editMinutes,
+                    )
                     OutlinedTextField(
                         value = pin,
                         onValueChange = {
@@ -112,7 +127,7 @@ fun GuardianPinScreen(
                         label = { Text(stringResource(R.string.guardian_pin_label)) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().testTag(PIN_FIELD_TAG),
                         enabled = s.lockoutRetryInMs == null,
                     )
                     val error = when (val err = s.errorMessage) {
@@ -130,7 +145,7 @@ fun GuardianPinScreen(
                     }
                     Button(
                         onClick = { viewModel.approve(pin.toCharArray()) },
-                        enabled = pin.length >= 4 && s.lockoutRetryInMs == null,
+                        enabled = pin.length >= 4 && s.lockoutRetryInMs == null && s.form.choice != null,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.guardian_send_approval)) }
                 }
@@ -145,6 +160,7 @@ fun GuardianPinScreen(
                     val message = stringResource(
                         R.string.approval_share_text,
                         s.request.targetPackage,
+                        accessText(s.access),
                         s.approvalUrl,
                     )
                     LaunchedEffect(s.approvalUrl) {
@@ -161,6 +177,83 @@ fun GuardianPinScreen(
         }
     }
 }
+
+/** Test tags for the screen's text fields, which UI tests can't tell apart otherwise. */
+const val PIN_FIELD_TAG = "guardian_pin"
+const val MINUTES_FIELD_TAG = "guardian_minutes"
+
+/** "Allow for": how long the approval unlocks the app. */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun AllowFor(
+    form: AccessForm,
+    onPickMinutes: (Int) -> Unit,
+    onEditMinutes: (String) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.guardian_allow_for),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        AccessForm.MINUTE_PRESETS.forEach { minutes ->
+            FilterChip(
+                selected = form.minutes == AccessForm.Amount.Preset(minutes),
+                onClick = { onPickMinutes(minutes) },
+                label = { Text(chipLabel(minutes)) },
+            )
+        }
+        FilterChip(
+            selected = form.minutes is AccessForm.Amount.Custom,
+            onClick = { if (form.minutes !is AccessForm.Amount.Custom) onEditMinutes("") },
+            label = { Text(stringResource(R.string.guardian_set_minutes)) },
+        )
+    }
+    val custom = form.minutes as? AccessForm.Amount.Custom
+    if (custom != null) {
+        OutlinedTextField(
+            value = custom.text,
+            onValueChange = { onEditMinutes(it.filter(Char::isDigit).take(4)) },
+            label = { Text(stringResource(R.string.guardian_minutes_label)) },
+            isError = form.minutesInvalid,
+            supportingText = if (form.minutesInvalid) {
+                { Text(stringResource(R.string.guardian_minutes_error)) }
+            } else {
+                null
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag(MINUTES_FIELD_TAG),
+        )
+    }
+    form.choice?.let { access ->
+        Text(
+            text = stringResource(R.string.guardian_allows, accessText(access)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+private fun chipLabel(minutes: Int): String =
+    if (minutes % 60 == 0) {
+        pluralStringResource(R.plurals.duration_hours, minutes / 60, minutes / 60)
+    } else {
+        pluralStringResource(R.plurals.chip_minutes, minutes, minutes)
+    }
+
+/** What an approval allows, e.g. "30 minutes, one time". */
+@Composable
+private fun accessText(access: AccessChoice): String = when (access) {
+    is AccessChoice.OneTime -> stringResource(R.string.access_one_time, durationText(access.minutes))
+}
+
+@Composable
+private fun durationText(minutes: Int): String =
+    if (minutes % 60 == 0) {
+        pluralStringResource(R.plurals.duration_hours, minutes / 60, minutes / 60)
+    } else {
+        pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
+    }
 
 @Composable
 private fun messageFor(key: String): String = when (key) {

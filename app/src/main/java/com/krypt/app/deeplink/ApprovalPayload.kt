@@ -17,7 +17,7 @@ data class ApprovalPayload(
     val req: String,
     /** Android package name of the target app. */
     val app: String,
-    /** Grant duration in minutes; must be positive. */
+    /** Grant duration in minutes: 1 to [AccessChoice.MAX_MINUTES]. */
     val durMin: Int,
     /** Issued-at (Guardian wall clock) in seconds since Unix epoch. */
     val iat: Long,
@@ -26,7 +26,9 @@ data class ApprovalPayload(
         require(v.isNotEmpty()) { "v must not be empty" }
         require(req.isNotEmpty()) { "req must not be empty" }
         require(app.isNotEmpty()) { "app must not be empty" }
-        require(durMin > 0) { "durMin ($durMin) must be positive" }
+        require(durMin in 1..AccessChoice.MAX_MINUTES) {
+            "durMin ($durMin) must be in 1..${AccessChoice.MAX_MINUTES}"
+        }
         require(iat > 0) { "iat ($iat) must be positive" }
     }
 }

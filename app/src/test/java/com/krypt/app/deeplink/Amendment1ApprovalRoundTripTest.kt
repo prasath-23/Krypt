@@ -73,6 +73,18 @@ class Amendment1ApprovalRoundTripTest {
     }
 
     @Test
+    fun theGuardiansChosenDuration_isTheGrantTheSubjectGets() = runTest {
+        seedMasterKeyStore()
+        val (_, request) = requestBuilder.build(setupSalt, pinProof, "com.example.target")
+        repo.insert(request.toOutstanding(clock.nowMs()))
+
+        val approvalUrl = approvalBuilder.build(masterKey, request, AccessChoice.OneTime(90))
+        val outcome = (consumer.consume(approvalUrl) as Outcome.Ok).value
+
+        assertEquals(clock.nowMs() + 90 * 60_000L, outcome.grantExpiresAtMs)
+    }
+
+    @Test
     fun tamperedCiphertextYieldsCipherDecryptFailed() = runTest {
         seedMasterKeyStore()
         val (_, request) = requestBuilder.build(setupSalt, pinProof, "com.example.target")
