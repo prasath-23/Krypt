@@ -69,6 +69,12 @@
     <string name="home_search_hint">Search apps</string>
     <string name="home_share_chooser_title">Send unlock request to Guardian</string>
     <string name="home_label_locked">Locked</string>
+    <!-- A Guardian unlock that is still running; the app locks again by itself. -->
+    <plurals name="home_status_unlocked">
+        <item quantity="one">Unlocked · %d min left</item>
+        <item quantity="other">Unlocked · %d min left</item>
+    </plurals>
+    <string name="home_action_lock_now">Lock now</string>
     <string name="home_empty_loading">Loading apps…</string>
     <string name="home_empty_no_match">No apps match "%1$s"</string>
 

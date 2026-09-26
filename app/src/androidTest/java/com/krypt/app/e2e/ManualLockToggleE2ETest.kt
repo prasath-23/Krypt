@@ -3,12 +3,15 @@ package com.krypt.app.e2e
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.krypt.app.common.Clock
 import com.krypt.app.data.LockSource
 import com.krypt.app.data.LockedAppsRepository
+import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.ui.main.MainActivity
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -37,6 +40,8 @@ class ManualLockToggleE2ETest {
 
     @Inject lateinit var state: TestState
     @Inject lateinit var lockedAppsRepo: LockedAppsRepository
+    @Inject lateinit var sessionStore: LockerSessionStore
+    @Inject lateinit var clock: Clock
 
     @Before
     fun setUp() {
@@ -79,6 +84,23 @@ class ManualLockToggleE2ETest {
 
             waitForLockState("com.example.beta", locked = false)
             assertFalse("Beta should be unlocked after toggle", isLocked("com.example.beta"))
+        }
+    }
+
+    @Test
+    fun guardianUnlock_showsTheTimeLeft_andLockNowEndsIt() {
+        runBlocking { lockedAppsRepo.lock("com.example.beta", "Beta", LockSource.MANUAL) }
+        sessionStore.recordGrant("com.example.beta", clock.nowMs() + 20 * 60_000L)
+        ActivityScenario.launch(MainActivity::class.java).use {
+            openHome()
+            compose.awaitText("Unlocked · 20 min left")
+            assertTrue("the switch still shows the lock", isLocked("com.example.beta"))
+
+            compose.onNodeWithText("Lock now").performClick()
+
+            compose.awaitText("Locked")
+            assertFalse(sessionStore.isUnlockedNow("com.example.beta"))
+            assertTrue(isLocked("com.example.beta"))
         }
     }
 

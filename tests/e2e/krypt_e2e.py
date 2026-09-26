@@ -75,6 +75,7 @@ def nodes():
                         "text": n.get("text", ""), "desc": n.get("content-desc", ""),
                         "pkg": n.get("package", ""), "enabled": n.get("enabled") == "true",
                         "clickable": n.get("clickable") == "true", "checked": n.get("checked") == "true",
+                        "checkable": n.get("checkable") == "true",
                         "class": n.get("class", ""),
                         "x": (b[0] + b[2]) // 2, "y": (b[1] + b[3]) // 2, "bounds": b,
                     })
@@ -112,6 +113,28 @@ def type_pin(pin):
     sh(f"input text {pin}")
     sh("input keyevent KEYCODE_BACK")  # hide the keyboard
     time.sleep(0.5)
+
+
+def open_krypt_home():
+    """Open Krypt and get past its PIN gate to the Home list."""
+    launch(KRYPT)
+    if wait_text(r"^Search apps$", 3):
+        return
+    tap_text(r"^PIN$")
+    type_pin(PIN)
+    tap_text(r"^Unlock$")
+    expect(wait_text(r"^Search apps$", 120), "Home did not open")
+
+
+def search_home(text):
+    tap_text(r"^Search apps$")
+    type_pin(text)  # types it and hides the keyboard
+    time.sleep(1)
+
+
+def home_switches():
+    """The lock switches on screen. Compose marks them checkable; their class is a plain View."""
+    return [n for n in nodes() if n["checkable"]]
 
 
 def top_activity():
@@ -614,6 +637,31 @@ def grant_survives_restart():
     home()
 
 
+@case("26b Home shows the Guardian's unlock with its time left (the reported bug)")
+def home_shows_unlock():
+    open_krypt_home()
+    search_home("E2E")
+    expect(wait_text(r"^Krypt E2E Target$", 10), "target app missing from Home")
+    status = wait_text(r"^Unlocked · \d+ min left$", 10)
+    expect(status, "the unlocked app is not shown as unlocked")
+    minutes = int(re.search(r"(\d+) min", status[0]["text"]).group(1))
+    expect(1 <= minutes <= 15, f"time left shown as {minutes} min")
+    switches = home_switches()
+    expect(len(switches) == 1 and switches[0]["checked"], f"the lock switch should stay on: {switches}")
+
+
+@case("26c Lock now ends the unlock: the app is blocked again (negative)")
+def lock_now_ends_unlock():
+    tap_text(r"^Lock now$")
+    expect(wait_text(r"^Locked$", 10), "the row did not change to Locked")
+    expect(not matching(r"^Unlocked · "), "the row still shows the unlock")
+    home()
+    launch(TARGET)
+    top = wait_top(re.escape(LOCK_SCREEN))
+    expect(LOCK_SCREEN in top, f"the app still opened after Lock now; top is {top}")
+    home()
+
+
 @case("27 copy-and-paste path: Chrome unlocked with Paste approval link")
 def paste_approval_path():
     launch(CHROME)
@@ -743,7 +791,8 @@ def main():
                  recents_blocked, ask_guardian, paste_request_as_approval, process_death_under_lock_screen,
                  guardian_wrong_pin, guardian_expired, guardian_garbled,
                  legacy_pair_link, guardian_ok, tampered_approval, approval_opens_app, relaunch_during_grant,
-                 replay_approval, grant_survives_restart, paste_approval_path, catch_up_after_protection_off,
+                 replay_approval, grant_survives_restart, home_shows_unlock, lock_now_ends_unlock,
+                 paste_approval_path, catch_up_after_protection_off,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,
                  uninstall_blocked]
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)

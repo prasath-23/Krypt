@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.krypt.app.R
@@ -31,13 +33,17 @@ import com.krypt.app.ui.theme.PermissionGrantedGreen
  * A single installed-app row on the Home Screen.
  *
  * [onToggle] is called regardless of the OS-reported checked value, so the
- * ViewModel decides the outcome; the switch always shows [state.isLocked].
+ * ViewModel decides the outcome; the switch always shows [state.isLocked],
+ * even while a Guardian unlock is running. The line under the name says
+ * what applies right now ([AppRowStatus]), and [onLockNow] ends an unlock
+ * early.
  */
 @Composable
 fun InstalledAppRow(
     state: InstalledAppRowState,
     iconCache: AppIconCache,
     onToggle: () -> Unit,
+    onLockNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var icon by remember(state.packageName) { mutableStateOf<Bitmap?>(null) }
@@ -58,12 +64,27 @@ fun InstalledAppRow(
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
             )
-            if (state.isLocked) {
-                Text(
+            when (val status = state.status) {
+                AppRowStatus.NotLocked -> Unit
+                AppRowStatus.Locked -> Text(
                     text = stringResource(R.string.home_label_locked),
                     style = MaterialTheme.typography.labelSmall,
                     color = PermissionGrantedGreen,
                 )
+                is AppRowStatus.Unlocked -> {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.home_status_unlocked,
+                            status.minutesLeft,
+                            status.minutesLeft,
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    TextButton(onClick = onLockNow) {
+                        Text(stringResource(R.string.home_action_lock_now))
+                    }
+                }
             }
         }
 

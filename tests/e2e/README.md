@@ -46,7 +46,7 @@ On a real device nothing unbinds it.
 | Blocking | A locked app shows Krypt's lock screen, never the app (03, 13). Back and "Go to home screen" go to the launcher (05, 14). Reopening from Recents is blocked (15). | If Krypt's process dies under the lock screen, the home screen shows, not the app (16c). |
 | Setup | Onboarding with the mandatory permissions (06). PIN setup (08). | Mismatched PINs can't be saved (07). |
 | PIN gate | The right PIN opens Home (10). Leaving Krypt locks it again (12). | A wrong PIN is refused (09). |
-| Home | The toggle locks an app (11). | |
+| Home | The toggle locks an app (11). A Guardian unlock shows with its time left while the switch stays on (26b). | "Lock now" ends the unlock, and the app is blocked again (26c). |
 | Ask Guardian | The request link is shared and the pending request saved (16). | Asking before a PIN exists is refused (04). A request link pasted as an approval is refused (16b). |
 | Guardian | The right PIN shares an approval (21). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
 | Unlock | The approval link opens the app (23). The app opens freely during the grant (24). The grant survives a process restart (26). The copy-and-paste path works (27). An app still open when its grant ends is blocked (30). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |

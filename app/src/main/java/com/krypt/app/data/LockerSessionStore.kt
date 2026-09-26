@@ -6,8 +6,11 @@ import android.content.SharedPreferences
 import com.krypt.app.common.Clock
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +45,16 @@ class LockerSessionStore internal constructor(
     /** Package name -> grant expiry on the [Clock.elapsedMs] timeline. */
     private val cache: ConcurrentHashMap<String, Long> = ConcurrentHashMap()
 
+    private val _grants = MutableStateFlow<Map<String, Long>>(emptyMap())
+
+    /**
+     * Live snapshot of the grants (package name -> expiry on the
+     * [Clock.elapsedMs] timeline), for screens that show what is unlocked.
+     * An entry can outlive its expiry until [remainingMs] is next asked about
+     * it, so use [remainingMs] rather than comparing times.
+     */
+    val grants: StateFlow<Map<String, Long>> = _grants.asStateFlow()
+
     private val _grantEvents = MutableSharedFlow<String>(extraBufferCapacity = 16)
 
     /**
@@ -59,7 +72,7 @@ class LockerSessionStore internal constructor(
         val remaining = expiresAt - clock.elapsedMs()
         if (remaining > 0) return remaining
         // Opportunistic cleanup; caller stays correct even if we race here.
-        cache.remove(pkg, expiresAt)
+        if (cache.remove(pkg, expiresAt)) synchronized(this) { publish() }
         return 0
     }
 
@@ -73,6 +86,7 @@ class LockerSessionStore internal constructor(
         if (remaining <= 0) return
         val expiresAt = cache.merge(pkg, clock.elapsedMs() + remaining, ::maxOf) ?: return
         save(pkg, expiresAt)
+        publish()
         _grantEvents.tryEmit(pkg)
     }
 
@@ -82,12 +96,14 @@ class LockerSessionStore internal constructor(
     fun revoke(pkg: String) {
         cache.remove(pkg)
         prefs.edit().remove(KEY_GRANT_PREFIX + pkg).commit() // must not come back on a restart
+        publish()
     }
 
     @Synchronized
     fun expireAll() {
         cache.clear()
         prefs.edit().clear().apply()
+        publish()
     }
 
     /**
@@ -119,6 +135,12 @@ class LockerSessionStore internal constructor(
             ended.forEach { editor.remove(it) }
             editor.apply()
         }
+        publish()
+    }
+
+    /** Callers hold this object's lock, so a newer snapshot is never overwritten by an older one. */
+    private fun publish() {
+        _grants.value = HashMap(cache)
     }
 
     /** Losing this write only ends the grant early, so it needn't block. */

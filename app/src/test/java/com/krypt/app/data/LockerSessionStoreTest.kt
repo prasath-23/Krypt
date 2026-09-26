@@ -202,6 +202,41 @@ class LockerSessionStoreTest {
     }
 
     @Test
+    fun grantsFlow_followsRecordRevokeAndExpireAll() {
+        val testClock = TestClock()
+        val store = store(testClock)
+        store.recordGrant("com.a", testClock.wallMs + 60_000)
+        store.recordGrant("com.b", testClock.wallMs + 60_000)
+        assertEquals(setOf("com.a", "com.b"), store.grants.value.keys)
+
+        store.revoke("com.a")
+        assertEquals(setOf("com.b"), store.grants.value.keys)
+
+        store.expireAll()
+        assertTrue(store.grants.value.isEmpty())
+    }
+
+    @Test
+    fun grantsFlow_dropsAnUnlockOnceItHasRunOut() {
+        val testClock = TestClock()
+        val store = store(testClock)
+        store.recordGrant("com.a", testClock.wallMs + 60_000)
+
+        testClock.advance(60_000)
+        assertEquals(0L, store.remainingMs("com.a"))
+
+        assertTrue(store.grants.value.isEmpty())
+    }
+
+    @Test
+    fun grantsFlow_includesRestoredGrants() {
+        val testClock = TestClock()
+        store(testClock).recordGrant("com.a", testClock.wallMs + 60_000)
+
+        assertEquals(setOf("com.a"), restarted(testClock).grants.value.keys)
+    }
+
+    @Test
     fun restoreAnnouncesRestoredGrants() = runTest {
         val testClock = TestClock()
         store(testClock).recordGrant("com.a", testClock.wallMs + 60_000)
