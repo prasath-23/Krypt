@@ -157,6 +157,18 @@ def krypt_service_bound():
     return "label=Krypt Locker" in sh("dumpsys accessibility | grep 'Bound services'")
 
 
+def enable_krypt_service():
+    """Turn Krypt's accessibility service on and wait until it is bound. Right after Krypt is
+    reinstalled, the system's cleanup for the uninstall can clear the setting a moment later,
+    so check and set it again."""
+    for _ in range(5):
+        sh(f"settings put secure enabled_accessibility_services {A11Y_SERVICE}")
+        sh("settings put secure accessibility_enabled 1")
+        if wait_for(krypt_service_bound, timeout=10):
+            return True
+    return False
+
+
 def wait_for_krypt_service():
     """Every uiautomator dump unbinds Krypt's accessibility service for a moment (a real device runs no
     uiautomator), so wait for it before doing what it has to react to."""
@@ -357,8 +369,7 @@ def install_fresh():
     expect("Success" in adb("install", "-r", "-g", APP_APK), "Krypt did not install")
     sh(f"appops set {KRYPT} SYSTEM_ALERT_WINDOW allow")
     sh(f"dumpsys deviceidle whitelist +{KRYPT}")
-    sh(f"settings put secure enabled_accessibility_services {A11Y_SERVICE}")
-    sh("settings put secure accessibility_enabled 1")
+    expect(enable_krypt_service(), "Krypt's accessibility service could not be turned on")
     connected = wait_for(lambda: "connected" in adb("logcat", "-d", "-s", "KryptA11y:*"), timeout=30)
     expect(connected, "Krypt's accessibility service did not connect")
 
