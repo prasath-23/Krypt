@@ -118,6 +118,7 @@ class UnlockRequestIssuerTest {
             outstandingRepo = repo,
             masterKeyStore = masterKeyStore,
             clock = clock,
+            dayClock = testDayClock(clock),
         )
         val outcome = consumer.consume(approvalUrl)
 

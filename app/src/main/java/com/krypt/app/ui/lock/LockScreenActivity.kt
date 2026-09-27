@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.krypt.app.R
+import com.krypt.app.data.LockReason
 import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.deeplink.UnlockRequest
 import com.krypt.app.ui.home.AppIconCache
@@ -101,6 +102,9 @@ class LockScreenActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.shareRequests.collect(::shareWithGuardian)
             }
+        }
+        lifecycleScope.launch {
+            viewModel.closeRequests.collect { finish() }
         }
 
         setContent {
@@ -189,14 +193,15 @@ private fun LockScreen(
                 fontFamily = FontFamily.Monospace,
                 color = Color.White.copy(alpha = 0.7f),
             )
+            val (title, body) = reasonText(state.reason)
             Text(
-                text = stringResource(R.string.lock_title),
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 modifier = Modifier.padding(top = 12.dp),
             )
             Text(
-                text = stringResource(R.string.lock_body),
+                text = body,
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,
@@ -254,6 +259,16 @@ private fun LockScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+}
+
+/** Title and body for why the app is blocked. */
+@Composable
+private fun reasonText(reason: LockReason): Pair<String, String> = when (reason) {
+    LockReason.Locked -> stringResource(R.string.lock_title) to stringResource(R.string.lock_body)
+    is LockReason.DailyUsedUp -> stringResource(R.string.lock_title_daily_used_up) to
+        pluralStringResource(R.plurals.lock_body_daily_used_up, reason.minutesPerDay, reason.minutesPerDay)
+    is LockReason.DailyPaused -> stringResource(R.string.lock_title_daily_paused) to
+        stringResource(R.string.lock_body_daily_paused)
 }
 
 @Composable

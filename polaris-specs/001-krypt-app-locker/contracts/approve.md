@@ -9,6 +9,19 @@
 > decrypts **silently** (no PIN keypad on Subject side, FR-018). See
 > `WP20-amendment1-crypto-url-rework.md` in tasks/.
 
+> **Amendment 3 (2026-09-27)**: the Guardian chooses what an approval allows.
+> - A **one-time** approval keeps the exact 5-entry payload below, so every earlier install reads it.
+> - An **every-day** approval adds key 6, `days`; `durMin` is then minutes per day. `v` stays `"1"`.
+> - Installs from before Amendment 3 decode only the 5-entry map, so they refuse an every-day approval as
+>   `PayloadInconsistent` rather than misread it. The Guardian offers "Every day" only when the request
+>   carries `caps=daily` (see `request.md`).
+> - The Subject now bounds both fields: `durMin` 1..1440, `days` 1..365. Anything else is `PayloadInconsistent`.
+> - An every-day approval consumed while "Set time automatically" is off returns `ClockNotTrusted`. The
+>   request stays open, so the same approval works once the setting is back on.
+> - An every-day approval saves the app's rule (`daily_allowances`, replacing any earlier one) in the same
+>   transaction that consumes the request. It inserts no `unlock_grants` row.
+> - The ciphertext is 2-3 bytes longer for an every-day approval, so its length reveals the approval type.
+
 Guardian-device-to-Subject-device unlock approval. Emitted after the Guardian enters a valid PIN in the Guardian Popup. Carries an AES-256-GCM-encrypted grant payload that the Subject can decrypt using its stored MasterKey plus the matched `OutstandingRequest`.
 
 ## URL format
@@ -42,8 +55,9 @@ Minimal CBOR map:
   1: <string>  // "v": protocol version (redundant but belt-and-suspenders)
   2: <string>  // "req": same UUID (binds ciphertext to request ID)
   3: <string>  // "app": target package (binds grant to app)
-  4: <int>     // "durMin": grant duration in minutes (default 15)
+  4: <int>     // "durMin": grant duration in minutes, 1..1440 (default 15); per day for an every-day approval
   5: <int>     // "iat": epoch seconds when grant was issued
+  6: <int>     // "days" (Amendment 3, every-day approvals only): 1..365; present => 6-entry map (0xa6)
 }
 ```
 

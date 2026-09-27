@@ -96,6 +96,11 @@ class UnlockRequestParser @Inject constructor() {
             return Outcome.err(RequestParseError.BadTimestamp)
         }
 
+        // Optional: older phones don't send it and don't accept every-day approvals.
+        val supportsDaily = parsed.params[Params.CAPS]
+            ?.split(',')
+            ?.contains(DeepLinkScheme.CAP_DAILY) == true
+
         return Outcome.ok(
             UnlockRequest(
                 requestId = requestId,
@@ -105,6 +110,7 @@ class UnlockRequestParser @Inject constructor() {
                 issuedAt = issuedAt,
                 ttlSeconds = ttlSeconds,
                 kdfIterations = kdfIterations,
+                supportsDaily = supportsDaily,
             )
         )
     }

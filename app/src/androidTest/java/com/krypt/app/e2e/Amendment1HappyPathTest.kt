@@ -7,9 +7,13 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.common.Clock
 import com.krypt.app.common.Outcome
+import com.krypt.app.data.KryptDatabase
 import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.data.OutstandingRequestRepository
 import com.krypt.app.data.UnlockGrantDao
+import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.DailyAllowanceMeter
+import com.krypt.app.deeplink.AccessChoice
 import com.krypt.app.deeplink.ApprovalLinkBuilder
 import com.krypt.app.deeplink.Base64Url
 import com.krypt.app.deeplink.UnlockRequest
@@ -58,6 +62,8 @@ class Amendment1HappyPathTest {
     @Inject lateinit var sessionStore: LockerSessionStore
     @Inject lateinit var masterKeyStore: MasterKeyStore
     @Inject lateinit var clock: Clock
+    @Inject lateinit var db: KryptDatabase
+    @Inject lateinit var dailyMeter: DailyAllowanceMeter
 
     private val targetPackage = "com.example.target"
 
@@ -67,13 +73,16 @@ class Amendment1HappyPathTest {
         state.reset(onboardingComplete = true, pinConfigured = true)
     }
 
-    /** Subject asks; the Guardian approves with [pin]. */
-    private fun approval(pin: String = TEST_PIN): Pair<String, UnlockRequest> = runBlocking {
+    /** Subject asks; the Guardian approves with [pin], allowing [access]. */
+    private fun approval(
+        pin: String = TEST_PIN,
+        access: AccessChoice = AccessChoice.OneTime(20),
+    ): Pair<String, UnlockRequest> = runBlocking {
         val requestUrl = (issuer.issue(targetPackage) as Outcome.Ok).value
         val request = (requestParser.parse(requestUrl, clock.nowSeconds()) as Outcome.Ok).value
         val key = validator.validate(pin.toCharArray(), request, request.kdfIterations)
         assertTrue("Guardian must accept the right PIN: $key", key is Outcome.Ok)
-        approvalBuilder.build((key as Outcome.Ok).value, request, grantDurationMinutes = 20) to request
+        approvalBuilder.build((key as Outcome.Ok).value, request, access) to request
     }
 
     private fun tap(approvalUrl: String) {
@@ -149,6 +158,23 @@ class Amendment1HappyPathTest {
 
         assertTrue(activeGrants().isEmpty())
         assertFalse(runBlocking { outstandingRepo.findById(request.requestId)!!.consumed })
+    }
+
+    @Test
+    fun everyDayApproval_savesTheRule_andReplayingItChangesNothing() {
+        val (approvalUrl, request) = approval(access = AccessChoice.EveryDay(minutes = 60, days = 7))
+
+        tap(approvalUrl)
+
+        assertTrue(dailyMeter.access(targetPackage) is DailyAccess.Available)
+        assertTrue("no one-time grant", activeGrants().isEmpty())
+        val rules = runBlocking { db.dailyAllowanceDao().all() }
+        assertEquals(listOf(60 to 6L), rules.map { it.minutesPerDay to (it.lastEpochDay - it.firstEpochDay) })
+        assertTrue(runBlocking { outstandingRepo.findById(request.requestId)!!.consumed })
+
+        tap(approvalUrl)
+
+        assertEquals(rules, runBlocking { db.dailyAllowanceDao().all() })
     }
 
     @Test

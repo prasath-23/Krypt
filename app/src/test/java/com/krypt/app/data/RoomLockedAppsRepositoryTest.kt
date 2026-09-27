@@ -1,10 +1,12 @@
 package com.krypt.app.data
 
 import com.krypt.app.common.TestClock
+import com.krypt.app.data.daily.FakeDailyAllowances
 import com.krypt.app.security.FakeSharedPreferences
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,7 +17,8 @@ class RoomLockedAppsRepositoryTest {
     private val appDao = mockk<LockedAppDao>(relaxed = true)
     private val prefs = FakeSharedPreferences()
     private val sessionStore = LockerSessionStore(prefs, clock)
-    private val repo = RoomLockedAppsRepository(appDao, sessionStore, clock)
+    private val dailyAllowances = FakeDailyAllowances()
+    private val repo = RoomLockedAppsRepository(appDao, sessionStore, dailyAllowances, clock)
 
     private fun grant(pkg: String) = sessionStore.recordGrant(pkg, clock.wallMs + 10 * 60_000)
 
@@ -30,6 +33,7 @@ class RoomLockedAppsRepositoryTest {
 
         assertFalse(sessionStore.isUnlockedNow("com.example.app"))
         assertFalse("grant back after a restart", restartedStore().isUnlockedNow("com.example.app"))
+        assertEquals("its every-day rule ends too", listOf("com.example.app"), dailyAllowances.ended)
     }
 
     @Test

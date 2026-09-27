@@ -4,6 +4,7 @@ import com.krypt.app.common.Outcome
 import com.krypt.app.crypto.KdfProvider
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +46,22 @@ class Amendment1RequestRoundTripTest {
         assertEquals(original.issuedAt, parsed.issuedAt)
         assertEquals(original.ttlSeconds, parsed.ttlSeconds)
         assertEquals(original.kdfIterations, parsed.kdfIterations)
+    }
+
+    @Test
+    fun requestsSayThisPhoneTakesEveryDayApprovals() {
+        val (url, original) = builder.build(setupSalt, pinProof, "com.whatsapp")
+
+        assertTrue(url, url.contains("caps=daily"))
+        assertTrue(original.supportsDaily)
+        assertTrue((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsDaily)
+    }
+
+    @Test
+    fun aRequestWithoutCaps_fromAnOlderPhone_takesOneTimeApprovalsOnly() {
+        val url = builder.build(setupSalt, pinProof, "com.whatsapp").first.replace("&caps=daily", "")
+
+        assertFalse((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsDaily)
     }
 
     @Test

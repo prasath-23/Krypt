@@ -4,25 +4,30 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.core.content.IntentCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
+import androidx.test.espresso.intent.VerificationModes.times
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
-import androidx.test.espresso.intent.VerificationModes.times
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.common.Outcome
 import com.krypt.app.deeplink.ApprovalConsumer
+import com.krypt.app.deeplink.ApprovalOutcome
 import com.krypt.app.deeplink.UnlockRequestIssuer
+import com.krypt.app.guardian.DAYS_FIELD_TAG
 import com.krypt.app.guardian.MINUTES_FIELD_TAG
 import com.krypt.app.guardian.PIN_FIELD_TAG
 import com.krypt.app.ui.guardian.GuardianActivity
@@ -79,8 +84,8 @@ class GuardianScreenE2ETest {
 
     private fun ComposeTestRule.enterGuardianPin(pin: String) {
         awaitText("Verify & send approval")
-        onNodeWithTag(PIN_FIELD_TAG).performTextInput(pin)
-        onNodeWithText("Verify & send approval").performClick()
+        onNodeWithTag(PIN_FIELD_TAG).performScrollTo().performTextInput(pin)
+        onNodeWithText("Verify & send approval").performScrollTo().performClick()
     }
 
     @Test
@@ -121,8 +126,41 @@ class GuardianScreenE2ETest {
 
         // The request was issued on this device, so it can consume its own approval.
         val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
-        val grant = (runBlocking { consumer.consume(url) } as Outcome.Ok).value
+        val grant = (runBlocking { consumer.consume(url) } as Outcome.Ok).value as ApprovalOutcome.OneTime
         assertEquals(30 * 60_000L, grant.grantExpiresAtMs - grant.grantedAtMs)
+    }
+
+    @Test
+    fun everyDay_withTypedMinutesAndDays_isWhatTheApprovalAllows() {
+        open(issueRequest()).use {
+            compose.awaitText("Every day")
+            compose.onNodeWithText("Every day").performClick()
+            compose.onNodeWithText("Set minutes").performClick()
+            compose.onNodeWithTag(MINUTES_FIELD_TAG).performTextInput("1")
+            compose.onNodeWithText("Set days").performScrollTo().performClick()
+            compose.onNodeWithTag(DAYS_FIELD_TAG).performScrollTo().performTextInput("2")
+            compose.awaitText("Allows: 1 minute a day for 2 days")
+            compose.enterGuardianPin(TEST_PIN)
+            compose.awaitText("Approval sent", substring = true)
+        }
+        val shared = Intents.getIntents()
+            .first { it.action == Intent.ACTION_CHOOSER }
+            .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
+            .getStringExtra(Intent.EXTRA_TEXT)!!
+        assertEquals(true, shared.contains("Krypt approval for com.example.target: 1 minute a day for 2 days."))
+
+        val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
+        val daily = (runBlocking { consumer.consume(url) } as Outcome.Ok).value as ApprovalOutcome.EveryDay
+        assertEquals(1, daily.allowance.minutesPerDay)
+        assertEquals(1L, daily.allowance.lastDay.toEpochDay() - daily.allowance.firstDay.toEpochDay())
+    }
+
+    @Test
+    fun aRequestFromAnOlderPhone_offersOneTimeOnly() {
+        open(issueRequest().replace("&caps=daily", "")).use {
+            compose.awaitText("30 min")
+            compose.onAllNodes(hasText("Every day")).assertCountEquals(0)
+        }
     }
 
     @Test

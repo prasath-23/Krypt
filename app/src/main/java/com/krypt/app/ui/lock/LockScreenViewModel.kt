@@ -4,6 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.krypt.app.common.Outcome
+import com.krypt.app.data.LockReason
+import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.DailyAllowances
 import com.krypt.app.deeplink.UnlockRequestIssuer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -24,10 +27,21 @@ import javax.inject.Inject
 @HiltViewModel
 class LockScreenViewModel @Inject constructor(
     private val requestIssuer: UnlockRequestIssuer,
+    private val dailyAllowances: DailyAllowances,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LockScreenState())
     val state: StateFlow<LockScreenState> = _state.asStateFlow()
+
+    private val _closeRequests = Channel<Unit>(Channel.CONFLATED)
+
+    /** Emits when the app may be used after all, e.g. an every-day approval just arrived. */
+    val closeRequests: Flow<Unit> = _closeRequests.receiveAsFlow()
+
+    init {
+        // Why the app is blocked can change while this screen is up.
+        viewModelScope.launch { dailyAllowances.changes.collect { refreshReason() } }
+    }
 
     private val _shareRequests = Channel<String>(Channel.BUFFERED)
 
@@ -36,8 +50,24 @@ class LockScreenViewModel @Inject constructor(
 
     /** Point the screen at [lockedPackage]; switching to another app starts from a clean state. */
     fun show(lockedPackage: String) {
-        if (_state.value.lockedPackage == lockedPackage) return
-        _state.value = LockScreenState(lockedPackage = lockedPackage)
+        if (_state.value.lockedPackage != lockedPackage) {
+            _state.value = LockScreenState(lockedPackage = lockedPackage)
+        }
+        refreshReason()
+    }
+
+    private fun refreshReason() {
+        val pkg = _state.value.lockedPackage ?: return
+        val reason = when (val daily = dailyAllowances.access(pkg)) {
+            is DailyAccess.Available -> {
+                _closeRequests.trySend(Unit)
+                return
+            }
+            is DailyAccess.UsedUp -> LockReason.DailyUsedUp(daily.minutesPerDay, daily.lastDay)
+            is DailyAccess.Paused -> LockReason.DailyPaused(daily.minutesPerDay, daily.lastDay)
+            DailyAccess.None -> LockReason.Locked
+        }
+        if (_state.value.reason != reason) _state.value = _state.value.copy(reason = reason)
     }
 
     fun askGuardian() {
@@ -75,6 +105,8 @@ class LockScreenViewModel @Inject constructor(
 data class LockScreenState(
     val lockedPackage: String? = null,
     val request: RequestStatus = RequestStatus.None,
+    /** Why the app is blocked. */
+    val reason: LockReason = LockReason.Locked,
 )
 
 enum class RequestStatus { None, Preparing, Sent, NotConfigured, Failed }

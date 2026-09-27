@@ -1,6 +1,9 @@
 package com.krypt.app.data
 
 import androidx.room.withTransaction
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.data.daily.DailyAllowanceDao
+import com.krypt.app.data.daily.toEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -16,6 +19,7 @@ class RoomOutstandingRequestRepository @Inject constructor(
     private val db: KryptDatabase,
     private val requestDao: OutstandingRequestDao,
     private val grantDao: UnlockGrantDao,
+    private val dailyDao: DailyAllowanceDao,
 ) : OutstandingRequestRepository {
 
     override suspend fun insert(request: OutstandingRequest) {
@@ -50,6 +54,19 @@ class RoomOutstandingRequestRepository @Inject constructor(
                     expiresAt = grant.expiresAtMs,
                 )
             )
+        }
+    }
+
+    override suspend fun consumeAndUpsertDailyAllowance(
+        requestId: UUID,
+        nowMs: Long,
+        allowance: DailyAllowance,
+    ): Boolean = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val affected = requestDao.markConsumedIfOpen(requestId.toString(), nowMs)
+            if (affected == 0) return@withTransaction false
+            dailyDao.upsert(allowance.toEntity())
+            true
         }
     }
 

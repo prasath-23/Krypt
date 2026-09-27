@@ -115,8 +115,11 @@ fun GuardianPinScreen(
                     }
                     AllowFor(
                         form = s.form,
+                        onKind = viewModel::setKind,
                         onPickMinutes = viewModel::pickMinutes,
                         onEditMinutes = viewModel::editMinutes,
+                        onPickDays = viewModel::pickDays,
+                        onEditDays = viewModel::editDays,
                     )
                     OutlinedTextField(
                         value = pin,
@@ -181,15 +184,33 @@ fun GuardianPinScreen(
 /** Test tags for the screen's text fields, which UI tests can't tell apart otherwise. */
 const val PIN_FIELD_TAG = "guardian_pin"
 const val MINUTES_FIELD_TAG = "guardian_minutes"
+const val DAYS_FIELD_TAG = "guardian_days"
 
-/** "Allow for": how long the approval unlocks the app. */
+/** What the approval allows: one time or every day, how long, for how many days. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun AllowFor(
     form: AccessForm,
+    onKind: (AccessForm.Kind) -> Unit,
     onPickMinutes: (Int) -> Unit,
     onEditMinutes: (String) -> Unit,
+    onPickDays: (Int) -> Unit,
+    onEditDays: (String) -> Unit,
 ) {
+    if (form.everyDayAllowed) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = form.kind == AccessForm.Kind.ONE_TIME,
+                onClick = { onKind(AccessForm.Kind.ONE_TIME) },
+                label = { Text(stringResource(R.string.guardian_allow_one_time)) },
+            )
+            FilterChip(
+                selected = form.kind == AccessForm.Kind.EVERY_DAY,
+                onClick = { onKind(AccessForm.Kind.EVERY_DAY) },
+                label = { Text(stringResource(R.string.guardian_allow_every_day)) },
+            )
+        }
+    }
     Text(
         text = stringResource(R.string.guardian_allow_for),
         style = MaterialTheme.typography.titleSmall,
@@ -225,12 +246,64 @@ private fun AllowFor(
             modifier = Modifier.fillMaxWidth().testTag(MINUTES_FIELD_TAG),
         )
     }
+    if (form.kind == AccessForm.Kind.EVERY_DAY) {
+        EveryDayFor(form, onPickDays, onEditDays)
+    }
     form.choice?.let { access ->
         Text(
             text = stringResource(R.string.guardian_allows, accessText(access)),
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+/** "For": how many days an every-day approval lasts. */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun EveryDayFor(
+    form: AccessForm,
+    onPickDays: (Int) -> Unit,
+    onEditDays: (String) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.guardian_for_days),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        AccessForm.DAY_PRESETS.forEach { days ->
+            FilterChip(
+                selected = form.days == AccessForm.Amount.Preset(days),
+                onClick = { onPickDays(days) },
+                label = { Text(pluralStringResource(R.plurals.duration_days, days, days)) },
+            )
+        }
+        FilterChip(
+            selected = form.days is AccessForm.Amount.Custom,
+            onClick = { if (form.days !is AccessForm.Amount.Custom) onEditDays("") },
+            label = { Text(stringResource(R.string.guardian_set_days)) },
+        )
+    }
+    val custom = form.days as? AccessForm.Amount.Custom
+    if (custom != null) {
+        OutlinedTextField(
+            value = custom.text,
+            onValueChange = { onEditDays(it.filter(Char::isDigit).take(3)) },
+            label = { Text(stringResource(R.string.guardian_days_label)) },
+            isError = form.daysInvalid,
+            supportingText = if (form.daysInvalid) {
+                { Text(stringResource(R.string.guardian_days_error)) }
+            } else {
+                null
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag(DAYS_FIELD_TAG),
+        )
+    }
+    Text(
+        text = stringResource(R.string.guardian_daily_hint),
+        style = MaterialTheme.typography.bodySmall,
+    )
 }
 
 @Composable
@@ -241,10 +314,15 @@ private fun chipLabel(minutes: Int): String =
         pluralStringResource(R.plurals.chip_minutes, minutes, minutes)
     }
 
-/** What an approval allows, e.g. "30 minutes, one time". */
+/** What an approval allows, e.g. "30 minutes, one time" or "1 hour a day for 7 days". */
 @Composable
 private fun accessText(access: AccessChoice): String = when (access) {
     is AccessChoice.OneTime -> stringResource(R.string.access_one_time, durationText(access.minutes))
+    is AccessChoice.EveryDay -> stringResource(
+        R.string.access_every_day,
+        durationText(access.minutes),
+        pluralStringResource(R.plurals.duration_days, access.days, access.days),
+    )
 }
 
 @Composable

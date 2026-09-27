@@ -12,6 +12,9 @@ import com.krypt.app.common.Clock
 import com.krypt.app.data.LockSource
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.ui.main.MainActivity
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -23,6 +26,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -42,6 +48,7 @@ class ManualLockToggleE2ETest {
     @Inject lateinit var lockedAppsRepo: LockedAppsRepository
     @Inject lateinit var sessionStore: LockerSessionStore
     @Inject lateinit var clock: Clock
+    @Inject lateinit var dailyMeter: DailyAllowanceMeter
 
     @Before
     fun setUp() {
@@ -100,6 +107,26 @@ class ManualLockToggleE2ETest {
 
             compose.awaitText("Locked")
             assertFalse(sessionStore.isUnlockedNow("com.example.beta"))
+            assertTrue(isLocked("com.example.beta"))
+        }
+    }
+
+    @Test
+    fun everyDayRule_showsTodaysTimeLeft_andEndDailyTimeEndsIt() {
+        runBlocking { lockedAppsRepo.lock("com.example.beta", "Beta", LockSource.MANUAL) }
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        dailyMeter.onRuleSaved(
+            DailyAllowance("com.example.beta", 60, today, today.plusDays(6), zone, UUID.randomUUID(), 0L)
+        )
+        ActivityScenario.launch(MainActivity::class.java).use {
+            openHome()
+            compose.awaitText("Daily: 60 of 60 min left today", substring = true)
+
+            compose.onNodeWithText("End daily time").performClick()
+
+            compose.awaitText("Locked")
+            assertEquals(DailyAccess.None, dailyMeter.access("com.example.beta"))
             assertTrue(isLocked("com.example.beta"))
         }
     }

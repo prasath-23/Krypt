@@ -4,6 +4,8 @@ import com.krypt.app.common.Clock
 import com.krypt.app.data.LockSource
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.FakeDailyAllowances
 import com.krypt.app.security.FakeSharedPreferences
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -28,6 +30,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -46,6 +49,7 @@ class HomeViewModelTest {
         override fun elapsedMs() = testDispatcher.scheduler.currentTime
     }
     private val sessionStore = LockerSessionStore(FakeSharedPreferences(), clock)
+    private val dailyAllowances = FakeDailyAllowances()
 
     private lateinit var vm: HomeViewModel
 
@@ -59,7 +63,7 @@ class HomeViewModelTest {
         )
         every { lockedRepo.allLockedFlow() } returns lockedSetFlow
 
-        vm = HomeViewModel(installedRepo, lockedRepo, sessionStore, iconCache)
+        vm = HomeViewModel(installedRepo, lockedRepo, sessionStore, dailyAllowances, iconCache)
     }
 
     @After
@@ -181,6 +185,49 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun everyDayTime_showsWhatIsLeftToday() = runTest {
+        lockedSetFlow.value = setOf("com.b")
+        dailyAllowances.set("com.b", DailyAccess.Available(remainingMs = 18 * 60_000L - 1, minutesPerDay = 60, lastDay = LAST_DAY))
+        showHome()
+
+        assertEquals(AppRowStatus.Daily(DailyLine.Left(18, 60, LAST_DAY)), row("com.b").status)
+    }
+
+    @Test
+    fun everyDayTime_usedUpOrPaused_isShown() = runTest {
+        lockedSetFlow.value = setOf("com.b", "com.c")
+        dailyAllowances.set("com.b", DailyAccess.UsedUp(60, LAST_DAY))
+        dailyAllowances.set("com.c", DailyAccess.Paused(60, LAST_DAY))
+        showHome()
+
+        assertEquals(AppRowStatus.Daily(DailyLine.UsedUp(60, LAST_DAY)), row("com.b").status)
+        assertEquals(AppRowStatus.Daily(DailyLine.Paused(60, LAST_DAY)), row("com.c").status)
+    }
+
+    @Test
+    fun aOneTimeUnlock_isShownOverEveryDayTime() = runTest {
+        lockedSetFlow.value = setOf("com.b")
+        dailyAllowances.set("com.b", DailyAccess.UsedUp(60, LAST_DAY))
+        unlockFor("com.b", minutes = 5)
+        showHome()
+
+        assertEquals(AppRowStatus.Unlocked(5), row("com.b").status)
+    }
+
+    @Test
+    fun endDailyTime_endsTheRule() = runTest {
+        lockedSetFlow.value = setOf("com.b")
+        dailyAllowances.set("com.b", DailyAccess.Available(60_000, 60, LAST_DAY))
+        showHome()
+
+        vm.onEndDailyTime(row("com.b"))
+        runCurrent()
+
+        assertEquals(listOf("com.b"), dailyAllowances.ended)
+        assertEquals(AppRowStatus.Locked, row("com.b").status)
+    }
+
+    @Test
     fun withoutAnUnlock_nothingTicks() = runTest {
         lockedSetFlow.value = setOf("com.b")
         showHome()
@@ -192,5 +239,6 @@ class HomeViewModelTest {
 
     private companion object {
         const val WALL_START = 1_700_000_000_000L
+        val LAST_DAY: LocalDate = LocalDate.of(2026, 10, 3)
     }
 }

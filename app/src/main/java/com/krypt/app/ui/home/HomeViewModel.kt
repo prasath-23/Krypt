@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.krypt.app.data.LockSource
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAllowances
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -37,6 +38,7 @@ class HomeViewModel @Inject constructor(
     private val installedRepo: InstalledAppsRepository,
     private val lockedRepo: LockedAppsRepository,
     private val sessionStore: LockerSessionStore,
+    private val dailyAllowances: DailyAllowances,
     val iconCache: AppIconCache,
 ) : ViewModel() {
 
@@ -49,13 +51,14 @@ class HomeViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { anyUnlocked -> if (anyUnlocked) everySecond() else flowOf(Unit) }
 
+    private val appsAndQuery = combine(_allInstalled, lockedRepo.allLockedFlow(), _query, ::Triple)
+
     val state: StateFlow<HomeUiState> = combine(
-        _allInstalled,
-        lockedRepo.allLockedFlow(),
+        appsAndQuery,
         sessionStore.grants,
-        _query,
+        dailyAllowances.changes,
         countdown,
-    ) { all, lockedSet, grants, query, _ ->
+    ) { (all, lockedSet, query), grants, _, _ ->
         // Asking the store also clears unlocks that have run out, which stops the countdown.
         val timeLeft = grants.keys.associateWith(sessionStore::remainingMs)
         val rows = all
@@ -66,7 +69,11 @@ class HomeViewModel @Inject constructor(
                     packageName = meta.packageName,
                     displayName = meta.displayName,
                     isLocked = isLocked,
-                    status = appRowStatus(isLocked, timeLeft[meta.packageName] ?: 0L),
+                    status = appRowStatus(
+                        isLocked = isLocked,
+                        grantRemainingMs = timeLeft[meta.packageName] ?: 0L,
+                        daily = dailyAllowances.access(meta.packageName),
+                    ),
                 )
             }
         HomeUiState(rows = rows, query = query)
@@ -100,6 +107,11 @@ class HomeViewModel @Inject constructor(
     /** End [row]'s Guardian unlock early: the app is locked again at once. */
     fun onLockNow(row: InstalledAppRowState) {
         sessionStore.revoke(row.packageName)
+    }
+
+    /** End [row]'s every-day rule: the app asks every time again. */
+    fun onEndDailyTime(row: InstalledAppRowState) {
+        viewModelScope.launch { dailyAllowances.end(row.packageName) }
     }
 
     private fun everySecond(): Flow<Unit> = flow {

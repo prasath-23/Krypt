@@ -29,6 +29,13 @@
     <string name="lock_paste_approval">Paste approval link</string>
     <string name="lock_paste_no_approval">No approval link on the clipboard. Copy your Guardian\'s whole reply first.</string>
     <string name="lock_footer">Krypt protects this app</string>
+    <string name="lock_title_daily_used_up">Time\'s up for today</string>
+    <plurals name="lock_body_daily_used_up">
+        <item quantity="one">Today\'s %d minute is used up. Ask your Guardian if you need more time now.</item>
+        <item quantity="other">Today\'s %d minutes are used up. Ask your Guardian if you need more time now.</item>
+    </plurals>
+    <string name="lock_title_daily_paused">Daily time is paused</string>
+    <string name="lock_body_daily_paused">This app\'s daily time needs Set time automatically. Turn it on in Settings, or ask your Guardian.</string>
 
     <!-- Sharing and opening Krypt links (Amendment 2) -->
     <string name="request_share_text">Krypt unlock request for %1$s.\nTap the link to review it. If it doesn\'t open, copy this whole message, open Krypt and tap Paste link.\n%2$s</string>
@@ -42,7 +49,7 @@
 
     <!-- Accessibility service (WP10) -->
     <string name="accessibility_service_label">Krypt Locker</string>
-    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and block locked apps until your Guardian approves. Krypt does not read your app content and does not send any data off the device.</string>
+    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and block locked apps until your Guardian approves. For apps your Guardian gives daily time, Krypt counts the minutes they are used each day, on this device only. Krypt does not read your app content and does not send any data off the device.</string>
     <string name="accessibility_service_summary">Blocks locked apps from opening until your Guardian approves.</string>
 
     <!-- Device Admin (WP11) -->
@@ -76,6 +83,14 @@
         <item quantity="other">Unlocked · %d min left</item>
     </plurals>
     <string name="home_action_lock_now">Lock now</string>
+    <!-- Every-day time. %1$d: minutes left today; %2$d: minutes a day; %3$s: the last day, e.g. "Sep 28". -->
+    <plurals name="home_status_daily_left">
+        <item quantity="one">Daily: %1$d of %2$d min left today · until %3$s</item>
+        <item quantity="other">Daily: %1$d of %2$d min left today · until %3$s</item>
+    </plurals>
+    <string name="home_status_daily_used_up">Daily: time\'s up today · until %1$s</string>
+    <string name="home_status_daily_paused">Daily time paused: needs automatic date &amp; time · until %1$s</string>
+    <string name="home_action_end_daily">End daily time</string>
     <string name="home_empty_loading">Loading apps…</string>
     <string name="home_empty_no_match">No apps match "%1$s"</string>
 
@@ -127,6 +142,10 @@
 
     <!-- Approval trampoline (WP22 Amendment 1) -->
     <string name="approval_toast_unlocked">Unlocked %1$s until %2$s</string>
+    <!-- %1$s: the app; %2$s: a duration, e.g. "1 hour"; %3$s: the rule's last day, e.g. "Sep 28". -->
+    <string name="approval_toast_daily">%1$s: %2$s a day until %3$s</string>
+    <string name="approval_toast_daily_used_up">%1$s: daily time is set, but today\'s is already used up.</string>
+    <string name="approval_error_needs_auto_time">Turn on Set time automatically in Settings, then tap the approval again.</string>
     <string name="approval_a11y_announcement">Unlocked by Guardian</string>
     <string name="approval_error_unreadable">Could not read this approval.</string>
     <string name="approval_error_unmatched">This approval doesn\'t match a pending unlock request.</string>
@@ -146,6 +165,19 @@
     <string name="guardian_allows">Allows: %1$s</string>
     <!-- %1$s: a duration, e.g. "30 minutes". -->
     <string name="access_one_time">%1$s, one time</string>
+    <!-- %1$s: a duration, e.g. "1 hour"; %2$s: a number of days, e.g. "7 days". -->
+    <string name="access_every_day">%1$s a day for %2$s</string>
+    <string name="guardian_allow_one_time">One time</string>
+    <string name="guardian_allow_every_day">Every day</string>
+    <string name="guardian_for_days">For</string>
+    <string name="guardian_set_days">Set days</string>
+    <string name="guardian_days_label">Days (1–365)</string>
+    <string name="guardian_days_error">Enter a number of days from 1 to 365.</string>
+    <string name="guardian_daily_hint">Day 1 is today, and time already used today counts. For extra time today, choose One time.</string>
+    <plurals name="duration_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
     <plurals name="chip_minutes">
         <item quantity="one">%d min</item>
         <item quantity="other">%d min</item>

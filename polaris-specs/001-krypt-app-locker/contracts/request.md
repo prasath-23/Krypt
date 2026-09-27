@@ -18,6 +18,11 @@
 > and parsing sections below describe the current shape. The "Cryptographic invariants" and
 > "Threat-model notes" sections still describe the pre-Amendment-1 `K_pair` design.
 
+> **Amendment 3 (2026-09-27)**: the URL gains `caps=daily`. It says the Subject's phone accepts
+> every-day approvals, and the Guardian only offers "Every day" when it is present. A request
+> without it comes from an older install, which only takes one-time approvals. Unknown `caps`
+> values are ignored.
+
 Subject-device-to-Guardian-device unlock request. Emitted when a Subject taps "Ask Guardian" on Krypt's lock screen. Carries enough information for the Guardian device to prompt its user for the PIN and compose an approval.
 
 ## URL format
@@ -31,6 +36,7 @@ krypt://request?v=1
                &kdfIter=<int: PBKDF2 iterations used at setup>
                &iat=<epoch seconds>
                &ttl=<seconds, default 300>
+               &caps=daily
 ```
 
 ## Size budget
@@ -49,6 +55,7 @@ Typical length: ~230 chars. Must stay under 512 chars.
 | `kdfIter` | int, 300000..10000000 | PBKDF2-HMAC-SHA256 iteration count used at setup. The Guardian MUST derive with this value. |
 | `iat` | epoch seconds | Issued-at. |
 | `ttl` | seconds | Validity window. Default 300 (5 minutes, FR-019). |
+| `caps` | comma-separated words, optional | What the Subject's phone accepts. `daily`: every-day approvals (Amendment 3). |
 
 ## Generation (Subject device)
 

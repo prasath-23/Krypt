@@ -14,15 +14,19 @@ import androidx.test.espresso.Espresso
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
+import androidx.test.espresso.intent.VerificationModes.times
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasCategories
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasData
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
-import androidx.test.espresso.intent.VerificationModes.times
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.data.KryptDatabase
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.data.daily.DailyAllowanceEntity
+import com.krypt.app.data.daily.DailyAllowanceMeter
+import com.krypt.app.data.daily.DailyUsageEntity
 import com.krypt.app.subject.ApprovalTrampolineActivity
 import com.krypt.app.ui.link.LinkReceiverActivity
 import com.krypt.app.ui.lock.LockScreenActivity
@@ -40,6 +44,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -57,6 +64,8 @@ class LockScreenE2ETest {
     @Inject lateinit var state: TestState
     @Inject lateinit var db: KryptDatabase
     @Inject lateinit var sessionStore: LockerSessionStore
+    @Inject lateinit var dailyMeter: DailyAllowanceMeter
+    @Inject lateinit var autoTime: FakeAutoTimeSetting
 
     private val lockedPackage = "com.android.settings"
 
@@ -180,6 +189,49 @@ class LockScreenE2ETest {
             waitForText("No approval link on the clipboard", substring = true)
         }
         intended(hasComponent(ApprovalTrampolineActivity::class.java.name), times(0))
+    }
+
+    private val zone: ZoneId = ZoneId.systemDefault()
+
+    private fun dailyRule(minutes: Int): DailyAllowance {
+        val today = LocalDate.now(zone)
+        return DailyAllowance(lockedPackage, minutes, today, today.plusDays(1), zone, UUID.randomUUID(), 0L)
+    }
+
+    @Test
+    fun usedUpDailyTime_saysTimesUp_andStillOffersAskGuardian() {
+        runBlocking {
+            val today = LocalDate.now(zone).toEpochDay()
+            db.dailyAllowanceDao().upsert(
+                DailyAllowanceEntity(lockedPackage, 1, today, today + 1, zone.id, UUID.randomUUID().toString(), 0L)
+            )
+            db.dailyUsageDao().upsert(DailyUsageEntity(lockedPackage, today, 60_000))
+            dailyMeter.reloadForTest()
+        }
+        launch().use {
+            waitForText("Time's up for today")
+            waitForText("Today's 1 minute is used up", substring = true)
+            compose.onNodeWithText("Ask Guardian").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun withAutomaticTimeOff_dailyTimeIsPaused() {
+        dailyMeter.onRuleSaved(dailyRule(60))
+        autoTime.on = false
+        dailyMeter.reevaluate()
+        launch().use {
+            waitForText("Daily time is paused")
+        }
+    }
+
+    @Test
+    fun anEveryDayApprovalArriving_closesTheLockScreen() {
+        launch().use { scenario ->
+            compose.waitForIdle()
+            dailyMeter.onRuleSaved(dailyRule(60))
+            waitUntilDestroyed(scenario)
+        }
     }
 
     @Test

@@ -167,6 +167,41 @@ class ApprovalPayloadCodecTest {
         assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(durMin = 24 * 60 + 1) }
     }
 
+    @Test
+    fun everyDayPayload_roundTrips_asASixEntryMap() {
+        val payload = samplePayload().copy(durMin = 60, days = 7)
+
+        val bytes = ApprovalPayloadCodec.encode(payload)
+
+        assertEquals(0xA6, bytes[0].toInt() and 0xFF)
+        assertEquals(payload, ApprovalPayloadCodec.decode(bytes))
+        assertEquals(AccessChoice.EveryDay(60, 7), payload.access)
+    }
+
+    @Test
+    fun decodeRejectsBrokenEveryDayShapes() {
+        val req = "11111111-1111-4111-8111-111111111111"
+        val five = cbor(durMin = byteArrayOf(0x0f), req = req)
+        val sixHeaderFivePairs = byteArrayOf(0xA6.toByte()) + five.copyOfRange(1, five.size)
+
+        for (bad in listOf(
+            sixHeaderFivePairs,
+            sixHeaderFivePairs + byteArrayOf(0x07, 0x07),                      // key 7, not 6
+            sixHeaderFivePairs + byteArrayOf(0x06, 0x00),                      // 0 days
+            sixHeaderFivePairs + byteArrayOf(0x06, 0x19, 0x01, 0x6E),          // 366 days
+            sixHeaderFivePairs + byteArrayOf(0x06, 0x61, 0x37),                // days as text
+            byteArrayOf(0xA7.toByte()) + five.copyOfRange(1, five.size),       // 7 entries
+        )) {
+            assertThrows(IllegalArgumentException::class.java) { ApprovalPayloadCodec.decode(bad) }
+        }
+        assertEquals(365, ApprovalPayloadCodec.decode(sixHeaderFivePairs + byteArrayOf(0x06, 0x19, 0x01, 0x6D)).days)
+    }
+
+    @Test
+    fun aOneTimePayload_hasNoDays() {
+        assertEquals(AccessChoice.OneTime(15), samplePayload().access)
+    }
+
     /** The canonical 5-entry map, built by hand from contracts/approve.md. */
     private fun cbor(durMin: ByteArray, req: String): ByteArray {
         val app = "com.example.target"

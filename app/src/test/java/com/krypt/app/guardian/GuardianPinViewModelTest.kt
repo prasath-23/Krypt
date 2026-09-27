@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -302,6 +303,52 @@ class GuardianPinViewModelTest {
         coVerify(exactly = 0) { validator.validate(any(), any(), any()) }
         assertTrue(vm.state.value is GuardianPinState.Ready)
         assertEquals("no attempt was counted", 2, limiter.beginAttempt())
+    }
+
+    @Test
+    fun everyDay_isNotOffered_toAnOlderPhone() = runTest {
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1") // sampleRequest: supportsDaily = false
+
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+
+        assertFalse(readyState(vm).form.everyDayAllowed)
+        assertEquals("nothing an old phone would refuse", null, readyState(vm).form.choice)
+    }
+
+    @Test
+    fun everyDay_allowsTheChosenMinutesADay_forTheChosenDays() = runTest {
+        val daily = sampleRequest.copy(supportsDaily = true)
+        every { parser.parse(any(), any()) } returns Outcome.ok(daily)
+        coEvery { validator.validate(any(), daily, any()) } returns Outcome.ok(ByteArray(32) { 0xAA.toByte() })
+        every { approvalBuilder.build(any<ByteArray>(), daily, any<AccessChoice>()) } returns APPROVAL_URL
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+        vm.pickMinutes(60)
+        vm.pickDays(7)
+        vm.approve("1234".toCharArray())
+
+        verify { approvalBuilder.build(any<ByteArray>(), daily, AccessChoice.EveryDay(60, 7)) }
+        assertEquals(AccessChoice.EveryDay(60, 7), (vm.state.value as GuardianPinState.Approved).access)
+    }
+
+    @Test
+    fun typedDays_areUsed_andUnusableOnesAllowNothing() = runTest {
+        every { parser.parse(any(), any()) } returns Outcome.ok(sampleRequest.copy(supportsDaily = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+        vm.editMinutes("1")
+
+        vm.editDays("2")
+        assertEquals(AccessChoice.EveryDay(1, 2), readyState(vm).form.choice)
+        for (text in listOf("", "0", "366")) {
+            vm.editDays(text)
+            assertEquals("choice for \"$text\" days", null, readyState(vm).form.choice)
+        }
+        assertTrue(readyState(vm).form.daysInvalid)
     }
 
     @Test

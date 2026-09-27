@@ -23,11 +23,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.krypt.app.R
+import com.krypt.app.ui.common.dayText
 import com.krypt.app.ui.theme.PermissionGrantedGreen
+import java.time.ZoneId
 
 /**
  * A single installed-app row on the Home Screen.
@@ -44,6 +47,7 @@ fun InstalledAppRow(
     iconCache: AppIconCache,
     onToggle: () -> Unit,
     onLockNow: () -> Unit,
+    onEndDailyTime: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var icon by remember(state.packageName) { mutableStateOf<Bitmap?>(null) }
@@ -85,6 +89,16 @@ fun InstalledAppRow(
                         Text(stringResource(R.string.home_action_lock_now))
                     }
                 }
+                is AppRowStatus.Daily -> {
+                    Text(
+                        text = dailyLineText(status.line),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    TextButton(onClick = onEndDailyTime) {
+                        Text(stringResource(R.string.home_action_end_daily))
+                    }
+                }
             }
         }
 
@@ -92,6 +106,18 @@ fun InstalledAppRow(
             checked = state.isLocked,
             onCheckedChange = { onToggle() },
         )
+    }
+}
+
+@Composable
+private fun dailyLineText(line: DailyLine): String {
+    val until = dayText(LocalContext.current, line.lastDay, ZoneId.systemDefault())
+    return when (line) {
+        is DailyLine.Left -> pluralStringResource(
+            R.plurals.home_status_daily_left, line.minutesLeft, line.minutesLeft, line.minutesPerDay, until,
+        )
+        is DailyLine.UsedUp -> stringResource(R.string.home_status_daily_used_up, until)
+        is DailyLine.Paused -> stringResource(R.string.home_status_daily_paused, until)
     }
 }
 

@@ -24,6 +24,9 @@ object DeepLinkScheme {
     /** Protocol version. A parser MUST fail fast on mismatches. */
     const val PROTOCOL_VERSION = "1"
 
+    /** In `caps`: the phone accepts every-day approvals. */
+    const val CAP_DAILY = "daily"
+
     /** Canonical query-parameter names (shared across WP03 + WP04). */
     object Params {
         const val VERSION = "v"
@@ -43,5 +46,8 @@ object DeepLinkScheme {
 
         /** Amendment 1: HMAC-SHA-256 tag embedded in `krypt://request?...`. */
         const val PIN_PROOF = "pinProof"
+
+        /** Amendment 3: comma-separated things the requesting phone understands, e.g. [CAP_DAILY]. */
+        const val CAPS = "caps"
     }
 }

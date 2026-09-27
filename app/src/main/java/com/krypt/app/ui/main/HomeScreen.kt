@@ -84,6 +84,7 @@ fun HomeScreen(
                             iconCache = viewModel.iconCache,
                             onToggle = { viewModel.onToggle(row) },
                             onLockNow = { viewModel.onLockNow(row) },
+                            onEndDailyTime = { viewModel.onEndDailyTime(row) },
                         )
                         HorizontalDivider()
                     }

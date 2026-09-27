@@ -9,7 +9,7 @@ Prerequisites (see tests/e2e/README.md):
   one device/emulator on adb (Android 10+), ideally freshly wiped.
 
 Usage:
-  python tests/e2e/krypt_e2e.py            # full run, ~28 min (waits out a 15-min grant)
+  python tests/e2e/krypt_e2e.py            # full run, ~40 min (waits out a 15-min grant)
   python tests/e2e/krypt_e2e.py --quick    # skip the grant-expiry and uninstall cases
 
 The run is ordered: later cases build on the state earlier ones leave. It
@@ -20,6 +20,7 @@ which Krypt can only be removed by wiping the device.
 import argparse
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -40,6 +41,7 @@ APP_APK = os.path.join(ROOT, "app", "build", "outputs", "apk", "debug", "app-deb
 TARGET_APK = os.path.join(ROOT, "e2e-target", "build", "outputs", "apk", "debug", "e2e-target-debug.apk")
 
 LOCK_SCREEN = f"{KRYPT}/.ui.lock.LockScreenActivity"
+EVIDENCE = os.path.join(tempfile.gettempdir(), "krypt_e2e_failures")
 TARGET_ACTIVITY = f"{TARGET}/.TargetActivity"
 A11Y_SERVICE = f"{KRYPT}/{KRYPT}.service.AppLockerAccessibilityService"
 
@@ -55,10 +57,21 @@ def sh(command, timeout=180):
     return adb("shell", command, timeout=timeout)
 
 
-def nodes():
-    """Visible UI nodes from uiautomator (retries while the UI is animating)."""
-    for _ in range(8):
+def dump_ui():
+    """Dump every window, or with an older uiautomator the active one, to /sdcard/krypt_e2e.xml."""
+    if "dumped" not in sh("uiautomator dump --windows /sdcard/krypt_e2e.xml"):
         sh("uiautomator dump /sdcard/krypt_e2e.xml")
+
+
+def nodes():
+    """Visible UI nodes of the focused window, from uiautomator (retries while the UI is animating).
+
+    A plain dump reads accessibility's "active window", which can still be the previous window
+    when the focus changed between dumps (seen after the lock screen replaced an app, and after
+    Krypt opened). So this dumps every window and keeps the focused one, which is taken from
+    the window manager at the time of the dump."""
+    for _ in range(8):
+        dump_ui()
         raw = adb("exec-out", "cat", "/sdcard/krypt_e2e.xml")
         start = raw.find("<?xml")
         if start >= 0:
@@ -67,8 +80,12 @@ def nodes():
             except ET.ParseError:
                 time.sleep(1)
                 continue
+            windows = root.findall(".//window")
+            focused = ([w for w in windows if w.get("focused") == "true"]
+                       or [w for w in windows if w.get("active") == "true"])
+            tree = focused[0] if focused else root
             found = []
-            for n in root.iter("node"):
+            for n in tree.iter("node"):
                 b = [int(v) for v in re.findall(r"\d+", n.get("bounds", ""))]
                 if len(b) == 4:
                     found.append({
@@ -87,6 +104,11 @@ def nodes():
 def matching(pattern):
     rx = re.compile(pattern, re.I | re.S)
     return [n for n in nodes() if rx.search(n["text"]) or rx.search(n["desc"])]
+
+
+def screen_texts():
+    """The texts on screen, for a failure message."""
+    return [n["text"] for n in nodes() if n["text"]]
 
 
 def wait_text(pattern, timeout=30):
@@ -278,9 +300,23 @@ def reboot_device():
     booted = wait_for(lambda: sh("getprop sys.boot_completed").strip() == "1", timeout=300, step=3)
     expect(booted, "the device did not finish booting")
     expect(sh("settings get global boot_count").strip() != boot, "the device did not reboot")
-    connected = wait_for(lambda: "connected" in adb("logcat", "-d", "-s", "KryptA11y:*"), timeout=90, step=2)
-    expect(connected, "Krypt's accessibility service did not reconnect after the reboot")
+    def service_connected():
+        answer_anr_dialog()  # right after a reboot, SystemUI often stops responding for a while
+        return "connected" in adb("logcat", "-d", "-s", "KryptA11y:*")
+
+    expect(wait_for(service_connected, timeout=240, step=3),
+           "Krypt's accessibility service did not reconnect after the reboot")
     settle()
+
+
+def answer_anr_dialog():
+    """Answer an "isn't responding" dialog with Wait, if one is up. Returns whether one was."""
+    if "Application Not Responding" not in sh("dumpsys window | grep 'Application Not Responding'"):
+        return False
+    wait_buttons = [n for n in nodes() if n["text"] == "Wait"]
+    if wait_buttons:
+        sh(f"input tap {wait_buttons[0]['x']} {wait_buttons[0]['y']}")
+    return True
 
 
 def settle(timeout=240):
@@ -292,11 +328,7 @@ def settle(timeout=240):
         expect(time.time() < deadline, "the device did not settle after the reboot")
         sh("input keyevent KEYCODE_WAKEUP")
         sh("wm dismiss-keyguard")
-        anr = "Application Not Responding" in sh("dumpsys window | grep 'Application Not Responding'")
-        if anr:
-            wait_buttons = [n for n in nodes() if n["text"] == "Wait"]
-            if wait_buttons:
-                sh(f"input tap {wait_buttons[0]['x']} {wait_buttons[0]['y']}")
+        anr = answer_anr_dialog()
         keyguard = "isKeyguardShowing=true" in sh("dumpsys window | grep isKeyguardShowing")
         calm = calm + 1 if not anr and not keyguard and krypt_service_bound() else 0
         time.sleep(5)
@@ -320,6 +352,54 @@ def restore_device_time():
     sh("cmd time_detector set_auto_detection_enabled true")
 
 
+def scroll_down():
+    sh("input swipe 540 1800 540 600 400")
+    time.sleep(1)
+
+
+def daily_used_ms(pkg):
+    rows = db(f"select usedMs from daily_usage where packageName='{pkg}' order by epochDay desc limit 1")
+    return rows[0][0] if rows else 0
+
+
+def set_auto_time(on):
+    sh(f"cmd time_detector set_auto_detection_enabled {'true' if on else 'false'}")
+    time.sleep(2)  # Krypt hears about it through a settings observer
+
+
+def ask_guardian_for(pkg):
+    """On the child's phone: open the locked app, tap Ask Guardian, return the request link."""
+    launch(pkg)
+    expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"{pkg} was not blocked; top is {top_activity()}")
+    tap_text(r"^Ask Guardian$")
+    request = re.search(r"krypt://request\?[A-Za-z0-9._~*%+=&-]+", shared_text())
+    expect(request, "no request link")
+    expect("caps=daily" in request.group(0), "the request doesn't say this phone takes every-day approvals")
+    dismiss_share_sheet()
+    return request.group(0)
+
+
+def approve_every_day(request_url, minutes, days):
+    """As the Guardian: allow [minutes] a day for [days] days. Returns the shared text and the approval link."""
+    open_link(request_url)
+    tap_text(r"^Every day$", timeout=20)
+    tap_text(r"^Set minutes$")
+    tap_text(r"^Minutes \(1–1440\)$")
+    type_pin(str(minutes))
+    tap_text(r"^Set days$")
+    tap_text(r"^Days \(1–365\)$")
+    type_pin(str(days))
+    scroll_down()  # the PIN field is below the fold now
+    tap_text(r"^Enter PIN$", timeout=20)
+    type_pin(PIN)
+    tap_text(r"Verify & send approval")
+    text = shared_text(APPROVAL_TIMEOUT)
+    approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", text)
+    expect(approval, f"no approval link in {text!r}")
+    dismiss_share_sheet()
+    return text, approval.group(0)
+
+
 # ------------------------------------------------------------------ runner
 
 class Check(Exception):
@@ -334,6 +414,20 @@ def expect(cond, message):
 RESULTS = []
 
 
+def save_evidence(name):
+    """Keep what the device showed when a case failed: a screenshot, the UI dump and the focused window."""
+    folder = os.path.join(EVIDENCE, re.sub(r"[^\w.-]+", "_", name)[:60])
+    os.makedirs(folder, exist_ok=True)
+    png = subprocess.run([ADB, "-s", SERIAL, "exec-out", "screencap", "-p"], capture_output=True, timeout=60).stdout
+    open(os.path.join(folder, "screen.png"), "wb").write(png)
+    dump_ui()
+    open(os.path.join(folder, "ui.xml"), "w", encoding="utf-8").write(adb("exec-out", "cat", "/sdcard/krypt_e2e.xml"))
+    windows = sh("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp|isKeyguardShowing'")
+    activities = sh("dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity'")
+    open(os.path.join(folder, "focus.txt"), "w", encoding="utf-8").write(windows + activities)
+    return folder
+
+
 def case(name):
     def wrap(fn):
         def run():
@@ -344,7 +438,11 @@ def case(name):
                 print(f"PASS  {name}  ({time.time() - started:.0f}s)", flush=True)
             except Exception as e:  # noqa: BLE001 - report every failure and carry on
                 RESULTS.append((name, False, str(e)))
-                print(f"FAIL  {name}: {e}", flush=True)
+                try:
+                    where = save_evidence(name)
+                except Exception:  # noqa: BLE001 - evidence is best effort
+                    where = "not saved"
+                print(f"FAIL  {name}: {e}  [evidence: {where}]", flush=True)
         run.case_name = name
         return run
     return wrap
@@ -363,6 +461,14 @@ def install_fresh():
     sh("settings put system screen_off_timeout 1800000")
     sh("input keyevent KEYCODE_WAKEUP")
     sh("wm dismiss-keyguard")
+    # Chrome opens straight to a tab. Its first-run screens are a second activity that
+    # arrives late, and when a screen dump has Krypt's service unbound just then, nothing
+    # sees it arrive (see the README).
+    sh(f"am set-debug-app --persistent {CHROME}")
+    sh("echo '_ --disable-fre --no-default-browser-check --no-first-run' > /data/local/tmp/chrome-command-line")
+    sh(f"pm grant {CHROME} android.permission.POST_NOTIFICATIONS")
+    sh(f"am force-stop {CHROME}")
+    sh("cmd time_detector set_auto_detection_enabled true")  # every-day time needs it
     adb("uninstall", TARGET)
     adb("uninstall", KRYPT)
     adb("logcat", "-c")
@@ -504,9 +610,18 @@ def recents_blocked():
     home()
     sh("input keyevent KEYCODE_APP_SWITCH")
     time.sleep(2.5)
-    expect(wait_text(r"^Krypt E2E Target$", 10), "target app not in Recents")
+    # Find the target's own card. Android keeps the latest task in Recents even when it is
+    # excluded from them, so the lock screen's card can come first; older cards are to the left.
+    card = wait_text(r"^Krypt E2E Target$", 10)
+    for _ in range(3):
+        if card:
+            break
+        sh("input swipe 250 1100 850 1100 300")
+        time.sleep(1.5)
+        card = matching(r"^Krypt E2E Target$")
+    expect(card, "target app not in Recents")
     wait_for_krypt_service()
-    sh("input tap 540 1150")  # the most recent card's thumbnail, in the middle of the screen
+    sh(f"input tap {card[0]['x']} {card[0]['y']}")
     expect(re.search(re.escape(LOCK_SCREEN), wait_top(re.escape(LOCK_SCREEN))), f"top is {top_activity()}")
 
 
@@ -718,6 +833,62 @@ def catch_up_after_protection_off():
     home()
 
 
+@case("28b every day: the Guardian allows 1 minute a day for 2 days, and the app opens")
+def daily_approval_opens_app():
+    grants_before = db(f"select count(*) from unlock_grants where targetPackage='{TARGET}'")[0][0]
+    request = ask_guardian_for(TARGET)
+    text, approval = approve_every_day(request, minutes=1, days=2)
+    expect("1 minute a day for 2 days" in text, f"share text: {text!r}")
+    open_link(approval)
+    top = wait_top(re.escape(TARGET_ACTIVITY), 20)
+    expect(TARGET_ACTIVITY in top, f"the approved app did not open; top is {top}")
+    home()  # keep today's use short for 28d
+    rule = db(f"select minutesPerDay, lastEpochDay - firstEpochDay from daily_allowances where packageName='{TARGET}'")
+    expect(rule == [(1, 1)], f"daily rule: {rule}")
+    grants_after = db(f"select count(*) from unlock_grants where targetPackage='{TARGET}'")[0][0]
+    expect(grants_after == grants_before, "an every-day approval also made a one-time grant")
+    expect("LockScreenActivity" not in sh("dumpsys activity activities | grep -i LockScreenActivity"),
+           "the lock screen was left behind")
+
+
+@case("28c automatic date & time off pauses daily time (negative)")
+def daily_time_paused_without_auto_time():
+    try:
+        set_auto_time(False)
+        launch(TARGET)
+        expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"top is {top_activity()}")
+        expect(wait_text(r"^Daily time is paused$", 10), "the lock screen doesn't say daily time is paused")
+        home()
+    finally:
+        set_auto_time(True)
+    launch(TARGET)
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), f"daily time did not come back; top is {top_activity()}")
+    home()
+
+
+@case("28d a minute of use runs out and blocks the app; usage survives a restart of Krypt")
+def daily_time_runs_out():
+    used_before = daily_used_ms(TARGET)
+    expect(used_before < 20_000, f"{used_before} ms already used today")
+    launch(TARGET)
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), f"top is {top_activity()}")
+    time.sleep(36)  # counting; no uiautomator here, a dump would unbind Krypt's service
+    restart_krypt()
+    # Krypt saves every 30 s (counted from its last save), so 36 s of use saves at least 6 s of it.
+    used = daily_used_ms(TARGET)
+    expect(used >= used_before + 5_000, f"nothing saved during use: {used} ms (was {used_before})")
+    home()
+    launch(TARGET)  # a window change, so counting resumes
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=(60_000 - used) // 1000 + 20)
+    expect(LOCK_SCREEN in top, f"not blocked when today's minute ran out; top is {top}")
+    expect(wait_text(r"^Time's up for today$", 10), "the lock screen doesn't say today's time is up")
+    expect(wait_text(r"^Ask Guardian$", 5), "Ask Guardian is not offered for extra time")
+    home()
+    launch(TARGET)
+    expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), "the used-up app opened again")
+    home()
+
+
 @case("29 the accessibility health check is scheduled")
 def health_check_scheduled():
     # WorkManager skips a periodic job that is forced early, so the alert
@@ -739,11 +910,22 @@ def reboot_ends_grants():
     top = wait_top(re.escape(LOCK_SCREEN))
     expect(LOCK_SCREEN in top, f"Chrome opened on a grant from before the reboot; top is {top}")
     home()
+    launch(TARGET)
+    top = wait_top(re.escape(LOCK_SCREEN))
+    expect(LOCK_SCREEN in top, f"the used-up app opened after the reboot; top is {top}")
+    # The first screen dumps after a reboot are slow, and the lock screen may still be Chrome's.
+    if not wait_text(rf"^{re.escape(TARGET)}$", 60):
+        expect(False, f"the lock screen is not for {TARGET}; it shows {screen_texts()}")
+    if not wait_text(r"^Time's up for today$", 20):
+        expect(False, f"after the reboot, today's time is no longer used up; the lock screen shows "
+                      f"{screen_texts()}, and {daily_used_ms(TARGET)} ms is saved for today")
+    home()
 
 
 @case("30 an app still open when its grant ends is blocked (15-min wait)")
 def grant_expiry_in_app():
     # Fresh grant for the target, then keep it in front until it runs out.
+    daily_before = daily_used_ms(TARGET)
     launch(TARGET)
     wait_top(re.escape(LOCK_SCREEN))
     tap_text(r"^Ask Guardian$")
@@ -768,6 +950,7 @@ def grant_expiry_in_app():
     launch(TARGET)
     expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), "relaunch after expiry was not blocked")
     home()
+    expect(daily_used_ms(TARGET) == daily_before, "time under the one-time unlock was counted as daily time")
 
 
 @case("30b setting the date back and restarting Krypt doesn't revive an ended grant (negative)")
@@ -784,6 +967,51 @@ def date_rollback_after_expiry():
         home()
     finally:
         restore_device_time()
+
+
+@case("30c moving the date forward gives no fresh daily time (negative)")
+def date_forward_gives_no_new_day():
+    try:
+        set_device_time(device_time_ms() + 24 * 60 * 60_000)  # also switches automatic time off
+        launch(TARGET)
+        expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"top is {top_activity()}")
+        expect(wait_text(r"^Daily time is paused$", 10), "daily time not paused with automatic time off")
+        home()
+        set_auto_time(True)  # back on, the date still a day ahead
+        launch(TARGET)
+        top = wait_top(re.escape(LOCK_SCREEN))
+        expect(LOCK_SCREEN in top, f"a changed date gave a fresh day of time; top is {top}")
+        expect(wait_text(r"^Time's up for today$", 10), "the lock screen doesn't say today's time is up")
+        home()
+    finally:
+        restore_device_time()
+
+
+@case("30d a far date jump and a restart of Krypt don't erase today's used-up time (negative)")
+def date_jump_keeps_used_up_day():
+    # A rule that outlasts the jump, so only today's saved use could be lost. Today's use carries over.
+    request = ask_guardian_for(TARGET)
+    _, approval = approve_every_day(request, minutes=1, days=60)
+    open_link(approval)
+    rule_sql = f"select minutesPerDay, lastEpochDay - firstEpochDay from daily_allowances where packageName='{TARGET}'"
+    expect(wait_for(lambda: db(rule_sql) == [(1, 59)], timeout=20), f"daily rule: {db(rule_sql)}")
+    time.sleep(2)
+    expect(TARGET_ACTIVITY not in top_activity(), "the approval opened the app with today's time used up")
+    used = daily_used_ms(TARGET)
+    expect(used >= 60_000, f"only {used} ms used today")
+    try:
+        set_device_time(device_time_ms() + 40 * 24 * 60 * 60_000)  # also switches automatic time off
+        restart_krypt()  # Krypt tidies old every-day data as it starts
+    finally:
+        restore_device_time()
+    restart_krypt()  # and reads back what is left
+    saved = daily_used_ms(TARGET)
+    expect(saved >= used, f"today's saved use was erased: {saved} ms saved, {used} ms before")
+    launch(TARGET)
+    top = wait_top(re.escape(LOCK_SCREEN))
+    expect(LOCK_SCREEN in top, f"a date jump gave a fresh day of time; top is {top}")
+    expect(wait_text(r"^Time's up for today$", 10), "the lock screen doesn't say today's time is up")
+    home()
 
 
 @case("31 Device Admin blocks uninstalling Krypt (leaves Krypt installed)")
@@ -808,9 +1036,11 @@ def main():
                  guardian_wrong_pin, guardian_expired, guardian_garbled,
                  legacy_pair_link, guardian_ok, tampered_approval, approval_opens_app, relaunch_during_grant,
                  replay_approval, grant_survives_restart, home_shows_unlock, lock_now_ends_unlock,
-                 paste_approval_path, catch_up_after_protection_off,
+                 paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
+                 daily_time_paused_without_auto_time, daily_time_runs_out,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,
-                 uninstall_blocked]
+                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked]
+    shutil.rmtree(EVIDENCE, ignore_errors=True)
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)
     for run in all_cases:
         if args.quick and run.case_name[:2] in QUICK_SKIP:

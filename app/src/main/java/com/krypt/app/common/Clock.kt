@@ -3,6 +3,7 @@ package com.krypt.app.common
 import android.content.Context
 import android.provider.Settings
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +35,9 @@ interface Clock {
      * the device doesn't say.
      */
     fun bootCount(): Int? = null
+
+    /** The device's time zone. */
+    fun zone(): ZoneId = ZoneId.systemDefault()
 }
 
 @Singleton

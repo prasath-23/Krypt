@@ -46,6 +46,9 @@ android {
         }
     }
 
+    // Room's exported schemas, for MigrationTestHelper.
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
+
     buildTypes {
         debug {
             // Signing via the default debug key; no network egress regardless.
@@ -135,6 +138,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.intents)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.work.testing)
+    androidTestImplementation(libs.room.testing)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)

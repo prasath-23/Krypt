@@ -2,8 +2,53 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendment 2 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2 and 3 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 3 (2026-09-27) - Guardian-Chosen Access Time and Every-Day Allowances
+
+**What changed:**
+
+1. **Krypt's Home list shows a Guardian unlock.** Before this, an app unlocked by the Guardian still showed "Locked": the list read only the lock setting, and an approval never changes that. It grants temporary access, which lives in `LockerSessionStore`.
+   - Each row now says what applies right now: "Locked"; "Unlocked · N min left", with a live countdown and a "Lock now" button that ends the unlock early; "Daily: N of M min left today", "Time's up today" or "Daily time paused", with an "End daily time" button.
+   - The lock switch stays on while an unlock or a daily rule runs, because the app locks again by itself.
+2. **The Guardian chooses what an approval allows.** The approval screen asks what to allow:
+   - **One time:** 15 min, 30 min, 1 hour, 2 hours, or typed minutes (1 to 1440). The unlock lasts that long, exactly as before. 15 minutes stays the default.
+   - **Every day:** up to N minutes a day (the same choices) for D days (3, 7, 14, 30, or typed days, 1 to 365), starting today. The choice travels offline, inside the encrypted approval link (`contracts/approve.md`).
+   - A request link says whether the child's phone understands every-day approvals (`caps=daily`, `contracts/request.md`); the Guardian's screen offers "Every day" only then.
+3. **Every-day rules on the child's phone.**
+   - The app opens without asking while today's time lasts.
+   - When today's time is used up, the app is blocked until midnight. The lock screen says so, and "Ask Guardian" still works, for extra one-time time.
+   - After the rule's last day, the app asks every time again.
+   - A new every-day approval for the same app replaces the old rule, and time already used today still counts.
+   - One-time time never counts against the daily time: it is extra.
+   - Locking the app again (a reinstall, or the Home toggle) ends its rule, as it ends a grant.
+4. **How daily time is counted.** Krypt still cannot read the screen. It counts from what the accessibility service already reports: an app's daily time runs while it is the app in front, the screen is on and unlocked, and no one-time unlock is running.
+   - Time is measured on the monotonic clock, so changing the clock adds none.
+   - Usage is saved every 30 s and whenever counting stops, so a crash loses at most 30 s.
+   - Usage survives restarts and reboots, because it is kept per calendar day.
+   - If today's time runs out while the app is open, it is blocked at that moment.
+5. **The calendar day is protected against date changes** (`TrustedDayClock`):
+   - Daily time only works while "Set time automatically" is on; otherwise it is paused, and the app is locked. An every-day approval tapped while it is off is refused before it is used (`ClockNotTrusted`), so it can be tapped again.
+   - Within a boot, the day runs on the monotonic clock from an anchor. A date changed by hand, which needs automatic time off, never moves it, even after automatic time is back on. A time change while automatic time is on is a network correction, and is followed. One that arrives within 10 s of automatic time being switched on is ignored, because the broadcast for a change by hand can lag behind that switch.
+   - After a reboot the day can't go backwards (a high-water mark), so a used-up day can't come round again.
+   - Days are counted in the time zone the device had when the rule was approved, so changing the time zone makes no extra day.
+   - **Residual risk:** offline, a child who sets the date forward, turns automatic time back on and reboots can use later days' time early. Each day's allowance still counts once, and the rule still ends on its last day.
+6. **Known limitations of counting without screen access:**
+   - Picture-in-picture and background audio aren't counted.
+   - In split screen only the app opened last is counted.
+   - An app kept in picture-in-picture past its time keeps playing until its next window change (as with a one-time unlock).
+   - If Krypt's accessibility service is bound again (for example after its process restarts), it learns which app is in front - to block or count it - only at the next window change.
+7. **Storage.** Room schema 2 adds `daily_allowances` (one rule per app) and `daily_usage` (minutes used per app per day) through a migration that only adds tables. Old rules and usage older than 35 days are pruned, by the trusted day; usage on a day an app's current rule covers is never pruned.
+
+**FRs touched:**
+- FR-013: a grant lasts as long as the Guardian chose, 1 minute to 24 hours (15 minutes by default).
+- FR-037 (new): the Guardian chooses one-time or every-day access when approving.
+- FR-038 (new): an every-day rule allows up to N minutes per calendar day for D days, counted only while the app is in use, blocking the app when the day's time runs out.
+- FR-039 (new): daily time is paused while automatic date & time is off, and a date change can't give extra days.
+- FR-040 (new): Krypt's Home list shows each app's current access and lets the Guardian end an unlock or a daily rule early.
 
 ---
 
@@ -208,7 +253,7 @@ All criteria are measurable and technology-agnostic.
 - Anti-tamper self-destruct / wipe-on-tamper
 - Multi-Guardian quorum approvals ("2-of-3 Guardians must approve")
 - Device-Owner-tier uninstall lock (regular Device-Admin only)
-- Scheduled time-based allowlists (e.g., "auto-unlocked on weekends")
+- Weekday or time-of-day schedules (e.g., "weekends only", "not after 21:00"). *Amendment 3 brings every-day allowances - N minutes per calendar day for D days - into scope; schedules stay out.*
 - Usage statistics or reporting UI
 - PIN recovery / Guardian replacement flow
 - Play Store compliance work (Krypt's Accessibility Service usage triggers Play Store review; v1 assumes sideload distribution)

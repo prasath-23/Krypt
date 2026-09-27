@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.text.format.DateFormat
 import android.view.View
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
@@ -17,7 +16,6 @@ import com.krypt.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,8 +26,9 @@ import javax.inject.Singleton
  * Components:
  *   - Haptic: 50 ms one-shot vibration (API 29+).
  *   - Green flash: `R.id.unlock_flash` alpha fades 0 -> 0.6 -> 0 over 500 ms.
- *   - Toast: "Unlocked <short-name> until HH:mm" (short-form so it doesn't
- *     linger on-screen in the way Toast.LENGTH_LONG would).
+ *   - Toast: the caller's message, e.g. "Unlocked <short-name> until HH:mm"
+ *     (short-form so it doesn't linger on-screen in the way Toast.LENGTH_LONG
+ *     would).
  *   - Accessibility announcement if TalkBack is active: "Unlocked by Guardian".
  *
  * Intentionally platform-typed: the whole job is one-shot UI + a vibrator
@@ -45,13 +44,12 @@ class UnlockSuccessEffect @Inject constructor() {
      */
     suspend fun play(
         activity: Activity,
-        targetPackage: String,
-        grantExpiresAtMs: Long,
+        message: String,
     ) {
         withContext(Dispatchers.Main) {
             playHaptic(activity)
             announce(activity)
-            showToast(activity, targetPackage, grantExpiresAtMs)
+            Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
         }
         playFlash(activity)
     }
@@ -84,22 +82,6 @@ class UnlockSuccessEffect @Inject constructor() {
             text.add(context.getString(R.string.approval_a11y_announcement))
         }
         am.sendAccessibilityEvent(event)
-    }
-
-    private fun showToast(
-        context: Context,
-        targetPackage: String,
-        grantExpiresAtMs: Long,
-    ) {
-        val pm = context.packageManager
-        val label = runCatching {
-            pm.getApplicationLabel(
-                pm.getApplicationInfo(targetPackage, 0),
-            ).toString()
-        }.getOrDefault(targetPackage)
-        val until = DateFormat.getTimeFormat(context).format(Date(grantExpiresAtMs))
-        val msg = context.getString(R.string.approval_toast_unlocked, label, until)
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
     }
 
     private suspend fun playFlash(activity: Activity) {

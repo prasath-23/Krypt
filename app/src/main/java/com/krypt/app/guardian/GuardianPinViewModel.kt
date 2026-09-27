@@ -6,9 +6,9 @@ import com.krypt.app.common.Clock
 import com.krypt.app.common.Outcome
 import com.krypt.app.deeplink.AccessChoice
 import com.krypt.app.deeplink.ApprovalLinkBuilder
+import com.krypt.app.deeplink.RequestParseError
 import com.krypt.app.deeplink.UnlockRequest
 import com.krypt.app.deeplink.UnlockRequestParser
-import com.krypt.app.deeplink.RequestParseError
 import com.krypt.app.security.PinAttemptLimiter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,13 +23,14 @@ import javax.inject.Inject
  * Flow:
  *   1. Activity hands us the incoming URL via [parseIncoming].
  *   2. UI renders the parsed request (app + PIN field).
- *   3. Guardian picks how long to allow ([pickMinutes], [editMinutes]; 15
- *      minutes unless changed) and taps Approve -> [approve] calls the
- *      validator with the request's own PBKDF2 iteration count (the
- *      Subject's setup value, not this device's settings). On success,
- *      builds the approval URL for that choice via [ApprovalLinkBuilder] and
- *      emits the URL through [state] so the Activity can fire an
- *      ACTION_SEND intent.
+ *   3. Guardian picks what to allow - one time or every day, how many
+ *      minutes, for how many days ([setKind], [pickMinutes], [editMinutes],
+ *      [pickDays], [editDays]; 15 minutes one time unless changed) - and
+ *      taps Approve -> [approve] calls the validator with the request's own
+ *      PBKDF2 iteration count (the Subject's setup value, not this device's
+ *      settings). On success, builds the approval URL for that choice via
+ *      [ApprovalLinkBuilder] and emits the URL through [state] so the
+ *      Activity can fire an ACTION_SEND intent.
  *   4. Every attempt counts against the persistent [PinAttemptLimiter]
  *      shared with the Krypt entry screen from the moment its check starts,
  *      so leaving mid-check doesn't make a guess free. The 3rd wrong PIN
@@ -58,6 +59,7 @@ class GuardianPinViewModel @Inject constructor(
                     attemptsLeft = PinAttemptLimiter.FIRST_LOCKOUT_AT,
                     lockoutRetryInMs = null,
                     errorMessage = null,
+                    form = AccessForm(everyDayAllowed = parsed.value.supportsDaily),
                 )
             )
             is Outcome.Err -> GuardianPinState.FatalError(
@@ -71,6 +73,15 @@ class GuardianPinViewModel @Inject constructor(
 
     /** The Guardian is typing their own number of minutes. */
     fun editMinutes(text: String) = updateForm { it.copy(minutes = AccessForm.Amount.Custom(text)) }
+
+    /** One time, or every day (only when the child's phone understands it). */
+    fun setKind(kind: AccessForm.Kind) = updateForm { it.copy(kind = kind) }
+
+    /** The Guardian tapped a number-of-days chip. */
+    fun pickDays(days: Int) = updateForm { it.copy(days = AccessForm.Amount.Preset(days)) }
+
+    /** The Guardian is typing their own number of days. */
+    fun editDays(text: String) = updateForm { it.copy(days = AccessForm.Amount.Custom(text)) }
 
     private fun updateForm(change: (AccessForm) -> AccessForm) {
         val ready = (_state.value as? GuardianPinState.Ready) ?: return

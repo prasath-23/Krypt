@@ -1,10 +1,13 @@
 package com.krypt.app.deeplink
 
 import com.krypt.app.common.Clock
+import com.krypt.app.common.TrustedDayClock
 import com.krypt.app.crypto.SecureRandomSource
 import com.krypt.app.data.OutstandingRequest
 import com.krypt.app.data.OutstandingRequestRepository
 import com.krypt.app.data.UnlockGrant
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.security.FakeSharedPreferences
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
@@ -13,6 +16,10 @@ import java.util.UUID
 internal class FixedClock(var nowMs: Long) : Clock {
     override fun nowMs(): Long = nowMs
 }
+
+/** A [TrustedDayClock] on [clock], with automatic date & time on unless [autoTime] says otherwise. */
+internal fun testDayClock(clock: Clock, autoTime: () -> Boolean = { true }) =
+    TrustedDayClock(FakeSharedPreferences(), clock) { autoTime() }
 
 /**
  * Non-cryptographic, deterministic [SecureRandomSource] for tests. NEVER
@@ -33,6 +40,7 @@ internal class DeterministicRandom(seed: ByteArray) : SecureRandomSource {
 internal class FakeOutstandingRequestRepository : OutstandingRequestRepository {
     val requests: MutableMap<UUID, OutstandingRequest> = mutableMapOf()
     val grants: MutableList<UnlockGrant> = mutableListOf()
+    val dailyRules: MutableMap<String, DailyAllowance> = mutableMapOf()
     private var nextGrantId: Long = 1L
     private val mutex = Mutex()
 
@@ -54,6 +62,19 @@ internal class FakeOutstandingRequestRepository : OutstandingRequestRepository {
         val id = nextGrantId++
         grants += grant.copy(id = id)
         id
+    }
+
+    override suspend fun consumeAndUpsertDailyAllowance(
+        requestId: UUID,
+        nowMs: Long,
+        allowance: DailyAllowance,
+    ): Boolean = mutex.withLock {
+        val existing = requests[requestId] ?: return@withLock false
+        if (existing.consumed) return@withLock false
+        if (nowMs > existing.expiresAtMs) return@withLock false
+        requests[requestId] = existing.copy(consumed = true)
+        dailyRules[allowance.packageName] = allowance
+        true
     }
 
     var pruneCalls: Int = 0

@@ -38,6 +38,11 @@ data class UnlockRequest(
      * derive with this value; its own local setting can differ.
      */
     val kdfIterations: Int = KdfProvider.MIN_ITERATIONS,
+    /**
+     * Amendment 3: the requesting phone accepts every-day approvals
+     * (`caps=daily`). Older installs don't say so, and would refuse one.
+     */
+    val supportsDaily: Boolean = false,
 ) {
 
     /** Convenience: absolute expiry in seconds since Unix epoch. */
@@ -52,7 +57,8 @@ data class UnlockRequest(
             pinProof.contentEquals(other.pinProof) &&
             issuedAt == other.issuedAt &&
             ttlSeconds == other.ttlSeconds &&
-            kdfIterations == other.kdfIterations
+            kdfIterations == other.kdfIterations &&
+            supportsDaily == other.supportsDaily
     }
 
     override fun hashCode(): Int {
@@ -63,6 +69,7 @@ data class UnlockRequest(
         h = 31 * h + issuedAt.hashCode()
         h = 31 * h + ttlSeconds.hashCode()
         h = 31 * h + kdfIterations
+        h = 31 * h + supportsDaily.hashCode()
         return h
     }
 

@@ -12,8 +12,12 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import com.krypt.app.common.TrustedDayClock
+import com.krypt.app.data.AccessDecision
+import com.krypt.app.data.AccessPolicy
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.di.ApplicationScope
 import com.krypt.app.receiver.NewInstallLocker
 import com.krypt.app.ui.lock.LockScreenActivity
@@ -23,19 +27,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * FR-001 interception core. Observes TYPE_WINDOW_STATE_CHANGED and, when a
- * locked package without an active grant reaches the foreground, replaces it
- * with [LockScreenActivity] (Amendment 2: locked apps are blocked, not
- * covered by an overlay). Krypt's own windows - the lock screen itself and
+ * locked package reaches the foreground and nothing allows it - no active
+ * grant, no every-day time left ([AccessPolicy]) - replaces it with
+ * [LockScreenActivity] (Amendment 2: locked apps are blocked, not covered by
+ * an overlay). Krypt's own windows - the lock screen itself and
  * the Guardian popup (FR-011) - are never blocked.
  *
  * Also hosts the parts of Krypt that must keep running: the new-install
- * auto-lock (FR-003, via [NewInstallLocker]) and grant expiry for an app
- * that is still open when its grant ends (FR-013, via [GrantExpiryWatcher]).
+ * auto-lock (FR-003, via [NewInstallLocker]), grant expiry for an app that
+ * is still open when its grant ends (FR-013, via [GrantExpiryWatcher]), and
+ * counting every-day time (Amendment 3, via [DailyAllowanceMeter], fed by
+ * window changes and [DeviceStateWatcher]).
  */
 @AndroidEntryPoint
 class AppLockerAccessibilityService : AccessibilityService() {
@@ -43,6 +51,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
     @Inject lateinit var lockedAppsRepo: LockedAppsRepository
     @Inject lateinit var sessionStore: LockerSessionStore
     @Inject lateinit var newInstallLocker: NewInstallLocker
+    @Inject lateinit var dailyMeter: DailyAllowanceMeter
+    @Inject lateinit var dayClock: TrustedDayClock
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
     @Volatile private var lockedPackagesCache: Set<String> = emptySet()
@@ -52,6 +62,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+
+    private var deviceState: DeviceStateWatcher? = null
 
     private var watchingInstalls = false
     private val packageAddedReceiver = object : BroadcastReceiver() {
@@ -66,6 +78,10 @@ class AppLockerAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         subscribeToLockedAppsFlow()
         GrantExpiryWatcher(serviceScope, sessionStore, ::onGrantExpired).start()
+        dailyMeter.attach(serviceScope, ::onDailyAccessEnded)
+        deviceState = DeviceStateWatcher(this, dailyMeter, dayClock) {
+            foregroundPackage?.let(::blockIfNeeded)
+        }.also { it.start() }
         watchNewInstalls()
         KryptWatchdogService.start(this)
         Log.i(TAG, "connected")
@@ -73,6 +89,9 @@ class AppLockerAccessibilityService : AccessibilityService() {
 
     private fun subscribeToLockedAppsFlow() {
         serviceScope.launch {
+            // With the every-day rules loaded first, an app with daily time left
+            // is never blocked in the moment after Krypt starts.
+            dailyMeter.loaded.first { it }
             lockedAppsRepo.allLockedFlow().collect { set ->
                 lockedPackagesCache = set
             }
@@ -95,14 +114,13 @@ class AppLockerAccessibilityService : AccessibilityService() {
         if (ev.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val pkg = ev.packageName?.toString() ?: return
-        if (!isTransientWindow(pkg, ev.className)) foregroundPackage = pkg
+        if (!isTransientWindow(pkg, ev.className)) {
+            foregroundPackage = pkg
+            // Also for Krypt's own windows, so they stop an app's daily time.
+            dailyMeter.onForeground(pkg, locked = pkg in lockedPackagesCache)
+        }
 
-        if (pkg == packageName) return
-        if (pkg !in lockedPackagesCache) return
-        if (sessionStore.isUnlockedNow(pkg)) return
-        if (isNeverBlocked(pkg)) return
-
-        blockLaunch(pkg)
+        blockIfNeeded(pkg)
     }
 
     override fun onInterrupt() {
@@ -110,6 +128,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        deviceState?.stop()
+        dailyMeter.detach()
         if (watchingInstalls) {
             try {
                 unregisterReceiver(packageAddedReceiver)
@@ -121,11 +141,26 @@ class AppLockerAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    /** A grant ran out: if its app is still open, block it now. */
+    /** A grant ran out: if its app is still open, block it now - unless its daily time takes over. */
     private fun onGrantExpired(pkg: String) {
-        if (pkg != foregroundPackage || pkg !in lockedPackagesCache) return
-        if (sessionStore.isUnlockedNow(pkg) || isNeverBlocked(pkg)) return
-        blockLaunch(pkg)
+        dailyMeter.reevaluate()
+        if (pkg == foregroundPackage) blockIfNeeded(pkg)
+    }
+
+    /** The app's every-day time ran out, or its rule ended, while it is open. */
+    private fun onDailyAccessEnded(pkg: String) {
+        if (pkg == foregroundPackage) blockIfNeeded(pkg)
+    }
+
+    /** Block [pkg] if Krypt locks it and nothing allows it right now ([AccessPolicy]). */
+    private fun blockIfNeeded(pkg: String) {
+        if (pkg == packageName || pkg !in lockedPackagesCache) return
+        val decision = AccessPolicy.decide(
+            isLocked = true,
+            hasGrant = sessionStore.isUnlockedNow(pkg),
+            daily = dailyMeter.access(pkg),
+        )
+        if (decision is AccessDecision.Block && !isNeverBlocked(pkg)) blockLaunch(pkg)
     }
 
     /**

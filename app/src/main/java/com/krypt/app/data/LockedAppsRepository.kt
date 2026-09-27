@@ -1,6 +1,7 @@
 package com.krypt.app.data
 
 import com.krypt.app.common.Clock
+import com.krypt.app.data.daily.DailyAllowances
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -33,6 +34,7 @@ interface LockedAppsRepository {
 class RoomLockedAppsRepository @Inject constructor(
     private val dao: LockedAppDao,
     private val sessionStore: LockerSessionStore,
+    private val dailyAllowances: DailyAllowances,
     private val clock: Clock,
 ) : LockedAppsRepository {
 
@@ -53,7 +55,7 @@ class RoomLockedAppsRepository @Inject constructor(
                 updatedAt = now,
             )
         )
-        sessionStore.revoke(pkg) // a fresh lock must not stay open on an earlier grant
+        endAccess(pkg)
     }
 
     override suspend fun lock(packageName: String, displayName: String, source: LockSource) {
@@ -70,7 +72,13 @@ class RoomLockedAppsRepository @Inject constructor(
                 updatedAt = now,
             )
         )
-        sessionStore.revoke(packageName)
+        endAccess(packageName)
+    }
+
+    /** A fresh lock must not stay open on an earlier grant or every-day rule. */
+    private suspend fun endAccess(pkg: String) {
+        sessionStore.revoke(pkg)
+        dailyAllowances.end(pkg)
     }
 
     override fun observeLockedApps(): Flow<List<LockedApp>> =
