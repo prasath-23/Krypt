@@ -3,7 +3,6 @@ package com.krypt.app.notifications
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -18,13 +17,12 @@ class SecurityAlertsChannel @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     fun ensureCreated() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val channel = NotificationChannel(
             NotificationChannels.SECURITY_ALERTS,
             "Security Alerts",
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Alerts when Krypt auto-locks a newly-installed app"
+            description = "Alerts when Krypt auto-locks a new app or its protection is switched off"
             enableLights(true)
             setShowBadge(true)
         }

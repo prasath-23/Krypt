@@ -47,9 +47,16 @@ class MainViewModel @Inject constructor(
     }
 
     private val _appEntryUnlocked = MutableStateFlow(false)
+
+    /** `true` once the Guardian PIN was entered; reset whenever Krypt leaves the foreground. */
     val appEntryUnlocked: StateFlow<Boolean> = _appEntryUnlocked.asStateFlow()
 
     fun markAppEntryUnlocked() {
         _appEntryUnlocked.value = true
+    }
+
+    /** Close the Home Screen again, so returning to Krypt needs the Guardian PIN. */
+    fun lockAppEntry() {
+        _appEntryUnlocked.value = false
     }
 }

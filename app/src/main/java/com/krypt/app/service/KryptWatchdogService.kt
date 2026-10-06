@@ -2,9 +2,11 @@ package com.krypt.app.service
 
 import android.app.Notification
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.krypt.app.R
 import com.krypt.app.notifications.NotificationChannels
@@ -29,11 +31,7 @@ class KryptWatchdogService : Service() {
         } else {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, notif, fgsType)
-        } else {
-            startForeground(NOTIF_ID, notif)
-        }
+        startForeground(NOTIF_ID, notif, fgsType)
         return START_STICKY
     }
 
@@ -55,7 +53,6 @@ class KryptWatchdogService : Service() {
     }
 
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val mgr = getSystemService(android.app.NotificationManager::class.java)
         if (mgr.getNotificationChannel(NotificationChannels.WATCHDOG) == null) {
             mgr.createNotificationChannel(
@@ -68,5 +65,23 @@ class KryptWatchdogService : Service() {
         }
     }
 
-    private companion object { const val NOTIF_ID = 0x4B5730 /* "KW0" */ }
+    companion object {
+        private const val NOTIF_ID = 0x4B5730 /* "KW0" */
+        private const val TAG = "KryptWatchdog"
+
+        /**
+         * Start the watchdog. Android 12+ refuses foreground-service starts
+         * from the background unless the app is exempt (a bound accessibility
+         * service or the battery-optimisation exemption both count), e.g. a
+         * WorkManager wake-up before setup is finished. A refusal is logged
+         * and the next start (app launch or service connect) tries again.
+         */
+        fun start(context: Context) {
+            try {
+                context.startForegroundService(Intent(context, KryptWatchdogService::class.java))
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "watchdog start refused", e)
+            }
+        }
+    }
 }

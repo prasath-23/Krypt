@@ -36,3 +36,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Krypt"
 include(":app")
+
+// Stand-in app installed by the end-to-end tests (tests/e2e). Never shipped.
+include(":e2e-target")

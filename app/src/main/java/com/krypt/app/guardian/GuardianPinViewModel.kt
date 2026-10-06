@@ -4,17 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.krypt.app.common.Clock
 import com.krypt.app.common.Outcome
-import com.krypt.app.crypto.KdfProvider
-import com.krypt.app.data.settings.SettingsRepository
+import com.krypt.app.deeplink.AccessChoice
 import com.krypt.app.deeplink.ApprovalLinkBuilder
+import com.krypt.app.deeplink.RequestParseError
 import com.krypt.app.deeplink.UnlockRequest
 import com.krypt.app.deeplink.UnlockRequestParser
-import com.krypt.app.deeplink.RequestParseError
+import com.krypt.app.security.PinAttemptLimiter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,40 +23,44 @@ import javax.inject.Inject
  * Flow:
  *   1. Activity hands us the incoming URL via [parseIncoming].
  *   2. UI renders the parsed request (app + PIN field).
- *   3. Guardian taps Approve -> [approve] calls the validator. On success,
- *      builds the approval URL via [ApprovalLinkBuilder] and emits the URL
- *      through [state] so the Activity can fire an ACTION_SEND intent.
- *   4. Three wrong attempts within [LOCKOUT_WINDOW_MS] -> [LOCKOUT_MS]-ms
- *      lockout with countdown. Counter resets on success or after lockout.
- *
- * Rate-limit state is in-memory only (per the WP21 spec) - the Guardian
- * has to close-and-reopen the Activity to evade, which is acceptable for
- * the v1 family-safety threat model.
+ *   3. Guardian picks what to allow - one time or every day, how many
+ *      minutes, for how many days ([setKind], [pickMinutes], [editMinutes],
+ *      [pickDays], [editDays]; 15 minutes one time unless changed) - and
+ *      taps Approve -> [approve] calls the validator with the request's own
+ *      PBKDF2 iteration count (the Subject's setup value, not this device's
+ *      settings). On success, builds the approval URL for that choice via
+ *      [ApprovalLinkBuilder] and emits the URL through [state] so the
+ *      Activity can fire an ACTION_SEND intent.
+ *   4. Every attempt counts against the persistent [PinAttemptLimiter]
+ *      shared with the Krypt entry screen from the moment its check starts,
+ *      so leaving mid-check doesn't make a guess free. The 3rd wrong PIN
+ *      starts a lockout, and reopening the screen or the app does not reset
+ *      it. [lockoutElapsed] re-enables the screen once the lockout has run
+ *      out.
  */
 @HiltViewModel
 class GuardianPinViewModel @Inject constructor(
     private val parser: UnlockRequestParser,
     private val validator: GuardianPinValidator,
     private val approvalBuilder: ApprovalLinkBuilder,
-    private val settings: SettingsRepository,
+    private val limiter: PinAttemptLimiter,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<GuardianPinState>(GuardianPinState.Loading)
     val state: StateFlow<GuardianPinState> = _state.asStateFlow()
 
-    private var wrongAttempts: Int = 0
-    private var firstWrongAttemptAtMs: Long = 0L
-    private var lockedUntilMs: Long = 0L
-
     fun parseIncoming(url: String) {
         val parsed = parser.parse(url, clock.nowSeconds())
         _state.value = when (parsed) {
-            is Outcome.Ok -> GuardianPinState.Ready(
-                request = parsed.value,
-                attemptsLeft = MAX_ATTEMPTS,
-                lockoutRetryInMs = null,
-                errorMessage = null,
+            is Outcome.Ok -> withLimiterState(
+                GuardianPinState.Ready(
+                    request = parsed.value,
+                    attemptsLeft = PinAttemptLimiter.FIRST_LOCKOUT_AT,
+                    lockoutRetryInMs = null,
+                    errorMessage = null,
+                    form = AccessForm(everyDayAllowed = parsed.value.supportsDaily),
+                )
             )
             is Outcome.Err -> GuardianPinState.FatalError(
                 messageKey = mapParseError(parsed.error),
@@ -65,25 +68,45 @@ class GuardianPinViewModel @Inject constructor(
         }
     }
 
-    fun approve(pin: CharArray, grantDurationMinutes: Int = 15) {
+    /** The Guardian tapped a duration chip. */
+    fun pickMinutes(minutes: Int) = updateForm { it.copy(minutes = AccessForm.Amount.Preset(minutes)) }
+
+    /** The Guardian is typing their own number of minutes. */
+    fun editMinutes(text: String) = updateForm { it.copy(minutes = AccessForm.Amount.Custom(text)) }
+
+    /** One time, or every day (only when the child's phone understands it). */
+    fun setKind(kind: AccessForm.Kind) = updateForm { it.copy(kind = kind) }
+
+    /** The Guardian tapped a number-of-days chip. */
+    fun pickDays(days: Int) = updateForm { it.copy(days = AccessForm.Amount.Preset(days)) }
+
+    /** The Guardian is typing their own number of days. */
+    fun editDays(text: String) = updateForm { it.copy(days = AccessForm.Amount.Custom(text)) }
+
+    private fun updateForm(change: (AccessForm) -> AccessForm) {
+        val ready = (_state.value as? GuardianPinState.Ready) ?: return
+        _state.value = ready.copy(form = change(ready.form))
+    }
+
+    fun approve(pin: CharArray) {
         val ready = (_state.value as? GuardianPinState.Ready) ?: run {
             pin.fill(' ')
             return
         }
-        val now = clock.nowMs()
-        if (lockedUntilMs > now) {
-            _state.value = ready.copy(
-                lockoutRetryInMs = lockedUntilMs - now,
-                errorMessage = ErrorMessage.Lockout(lockedUntilMs - now),
-            )
+        val access = ready.form.choice ?: run {
+            pin.fill(' ')
+            return
+        }
+        if (limiter.lockedForMs() > 0) {
+            _state.value = withLimiterState(ready)
             pin.fill(' ')
             return
         }
         _state.value = GuardianPinState.Validating(ready.request)
+        val attemptsLeftIfWrong = limiter.beginAttempt()
 
         viewModelScope.launch {
-            val iterations = resolveIterations()
-            val result = validator.validate(pin, ready.request, iterations)
+            val result = validator.validate(pin, ready.request, ready.request.kdfIterations)
             when (result) {
                 is Outcome.Ok -> {
                     val masterKey = result.value
@@ -91,31 +114,26 @@ class GuardianPinViewModel @Inject constructor(
                         val approvalUrl = approvalBuilder.build(
                             masterKey = masterKey,
                             request = ready.request,
-                            grantDurationMinutes = grantDurationMinutes,
+                            access = access,
                         )
-                        wrongAttempts = 0
-                        firstWrongAttemptAtMs = 0L
+                        limiter.recordSuccess()
                         _state.value = GuardianPinState.Approved(
                             request = ready.request,
                             approvalUrl = approvalUrl,
+                            access = access,
                         )
                     } finally {
                         masterKey.fill(0)
                     }
                 }
                 is Outcome.Err -> {
-                    recordFailure(now)
-                    val left = (MAX_ATTEMPTS - wrongAttempts).coerceAtLeast(0)
-                    _state.value = if (left == 0) {
-                        ready.copy(
-                            lockoutRetryInMs = lockedUntilMs - now,
-                            errorMessage = ErrorMessage.Lockout(lockedUntilMs - now),
-                            attemptsLeft = 0,
-                        )
+                    _state.value = if (attemptsLeftIfWrong == 0) {
+                        withLimiterState(ready.copy(attemptsLeft = 0))
                     } else {
                         ready.copy(
-                            errorMessage = ErrorMessage.WrongPin(attemptsLeft = left),
-                            attemptsLeft = left,
+                            errorMessage = ErrorMessage.WrongPin(attemptsLeft = attemptsLeftIfWrong),
+                            attemptsLeft = attemptsLeftIfWrong,
+                            lockoutRetryInMs = null,
                         )
                     }
                 }
@@ -126,28 +144,25 @@ class GuardianPinViewModel @Inject constructor(
     /** Called by the screen to reset after acknowledging an error. */
     fun acknowledgeError() {
         val ready = (_state.value as? GuardianPinState.Ready) ?: return
+        if (ready.lockoutRetryInMs != null) return
         _state.value = ready.copy(errorMessage = null)
     }
 
-    private fun recordFailure(nowMs: Long) {
-        // Start a fresh 60-s window on the FIRST failure after a success or
-        // lockout expiry.
-        if (wrongAttempts == 0 || nowMs - firstWrongAttemptAtMs > LOCKOUT_WINDOW_MS) {
-            wrongAttempts = 1
-            firstWrongAttemptAtMs = nowMs
-        } else {
-            wrongAttempts += 1
-        }
-        if (wrongAttempts >= MAX_ATTEMPTS) {
-            lockedUntilMs = nowMs + LOCKOUT_MS
-        }
+    /** The screen's lockout countdown reached zero: allow PIN entry again. */
+    fun lockoutElapsed() {
+        val ready = (_state.value as? GuardianPinState.Ready) ?: return
+        if (ready.lockoutRetryInMs == null) return
+        _state.value = withLimiterState(ready)
     }
 
-    private suspend fun resolveIterations(): Int = try {
-        val cached = settings.settings.first().kdfIterations
-        cached.coerceAtLeast(KdfProvider.MIN_ITERATIONS)
-    } catch (_: Throwable) {
-        KdfProvider.MIN_ITERATIONS
+    /** [ready] with the lockout (if any) that the shared limiter currently imposes. */
+    private fun withLimiterState(ready: GuardianPinState.Ready): GuardianPinState.Ready {
+        val lockedFor = limiter.lockedForMs()
+        return if (lockedFor > 0) {
+            ready.copy(lockoutRetryInMs = lockedFor, errorMessage = ErrorMessage.Lockout(lockedFor))
+        } else {
+            ready.copy(lockoutRetryInMs = null, errorMessage = null)
+        }
     }
 
     private fun mapParseError(err: RequestParseError): String = when (err) {
@@ -160,13 +175,8 @@ class GuardianPinViewModel @Inject constructor(
         is RequestParseError.BadUuid,
         is RequestParseError.BadSaltLength,
         is RequestParseError.BadPinProofLength,
+        is RequestParseError.BadKdfIterations,
         is RequestParseError.BadTimestamp -> "request_unreadable"
-    }
-
-    companion object {
-        const val MAX_ATTEMPTS = 3
-        const val LOCKOUT_WINDOW_MS = 60_000L
-        const val LOCKOUT_MS = 60_000L
     }
 }
 
@@ -177,11 +187,15 @@ sealed interface GuardianPinState {
         val attemptsLeft: Int,
         val lockoutRetryInMs: Long?,
         val errorMessage: ErrorMessage?,
+        /** What the approval will allow; kept across wrong PINs and lockouts. */
+        val form: AccessForm = AccessForm(),
     ) : GuardianPinState
     data class Validating(val request: UnlockRequest) : GuardianPinState
     data class Approved(
         val request: UnlockRequest,
         val approvalUrl: String,
+        /** What the approval allows. */
+        val access: AccessChoice,
     ) : GuardianPinState
     data class FatalError(val messageKey: String) : GuardianPinState
 }

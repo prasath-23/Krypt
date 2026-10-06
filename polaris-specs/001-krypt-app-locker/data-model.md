@@ -142,6 +142,41 @@ expiresAt       INTEGER NOT NULL  -- typically grantedAt + defaultGrantDurationM
 - A grant is consumed by the Locker overlay: if `now < grant.expiresAt`, the overlay is not shown.
 - Multiple grants for the same package can exist; the overlay checks `max(expiresAt) > now`.
 - On process death, grants survive because they're persisted. On process restart, `LockerSessionStore` rebuilds its in-memory cache from `SELECT * FROM unlock_grants WHERE expiresAt > now`.
+- **Amendment 2:** the rows are now only the record of which request authorised each grant, and they are not read back. `LockerSessionStore` saves each grant itself on the monotonic clock (`elapsedRealtime`), tagged with the boot count. It restores grants only within the same boot, so a reboot ends them and changing the date can't stretch or revive one. See spec.md, Amendment 2, item 7.
+
+---
+
+## Entities: `DailyAllowance` and `DailyUsage` (Amendment 3)
+
+**Purpose.** A Guardian's every-day rule for an app, and the time the app was used under it on each day.
+
+**Persistence.** Room schema 2 (`MIGRATION_1_2` only adds these two tables).
+
+```
+daily_allowances                      -- one rule per app; a new approval replaces it
+packageName     TEXT    PRIMARY KEY
+minutesPerDay   INTEGER NOT NULL      -- 1..1440
+firstEpochDay   INTEGER NOT NULL      -- the day the approval was used
+lastEpochDay    INTEGER NOT NULL      -- inclusive: firstEpochDay + days - 1
+zoneId          TEXT    NOT NULL      -- days are counted in this zone (the device's, at approval)
+requestId       TEXT    NOT NULL      -- the request whose approval made the rule
+createdAt       INTEGER NOT NULL
+
+daily_usage
+packageName     TEXT    NOT NULL
+epochDay        INTEGER NOT NULL
+usedMs          INTEGER NOT NULL      -- only ever raised
+PRIMARY KEY (packageName, epochDay)
+```
+
+**Invariants.**
+- Written only by consuming an every-day approval, in the same transaction that marks its request consumed.
+- Usage is measured on the monotonic clock while the app is in front, the screen is on and no one-time grant runs. It is saved every 30 s and whenever counting stops (`DailyAllowanceMeter`).
+- The calendar day comes from `TrustedDayClock`: nothing while automatic date & time is off; within a boot, a monotonic anchor; after a reboot, never earlier than the latest trusted time.
+- Rules that ended more than a day ago, and usage older than 35 days, are pruned at startup, by the trusted day (not at all while automatic time is off). Usage on a day an app's current rule covers is never pruned, so moving the date forward can't erase a used-up day.
+- Locking the app again (reinstall, Home toggle) or "End daily time" deletes its rule.
+
+`LockerSessionStore` also exposes its grants as a `StateFlow` for the Home Screen, which shows each app's current access.
 
 ---
 

@@ -39,6 +39,7 @@ class Amendment1ApprovalRoundTripTest {
         outstandingRepo = repo,
         masterKeyStore = masterKeyStore,
         clock = clock,
+        dayClock = testDayClock(clock),
     )
 
     private val setupSalt = ByteArray(UnlockRequest.SALT_BYTES) { it.toByte() }
@@ -59,7 +60,7 @@ class Amendment1ApprovalRoundTripTest {
         val approvalUrl = approvalBuilder.build(masterKey, request, grantDurationMinutes = 20)
         assertTrue("approval URL length = ${approvalUrl.length}", approvalUrl.length <= 520)
 
-        val outcome = (consumer.consume(approvalUrl) as Outcome.Ok).value
+        val outcome = (consumer.consume(approvalUrl) as Outcome.Ok).value as ApprovalOutcome.OneTime
 
         assertEquals(request.requestId, outcome.requestId)
         assertEquals("com.example.target", outcome.targetPackage)
@@ -70,6 +71,18 @@ class Amendment1ApprovalRoundTripTest {
         assertTrue(stored.consumed)
         assertEquals(1, repo.grants.size)
         assertEquals(request.targetPackage, repo.grants.first().targetPackage)
+    }
+
+    @Test
+    fun theGuardiansChosenDuration_isTheGrantTheSubjectGets() = runTest {
+        seedMasterKeyStore()
+        val (_, request) = requestBuilder.build(setupSalt, pinProof, "com.example.target")
+        repo.insert(request.toOutstanding(clock.nowMs()))
+
+        val approvalUrl = approvalBuilder.build(masterKey, request, AccessChoice.OneTime(90))
+        val outcome = (consumer.consume(approvalUrl) as Outcome.Ok).value as ApprovalOutcome.OneTime
+
+        assertEquals(clock.nowMs() + 90 * 60_000L, outcome.grantExpiresAtMs)
     }
 
     @Test

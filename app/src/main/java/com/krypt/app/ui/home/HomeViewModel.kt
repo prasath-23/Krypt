@@ -4,11 +4,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.krypt.app.data.LockSource
 import com.krypt.app.data.LockedAppsRepository
+import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAllowances
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,40 +27,57 @@ import javax.inject.Inject
  * Drives the Home Screen (feature 002).
  *
  * Exposes a reactive [StateFlow<HomeUiState>] that combines the live installed-apps
- * list, the locked-app set, and the current search query. Toggle taps are
- * one-way (FR-032 / FR-033):
- *
- *  - Unlocked -> Locked: instant write to [LockedAppsRepository] (atomic).
- *  - Locked -> (attempted unlock): does NOT write; emits a `krypt://request?...`
- *    share [Intent] via [shareIntents] so the screen can dispatch it via the
- *    system chooser.
+ * list, the locked-app set, the Guardian unlocks in [LockerSessionStore], and
+ * the current search query. The Home Screen is only reachable after the
+ * Guardian PIN, so a toggle tap writes straight to [LockedAppsRepository] in
+ * either direction.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val installedRepo: InstalledAppsRepository,
     private val lockedRepo: LockedAppsRepository,
+    private val sessionStore: LockerSessionStore,
+    private val dailyAllowances: DailyAllowances,
     val iconCache: AppIconCache,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     private val _allInstalled = MutableStateFlow<List<InstalledAppMeta>>(emptyList())
 
+    /** Ticks once a second while any app is unlocked, so its time left counts down. */
+    private val countdown: Flow<Unit> = sessionStore.grants
+        .map { it.isNotEmpty() }
+        .distinctUntilChanged()
+        .flatMapLatest { anyUnlocked -> if (anyUnlocked) everySecond() else flowOf(Unit) }
+
+    private val appsAndQuery = combine(_allInstalled, lockedRepo.allLockedFlow(), _query, ::Triple)
+
     val state: StateFlow<HomeUiState> = combine(
-        _allInstalled,
-        lockedRepo.allLockedFlow(),
-        _query,
-    ) { all, lockedSet, query ->
+        appsAndQuery,
+        sessionStore.grants,
+        dailyAllowances.changes,
+        countdown,
+    ) { (all, lockedSet, query), grants, _, _ ->
+        // Asking the store also clears unlocks that have run out, which stops the countdown.
+        val timeLeft = grants.keys.associateWith(sessionStore::remainingMs)
         val rows = all
             .filter { query.isBlank() || it.displayName.contains(query, ignoreCase = true) }
             .map { meta ->
+                val isLocked = meta.packageName in lockedSet
                 InstalledAppRowState(
                     packageName = meta.packageName,
                     displayName = meta.displayName,
-                    isLocked = meta.packageName in lockedSet,
+                    isLocked = isLocked,
+                    status = appRowStatus(
+                        isLocked = isLocked,
+                        grantRemainingMs = timeLeft[meta.packageName] ?: 0L,
+                        daily = dailyAllowances.access(meta.packageName),
+                    ),
                 )
             }
         HomeUiState(rows = rows, query = query)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init { refresh() }
 
@@ -64,13 +91,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Handle a toggle tap on [row].
-     *
-     * - If [row] is unlocked: lock it immediately (FR-032).
-     * - If [row] is locked: do NOT unlock; emit a share intent with the Guardian
-     *   request URL instead (FR-033). The toggle UI must NOT change state.
-     */
+    /** Handle a toggle tap on [row]: lock an unlocked app, unlock a locked one. */
     fun onToggle(row: InstalledAppRowState) {
         if (!row.isLocked) {
             viewModelScope.launch {
@@ -80,6 +101,23 @@ class HomeViewModel @Inject constructor(
             viewModelScope.launch {
                 lockedRepo.unlock(row.packageName)
             }
+        }
+    }
+
+    /** End [row]'s Guardian unlock early: the app is locked again at once. */
+    fun onLockNow(row: InstalledAppRowState) {
+        sessionStore.revoke(row.packageName)
+    }
+
+    /** End [row]'s every-day rule: the app asks every time again. */
+    fun onEndDailyTime(row: InstalledAppRowState) {
+        viewModelScope.launch { dailyAllowances.end(row.packageName) }
+    }
+
+    private fun everySecond(): Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(1_000)
         }
     }
 }
@@ -93,4 +131,5 @@ data class InstalledAppRowState(
     val packageName: String,
     val displayName: String,
     val isLocked: Boolean,
+    val status: AppRowStatus = if (isLocked) AppRowStatus.Locked else AppRowStatus.NotLocked,
 )

@@ -6,10 +6,12 @@ import java.nio.charset.StandardCharsets
 /**
  * Hand-rolled CBOR encoder / decoder for [ApprovalPayload].
  *
- * Deliberately minimal — we target only the exact 5-field map shape defined
+ * Deliberately minimal — we target only the two exact map shapes defined
  * in contracts/approve.md. Any CBOR deviation (extra fields, wrong keys,
  * out-of-order keys, trailing bytes, wrong major types) triggers an
- * [IllegalArgumentException] at decode time.
+ * [IllegalArgumentException] at decode time. Krypt installs from before
+ * every-day approvals accept only the 5-entry shape, so they refuse an
+ * every-day approval outright rather than misread it.
  *
  * Why hand-rolled: no first-party CBOR library is available, and pulling in
  * a third-party one (jackson-dataformat-cbor, cbor-java) violates the
@@ -22,6 +24,9 @@ import java.nio.charset.StandardCharsets
  *   03 <text "<pkg>">    ; app
  *   04 <uint durMin>     ; durMin
  *   05 <uint iat>        ; iat
+ *
+ * Every-day approvals use a 6-entry map (0xa6) with one more pair:
+ *   06 <uint days>       ; days (durMin is then minutes per day)
  */
 internal object ApprovalPayloadCodec {
 
@@ -31,15 +36,17 @@ internal object ApprovalPayloadCodec {
     private const val MT_MAP: Int = 0xA0
 
     private const val MAP_HEADER_5: Byte = (MT_MAP or 5).toByte()   // 0xa5
+    private const val MAP_HEADER_6: Byte = (MT_MAP or 6).toByte()   // 0xa6: every day
 
     fun encode(payload: ApprovalPayload): ByteArray {
         val out = ByteArrayOutputStream(96)
-        out.write(MAP_HEADER_5.toInt() and 0xFF)
+        out.write((if (payload.days == null) MAP_HEADER_5 else MAP_HEADER_6).toInt() and 0xFF)
         writeKeyAndText(out, key = 1, value = payload.v)
         writeKeyAndText(out, key = 2, value = payload.req)
         writeKeyAndText(out, key = 3, value = payload.app)
         writeKeyAndUnsigned(out, key = 4, value = payload.durMin.toLong())
         writeKeyAndUnsigned(out, key = 5, value = payload.iat)
+        payload.days?.let { writeKeyAndUnsigned(out, key = 6, value = it.toLong()) }
         return out.toByteArray()
     }
 
@@ -52,18 +59,21 @@ internal object ApprovalPayloadCodec {
     fun decode(bytes: ByteArray): ApprovalPayload {
         val reader = Reader(bytes)
         val header = reader.readByte()
-        require(header == MAP_HEADER_5) {
-            "expected CBOR map of 5 entries (0xa5); got 0x%02x".format(header.toInt() and 0xFF)
+        require(header == MAP_HEADER_5 || header == MAP_HEADER_6) {
+            "expected CBOR map of 5 or 6 entries (0xa5/0xa6); got 0x%02x".format(header.toInt() and 0xFF)
         }
         val v      = readKeyAndText(reader, expectedKey = 1)
         val req    = readKeyAndText(reader, expectedKey = 2)
         val app    = readKeyAndText(reader, expectedKey = 3)
         val durMin = readKeyAndUnsigned(reader, expectedKey = 4)
         val iat    = readKeyAndUnsigned(reader, expectedKey = 5)
+        val days   = if (header == MAP_HEADER_6) readKeyAndUnsigned(reader, expectedKey = 6) else null
         reader.requireExhausted()
 
-        require(durMin in 1..Int.MAX_VALUE) { "durMin out of range: $durMin" }
+        // Bounded here too, so the child's phone never trusts a longer unlock than any Guardian can grant.
+        require(durMin in 1..AccessChoice.MAX_MINUTES) { "durMin out of range: $durMin" }
         require(iat > 0) { "iat must be positive" }
+        require(days == null || days in 1..AccessChoice.MAX_DAYS) { "days out of range: $days" }
 
         return ApprovalPayload(
             v = v,
@@ -71,6 +81,7 @@ internal object ApprovalPayloadCodec {
             app = app,
             durMin = durMin.toInt(),
             iat = iat,
+            days = days?.toInt(),
         )
     }
 

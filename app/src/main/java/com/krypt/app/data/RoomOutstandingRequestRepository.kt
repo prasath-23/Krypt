@@ -1,6 +1,9 @@
 package com.krypt.app.data
 
 import androidx.room.withTransaction
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.data.daily.DailyAllowanceDao
+import com.krypt.app.data.daily.toEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -16,6 +19,7 @@ class RoomOutstandingRequestRepository @Inject constructor(
     private val db: KryptDatabase,
     private val requestDao: OutstandingRequestDao,
     private val grantDao: UnlockGrantDao,
+    private val dailyDao: DailyAllowanceDao,
 ) : OutstandingRequestRepository {
 
     override suspend fun insert(request: OutstandingRequest) {
@@ -53,6 +57,23 @@ class RoomOutstandingRequestRepository @Inject constructor(
         }
     }
 
+    override suspend fun consumeAndUpsertDailyAllowance(
+        requestId: UUID,
+        nowMs: Long,
+        allowance: DailyAllowance,
+    ): Boolean = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val affected = requestDao.markConsumedIfOpen(requestId.toString(), nowMs)
+            if (affected == 0) return@withTransaction false
+            dailyDao.upsert(allowance.toEntity())
+            true
+        }
+    }
+
+    override suspend fun pruneStale(nowMs: Long) {
+        requestDao.pruneOld(now = nowMs, pruneBefore = nowMs - CONSUMED_RETENTION_MS)
+    }
+
     private fun OutstandingRequestEntity.toDomain(): OutstandingRequest = OutstandingRequest(
         requestId = UUID.fromString(requestId),
         targetPackage = targetPackage,
@@ -61,6 +82,11 @@ class RoomOutstandingRequestRepository @Inject constructor(
         expiresAtMs = expiresAt,
         consumed = consumed != 0,
     )
+
+    private companion object {
+        /** Consumed rows are kept for a day as a record of recent unlocks. */
+        const val CONSUMED_RETENTION_MS = 24 * 60 * 60 * 1000L
+    }
 }
 
 /** Room-backed impl of [UnlockGrantRepository] (interface from WP03). */

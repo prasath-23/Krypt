@@ -38,7 +38,7 @@ class ApprovalLinkBuilder @Inject constructor(
 ) {
 
     /**
-     * Build the approval URL.
+     * Build the approval URL for a one-time unlock of [grantDurationMinutes].
      *
      * @param masterKey             32-byte MasterKey (PBKDF2 derived).
      * @param request               matched UnlockRequest.
@@ -48,12 +48,22 @@ class ApprovalLinkBuilder @Inject constructor(
         masterKey: ByteArray,
         request: UnlockRequest,
         grantDurationMinutes: Int = DEFAULT_GRANT_MINUTES,
+    ): String = build(masterKey, request, AccessChoice.OneTime(grantDurationMinutes))
+
+    /**
+     * Build the approval URL for what the Guardian chose to allow.
+     *
+     * @param masterKey  32-byte MasterKey (PBKDF2 derived).
+     * @param request    matched UnlockRequest.
+     * @param access     what the approval allows.
+     */
+    fun build(
+        masterKey: ByteArray,
+        request: UnlockRequest,
+        access: AccessChoice,
     ): String {
         require(masterKey.size == AesGcmCipher.KEY_BYTES) {
             "masterKey must be ${AesGcmCipher.KEY_BYTES} bytes (got ${masterKey.size})"
-        }
-        require(grantDurationMinutes in 1..MAX_GRANT_MINUTES) {
-            "grantDurationMinutes ($grantDurationMinutes) must be in 1..$MAX_GRANT_MINUTES"
         }
 
         val nonceForHkdf = rng.nextBytes(NONCE_FOR_HKDF_BYTES)
@@ -63,8 +73,9 @@ class ApprovalLinkBuilder @Inject constructor(
                 v = DeepLinkScheme.PROTOCOL_VERSION,
                 req = request.requestId.toString(),
                 app = request.targetPackage,
-                durMin = grantDurationMinutes,
+                durMin = access.minutes,
                 iat = clock.nowSeconds(),
+                days = (access as? AccessChoice.EveryDay)?.days,
             )
             val plaintext = ApprovalPayloadCodec.encode(payload)
             val aesNonce = rng.nextBytes(AesGcmCipher.NONCE_BYTES)
@@ -107,8 +118,8 @@ class ApprovalLinkBuilder @Inject constructor(
     }
 
     companion object {
-        const val DEFAULT_GRANT_MINUTES: Int = 15
-        const val MAX_GRANT_MINUTES: Int = 24 * 60     // one day ceiling
+        const val DEFAULT_GRANT_MINUTES: Int = AccessChoice.DEFAULT_MINUTES
+        const val MAX_GRANT_MINUTES: Int = AccessChoice.MAX_MINUTES
 
         /** HKDF salt label for the per-request AES key derivation. */
         val HKDF_SALT: ByteArray = "krypt/v1/approve".toByteArray(Charsets.UTF_8)

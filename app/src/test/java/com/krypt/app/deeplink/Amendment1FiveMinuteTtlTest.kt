@@ -34,6 +34,7 @@ class Amendment1FiveMinuteTtlTest {
         outstandingRepo = repo,
         masterKeyStore = masterKeyStore,
         clock = clock,
+        dayClock = testDayClock(clock),
     )
 
     private val setupSalt = ByteArray(UnlockRequest.SALT_BYTES) { it.toByte() }

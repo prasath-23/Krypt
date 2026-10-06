@@ -3,6 +3,7 @@ package com.krypt.app
 import android.app.Application
 import android.content.Context
 import androidx.test.runner.AndroidJUnitRunner
+import androidx.work.testing.WorkManagerTestInitHelper
 import dagger.hilt.android.testing.HiltTestApplication
 
 /**
@@ -19,4 +20,13 @@ class KryptTestRunner : AndroidJUnitRunner() {
         className: String?,
         context: Context?,
     ): Application = super.newApplication(cl, HiltTestApplication::class.java.name, context)
+
+    override fun callApplicationOnCreate(app: Application) {
+        super.callApplicationOnCreate(app)
+        // HiltTestApplication doesn't set up WorkManager (KryptApplication does),
+        // but a health-check job Krypt scheduled on this device earlier can still
+        // start WorkManager's SystemJobService in the test process. A test
+        // WorkManager keeps that from crashing the whole run.
+        WorkManagerTestInitHelper.initializeTestWorkManager(app)
+    }
 }

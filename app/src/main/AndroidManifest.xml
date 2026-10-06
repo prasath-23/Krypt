@@ -22,14 +22,18 @@
     <!-- PERMISSIONS — see polaris-specs/001-krypt-app-locker/spec.md  -->
     <!-- ============================================================ -->
 
-    <!-- FR-001 / FR-002: overlay that covers locked apps (WP09). -->
+    <!-- FR-001: lets Krypt start its lock screen from the background the moment a
+         locked app opens (Amendment 2; formerly the WP09 overlay). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <!-- FR-004: post the Security-Alerts notification on lock events (WP07). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Enumerate installed packages so the Accessibility Service can check lock
-         state per package and the PackageReceiver can resolve display names.
+    <!-- FR-021: short haptic pulse when a Guardian approval unlocks an app. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Enumerate installed packages for the Home list, the new-install auto-lock
+         and the lock screen (app names and icons).
          This permission triggers a Play Store review if distribution switches
          from sideload to Play; documented in research.md R6. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
@@ -90,10 +94,10 @@
                 android:value="accessibilityServiceSupervisor" />
         </service>
 
-        <!-- WP14 + WP21: Guardian Activity (krypt:// deep-link host).
-             Note: krypt://approve is handled by ApprovalTrampolineActivity
-             below (Amendment 1 WP22 — silent Subject-side consumption);
-             approve is intentionally absent from this intent-filter. -->
+        <!-- WP14 + WP21: Guardian Activity (krypt://request deep-link host).
+             krypt://approve is handled by ApprovalTrampolineActivity below
+             (Amendment 1 WP22). The legacy krypt://pair and krypt://paired
+             links are no longer handled (Amendment 2). -->
         <activity
             android:name=".ui.guardian.GuardianActivity"
             android:exported="true"
@@ -106,10 +110,19 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="krypt" android:host="request" />
-                <data android:scheme="krypt" android:host="paired" />
-                <data android:scheme="krypt" android:host="pair" />
             </intent-filter>
         </activity>
+
+        <!-- Amendment 2: lock screen that replaces a locked app (FR-001).
+             Started by AppLockerAccessibilityService. Own task and hidden
+             from Recents, so leaving it only ever leads to the home screen. -->
+        <activity
+            android:name=".ui.lock.LockScreenActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Krypt.LockScreen" />
 
         <!-- WP22 Amendment 1: silent approval-URL trampoline. Translucent
              theme, no input surface (FR-018). Runs ApprovalConsumer and
@@ -126,6 +139,28 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="krypt" android:host="approve" />
+            </intent-filter>
+        </activity>
+
+        <!-- Amendment 2: "Open in Krypt" for shared or selected text. Many
+             messaging apps don't make krypt:// links tappable, so the link can
+             be shared or selected into Krypt instead. No UI of its own. -->
+        <activity
+            android:name=".ui.link.LinkReceiverActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/link_receiver_label"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Krypt.Trampoline">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
 
@@ -158,16 +193,6 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- WP08: Default-Deny package receiver (FR-003, FR-004). -->
-        <receiver
-            android:name=".receiver.PackageReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.PACKAGE_ADDED" />
-                <data android:scheme="package" />
-            </intent-filter>
-        </receiver>
-
         <!-- Disable WorkManager's auto-init so KryptApplication.workManagerConfiguration
              (HiltWorkerFactory) is used instead of the default factory. Without this,
              InitializationProvider fires before Application.onCreate() and AccessibilityHealthWorker
@@ -175,6 +200,7 @@
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
             tools:node="merge">
             <meta-data
                 android:name="androidx.work.WorkManagerInitializer"

@@ -41,11 +41,16 @@ abstract class ManualLockInstalledAppsTestModule {
  */
 @Singleton
 class FakeInstalledAppsRepository @Inject constructor() : InstalledAppsRepository {
-    override suspend fun allInstalled(): List<InstalledAppMeta> = listOf(
+    private val apps = listOf(
         InstalledAppMeta("com.example.alpha", "Alpha"),
         InstalledAppMeta("com.example.beta", "Beta"),
         InstalledAppMeta("com.example.gamma", "Gamma"),
     )
+
+    override suspend fun allInstalled(): List<InstalledAppMeta> = apps
+    override suspend fun find(packageName: String): InstalledAppMeta? =
+        apps.firstOrNull { it.packageName == packageName }
+    override suspend fun kryptInstalledAtMs(): Long = 0L
 }
 
 /**

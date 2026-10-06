@@ -27,4 +27,10 @@ sealed interface ApprovalError {
 
     /** K_pair not found in KPairStore — Subject device hasn't paired yet. */
     data object NotPaired : ApprovalError
+    /**
+     * An every-day approval can't be used while automatic date & time is off,
+     * since the day it starts on can't be trusted. The request stays open, so
+     * the same approval works once the setting is back on.
+     */
+    data object ClockNotTrusted : ApprovalError
 }

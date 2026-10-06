@@ -1,5 +1,6 @@
 package com.krypt.app.data
 
+import com.krypt.app.data.daily.DailyAllowance
 import java.util.UUID
 
 /**
@@ -35,6 +36,20 @@ interface OutstandingRequestRepository {
         nowMs: Long,
         grant: UnlockGrant,
     ): Long?
+
+    /**
+     * Atomic, like [consumeAndInsertGrant]: IF [requestId] is open at [nowMs],
+     * mark it consumed AND save [allowance] as its app's every-day rule
+     * (replacing any earlier one). Returns false, changing nothing, otherwise.
+     */
+    suspend fun consumeAndUpsertDailyAllowance(
+        requestId: UUID,
+        nowMs: Long,
+        allowance: DailyAllowance,
+    ): Boolean
+
+    /** Delete requests that expired, or were consumed more than a day ago. */
+    suspend fun pruneStale(nowMs: Long)
 }
 
 /**

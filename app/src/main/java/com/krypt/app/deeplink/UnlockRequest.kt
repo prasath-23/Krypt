@@ -1,5 +1,6 @@
 package com.krypt.app.deeplink
 
+import com.krypt.app.crypto.KdfProvider
 import java.util.UUID
 
 /**
@@ -15,6 +16,9 @@ import java.util.UUID
  * randomness that binds a specific approval to its request now lives inside
  * the approval's data blob (`nonceForHkdf`), not in this URL.
  *
+ * Amendment 2 adds [kdfIterations] so the Guardian derives MasterKey with the
+ * same PBKDF2 work factor the Subject calibrated at setup.
+ *
  * See polaris-specs/001-krypt-app-locker/contracts/request.md for field
  * semantics and size budgets.
  */
@@ -29,6 +33,16 @@ data class UnlockRequest(
     val issuedAt: Long,
     /** Request validity window in seconds. */
     val ttlSeconds: Long,
+    /**
+     * PBKDF2 iteration count the Subject used at PIN setup. The Guardian MUST
+     * derive with this value; its own local setting can differ.
+     */
+    val kdfIterations: Int = KdfProvider.MIN_ITERATIONS,
+    /**
+     * Amendment 3: the requesting phone accepts every-day approvals
+     * (`caps=daily`). Older installs don't say so, and would refuse one.
+     */
+    val supportsDaily: Boolean = false,
 ) {
 
     /** Convenience: absolute expiry in seconds since Unix epoch. */
@@ -42,7 +56,9 @@ data class UnlockRequest(
             salt.contentEquals(other.salt) &&
             pinProof.contentEquals(other.pinProof) &&
             issuedAt == other.issuedAt &&
-            ttlSeconds == other.ttlSeconds
+            ttlSeconds == other.ttlSeconds &&
+            kdfIterations == other.kdfIterations &&
+            supportsDaily == other.supportsDaily
     }
 
     override fun hashCode(): Int {
@@ -52,6 +68,8 @@ data class UnlockRequest(
         h = 31 * h + pinProof.contentHashCode()
         h = 31 * h + issuedAt.hashCode()
         h = 31 * h + ttlSeconds.hashCode()
+        h = 31 * h + kdfIterations
+        h = 31 * h + supportsDaily.hashCode()
         return h
     }
 
@@ -86,6 +104,7 @@ sealed interface RequestParseError {
     data object BadPackageName : RequestParseError
     data object BadSaltLength : RequestParseError
     data object BadPinProofLength : RequestParseError
+    data object BadKdfIterations : RequestParseError
     data object BadTimestamp : RequestParseError
     data object Expired : RequestParseError
 }

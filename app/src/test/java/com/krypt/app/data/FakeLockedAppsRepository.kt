@@ -14,6 +14,11 @@ class FakeLockedAppsRepository : LockedAppsRepository {
     private val state = MutableStateFlow<List<LockedApp>>(emptyList())
     val observed: StateFlow<List<LockedApp>> get() = state.asStateFlow()
 
+    /** Put [app] in the table as-is, with its own timestamps. */
+    fun seed(app: LockedApp) {
+        state.value = state.value.filterNot { it.packageName == app.packageName } + app
+    }
+
     override suspend fun checkIfAppIsLocked(pkg: String): Boolean {
         val app = state.value.firstOrNull { it.packageName == pkg } ?: return false
         return app.lockState == LockState.LOCKED
@@ -47,12 +52,6 @@ class FakeLockedAppsRepository : LockedAppsRepository {
 
     override fun allLockedFlow() = state.map { list ->
         list.filter { it.lockState == LockState.LOCKED }.map { it.packageName }.toSet()
-    }
-
-    override suspend fun unlockAppUntil(pkg: String, expiresAtMs: Long) {
-        state.value = state.value.map {
-            if (it.packageName == pkg) it.copy(lockState = LockState.UNLOCKED) else it
-        }
     }
 
     override suspend fun unlock(pkg: String) {

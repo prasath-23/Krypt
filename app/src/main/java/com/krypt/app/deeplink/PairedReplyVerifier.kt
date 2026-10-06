@@ -1,5 +1,7 @@
 package com.krypt.app.deeplink
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.krypt.app.common.Outcome
 import com.krypt.app.crypto.HmacSha256
 import com.krypt.app.crypto.KdfProvider
@@ -18,6 +20,7 @@ import javax.inject.Singleton
  *
  * MAC comparison uses [MessageDigest.isEqual] (constant-time).
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU) // X25519 key classes; legacy pairing only
 @Singleton
 class PairedReplyVerifier @Inject constructor() {
 

@@ -3,6 +3,9 @@ package com.krypt.app.data
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.data.daily.DailyAllowanceEntity
+import com.krypt.app.data.daily.DailyUsageEntity
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
@@ -14,6 +17,8 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
@@ -131,6 +136,79 @@ class KryptDatabaseTest {
     }
 
     @Test
+    fun dailyAllowances_oneRulePerApp_andANewOneReplacesTheOld() = runBlocking {
+        val daily = db.dailyAllowanceDao()
+        daily.upsert(rule("com.a", minutes = 60))
+        daily.upsert(rule("com.a", minutes = 30))
+        daily.upsert(rule("com.b", minutes = 15))
+
+        assertEquals(mapOf("com.a" to 30, "com.b" to 15), daily.all().associate { it.packageName to it.minutesPerDay })
+        daily.delete("com.a")
+        assertEquals(listOf("com.b"), daily.all().map { it.packageName })
+    }
+
+    @Test
+    fun dailyAllowances_pruneDropsRulesThatEnded() = runBlocking {
+        val daily = db.dailyAllowanceDao()
+        daily.upsert(rule("com.a", lastDay = 100))
+        daily.upsert(rule("com.b", lastDay = 200))
+
+        assertEquals(1, daily.pruneEndedBefore(150))
+        assertEquals(listOf("com.b"), daily.all().map { it.packageName })
+    }
+
+    @Test
+    fun dailyUsage_isKeptPerAppPerDay() = runBlocking {
+        val usage = db.dailyUsageDao()
+        usage.upsert(DailyUsageEntity("com.a", 100, 1_000))
+        usage.upsert(DailyUsageEntity("com.a", 101, 2_000))
+        usage.upsert(DailyUsageEntity("com.a", 100, 3_000))
+
+        assertEquals(3_000L, usage.usedMs("com.a", 100))
+        assertEquals(2_000L, usage.usedMs("com.a", 101))
+        assertNull(usage.usedMs("com.b", 100))
+        assertEquals(1, usage.pruneBefore(101))
+    }
+
+    @Test
+    fun dailyUsage_pruneKeepsDaysAnAppsRuleCovers() = runBlocking {
+        db.dailyAllowanceDao().upsert(rule("com.a")) // covers day 100 onwards
+        val usage = db.dailyUsageDao()
+        usage.upsert(DailyUsageEntity("com.a", 99, 1_000)) // before the rule
+        usage.upsert(DailyUsageEntity("com.a", 100, 2_000))
+        usage.upsert(DailyUsageEntity("com.b", 100, 3_000)) // no rule
+
+        assertEquals(2, usage.pruneBefore(150))
+        assertEquals(listOf("com.a" to 100L), usage.all().map { it.packageName to it.epochDay })
+    }
+
+    @Test
+    fun consumingADailyApproval_isSingleUse_andMakesNoGrant() = runBlocking {
+        val id = UUID.randomUUID()
+        outstanding.insert(
+            OutstandingRequestEntity(
+                requestId = id.toString(), targetPackage = "com.a", salt = ByteArray(16),
+                issuedAt = 1_000, expiresAt = 10_000, consumed = 0,
+            )
+        )
+        val repo = RoomOutstandingRequestRepository(db, outstanding, grants, db.dailyAllowanceDao())
+        val allowance = DailyAllowance(
+            "com.a", 60, LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(106), ZoneId.of("UTC"), id, 5_000,
+        )
+
+        val results = (1..10).map { async { repo.consumeAndUpsertDailyAllowance(id, 5_000, allowance) } }.awaitAll()
+
+        assertEquals(1, results.count { it })
+        assertEquals(listOf("com.a"), db.dailyAllowanceDao().all().map { it.packageName })
+        assertNull(grants.activeGrantForPackage("com.a", now = 0))
+    }
+
+    private fun rule(pkg: String, minutes: Int = 60, lastDay: Long = 106) = DailyAllowanceEntity(
+        packageName = pkg, minutesPerDay = minutes, firstEpochDay = 100, lastEpochDay = lastDay,
+        zoneId = "UTC", requestId = UUID.randomUUID().toString(), createdAt = 1,
+    )
+
+    @Test
     fun unlockGrantActiveFilterRespectsExpiry() = runBlocking {
         val id = grants.insert(
             UnlockGrantEntity(
@@ -156,5 +234,31 @@ class KryptDatabaseTest {
         )
         val active = grants.observeActiveAt(now = 2_000).first()
         assertEquals(1, active.size)
+    }
+
+    @Test
+    fun unlockGrantPruneExpiredDropsOnlyExpiredGrants() = runBlocking {
+        grants.insert(UnlockGrantEntity(requestId = "a", targetPackage = "com.a", grantedAt = 1_000, expiresAt = 5_000))
+        grants.insert(UnlockGrantEntity(requestId = "b", targetPackage = "com.b", grantedAt = 1_000, expiresAt = 2_000))
+
+        assertEquals(1, grants.pruneExpired(now = 3_000))
+        assertEquals(listOf("com.a"), grants.observeActiveAt(now = 0).first().map { it.targetPackage })
+    }
+
+    @Test
+    fun outstandingPruneOldDropsExpiredAndOldConsumedRequests() = runBlocking {
+        fun request(id: String, issuedAt: Long, expiresAt: Long, consumed: Int) = OutstandingRequestEntity(
+            requestId = id, targetPackage = "com.example.app", salt = ByteArray(16),
+            issuedAt = issuedAt, expiresAt = expiresAt, consumed = consumed,
+        )
+        outstanding.insert(request("expired", issuedAt = 1_000, expiresAt = 2_000, consumed = 0))
+        outstanding.insert(request("oldConsumed", issuedAt = 1_000, expiresAt = 9_000, consumed = 1))
+        outstanding.insert(request("open", issuedAt = 4_000, expiresAt = 9_000, consumed = 0))
+
+        outstanding.pruneOld(now = 5_000, pruneBefore = 3_000)
+
+        assertNull(outstanding.findById("expired"))
+        assertNull(outstanding.findById("oldConsumed"))
+        assertNotNull(outstanding.findById("open"))
     }
 }

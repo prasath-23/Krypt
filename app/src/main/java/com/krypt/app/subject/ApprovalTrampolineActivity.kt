@@ -1,19 +1,25 @@
 package com.krypt.app.subject
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import com.krypt.app.R
 import com.krypt.app.common.Outcome
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.deeplink.ApprovalConsumer
 import com.krypt.app.deeplink.ApprovalError
 import com.krypt.app.deeplink.ApprovalOutcome
-import com.krypt.app.service.OverlayManager
+import com.krypt.app.ui.common.dayText
+import com.krypt.app.ui.common.durationText
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.util.Date
 import javax.inject.Inject
 
 /**
@@ -21,9 +27,12 @@ import javax.inject.Inject
  * deep-links.
  *
  * Presents ZERO interactive surface (FR-018). The moment the URL arrives
- * we call [ApprovalConsumer.consume], and on success we play a 500 ms
- * green-flash + haptic + toast and finish. On error we show a brief toast
- * and finish. No PIN keypad, no buttons, no text fields.
+ * we call [ApprovalConsumer.consume]. On success we record the grant, or
+ * hand the every-day rule to the meter (either closes the app's lock
+ * screen), play a 500 ms green-flash + haptic + toast, open the now-unlocked
+ * app, and finish. An every-day approval opens the app only if today has
+ * time left; otherwise a toast says today's time is used up. On error we
+ * show a brief toast and finish. No PIN keypad, no buttons, no text fields.
  *
  * Registered in the manifest with [Theme.Krypt.Trampoline] (translucent)
  * so no white window frame is ever visible.
@@ -34,7 +43,7 @@ class ApprovalTrampolineActivity : ComponentActivity() {
     @Inject lateinit var consumer: ApprovalConsumer
     @Inject lateinit var successEffect: UnlockSuccessEffect
     @Inject lateinit var sessionStore: LockerSessionStore
-    @Inject lateinit var overlayManager: OverlayManager
+    @Inject lateinit var dailyMeter: DailyAllowanceMeter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,14 +75,42 @@ class ApprovalTrampolineActivity : ComponentActivity() {
     }
 
     private suspend fun onUnlockSuccess(outcome: ApprovalOutcome) {
-        sessionStore.recordGrant(outcome.targetPackage, outcome.grantExpiresAtMs)
-        overlayManager.hide()
-        successEffect.play(
-            activity = this,
-            targetPackage = outcome.targetPackage,
-            grantExpiresAtMs = outcome.grantExpiresAtMs,
-        )
+        val label = appLabel(outcome.targetPackage)
+        when (outcome) {
+            is ApprovalOutcome.OneTime -> {
+                sessionStore.recordGrant(outcome.targetPackage, outcome.grantExpiresAtMs)
+                val until = DateFormat.getTimeFormat(this).format(Date(outcome.grantExpiresAtMs))
+                successEffect.play(this, getString(R.string.approval_toast_unlocked, label, until))
+                openUnlockedApp(outcome.targetPackage)
+            }
+            is ApprovalOutcome.EveryDay -> {
+                // Before the app opens, so the accessibility service already knows the rule.
+                val rule = outcome.allowance
+                dailyMeter.onRuleSaved(rule)
+                if (dailyMeter.access(rule.packageName) is DailyAccess.Available) {
+                    val until = dayText(this, rule.lastDay, rule.zone)
+                    val perDay = durationText(this, rule.minutesPerDay)
+                    successEffect.play(this, getString(R.string.approval_toast_daily, label, perDay, until))
+                    openUnlockedApp(outcome.targetPackage)
+                } else {
+                    Toast.makeText(this, getString(R.string.approval_toast_daily_used_up, label), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
         finish()
+    }
+
+    private fun appLabel(pkg: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    }.getOrDefault(pkg)
+
+    private fun openUnlockedApp(pkg: String) {
+        val launch = packageManager.getLaunchIntentForPackage(pkg) ?: return
+        try {
+            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: ActivityNotFoundException) {
+            // Uninstalled or disabled since the request; the grant still stands.
+        }
     }
 
     private fun onUnlockError(error: ApprovalError) {
@@ -94,5 +131,6 @@ class ApprovalTrampolineActivity : ComponentActivity() {
         ApprovalError.PayloadInconsistent,
         -> R.string.approval_error_tamper
         ApprovalError.NotPaired -> R.string.approval_error_not_configured
+        ApprovalError.ClockNotTrusted -> R.string.approval_error_needs_auto_time
     }
 }

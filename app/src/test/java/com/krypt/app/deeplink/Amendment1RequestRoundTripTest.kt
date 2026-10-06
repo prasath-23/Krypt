@@ -1,8 +1,10 @@
 package com.krypt.app.deeplink
 
 import com.krypt.app.common.Outcome
+import com.krypt.app.crypto.KdfProvider
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,6 +18,7 @@ import java.util.UUID
  *   - setup salt (16 bytes, from MasterKeyStore, NOT per-request)
  *   - pinProof   (32 bytes, HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof"))
  *   - requestId (UUID v4), target package, iat, ttl (default 300 s).
+ *   - kdfIter    (Amendment 2: PBKDF2 iterations the Subject used at setup)
  */
 class Amendment1RequestRoundTripTest {
 
@@ -42,6 +45,55 @@ class Amendment1RequestRoundTripTest {
         assertArrayEquals(original.pinProof, parsed.pinProof)
         assertEquals(original.issuedAt, parsed.issuedAt)
         assertEquals(original.ttlSeconds, parsed.ttlSeconds)
+        assertEquals(original.kdfIterations, parsed.kdfIterations)
+    }
+
+    @Test
+    fun requestsSayThisPhoneTakesEveryDayApprovals() {
+        val (url, original) = builder.build(setupSalt, pinProof, "com.whatsapp")
+
+        assertTrue(url, url.contains("caps=daily"))
+        assertTrue(original.supportsDaily)
+        assertTrue((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsDaily)
+    }
+
+    @Test
+    fun aRequestWithoutCaps_fromAnOlderPhone_takesOneTimeApprovalsOnly() {
+        val url = builder.build(setupSalt, pinProof, "com.whatsapp").first.replace("&caps=daily", "")
+
+        assertFalse((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsDaily)
+    }
+
+    @Test
+    fun kdfIterationsRoundTrip() {
+        val (url, original) = builder.build(
+            setupSalt, pinProof, "com.whatsapp", kdfIterations = 1_234_567,
+        )
+        val parsed = (parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value
+        assertEquals(1_234_567, original.kdfIterations)
+        assertEquals(1_234_567, parsed.kdfIterations)
+    }
+
+    @Test
+    fun parseDefaultsMissingKdfIterToFloor() {
+        // Requests from builds that predate kdfIter must still parse.
+        val (url, _) = builder.build(setupSalt, pinProof, "com.whatsapp", kdfIterations = 900_000)
+        val stripped = url.replace(Regex("&kdfIter=[^&]+"), "")
+        val parsed = (parser.parse(stripped, clock.nowSeconds()) as Outcome.Ok).value
+        assertEquals(KdfProvider.MIN_ITERATIONS, parsed.kdfIterations)
+    }
+
+    @Test
+    fun parseRejectsOutOfRangeOrNonNumericKdfIter() {
+        val (url, _) = builder.build(setupSalt, pinProof, "com.whatsapp")
+        for (bad in listOf("1000", "299999", "10000001", "abc", "")) {
+            val broken = url.replace(Regex("kdfIter=[^&]+"), "kdfIter=$bad")
+            assertSame(
+                "kdfIter=$bad",
+                RequestParseError.BadKdfIterations,
+                (parser.parse(broken, clock.nowSeconds()) as Outcome.Err).error,
+            )
+        }
     }
 
     @Test
@@ -226,6 +278,18 @@ class Amendment1RequestRoundTripTest {
             throw AssertionError("should have thrown")
         } catch (_: IllegalArgumentException) {
             // expected
+        }
+    }
+
+    @Test
+    fun builderRejectsOutOfRangeKdfIterations() {
+        for (bad in listOf(KdfProvider.MIN_ITERATIONS - 1, KdfProvider.MAX_ITERATIONS + 1)) {
+            try {
+                builder.build(setupSalt, pinProof, "com.whatsapp", kdfIterations = bad)
+                throw AssertionError("should have thrown for $bad")
+            } catch (_: IllegalArgumentException) {
+                // expected
+            }
         }
     }
 }

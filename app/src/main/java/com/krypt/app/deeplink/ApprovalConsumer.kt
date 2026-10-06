@@ -2,10 +2,12 @@ package com.krypt.app.deeplink
 
 import com.krypt.app.common.Clock
 import com.krypt.app.common.Outcome
+import com.krypt.app.common.TrustedDayClock
 import com.krypt.app.crypto.AesGcmCipher
 import com.krypt.app.data.OutstandingRequest
 import com.krypt.app.data.OutstandingRequestRepository
 import com.krypt.app.data.UnlockGrant
+import com.krypt.app.data.daily.DailyAllowance
 import com.krypt.app.security.MasterKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,7 +38,9 @@ import javax.inject.Singleton
  *   7. AES-GCM decrypt.
  *      * [AEADBadTagException] -> CipherDecryptFailed
  *   8. CBOR decode + cross-consistency check payload vs URL/OR.
- *   9. Atomic consume+insert grant.
+ *   9. Atomic consume + save: a grant for a one-time approval, the app's
+ *      every-day rule for an every-day one (which first needs a trusted
+ *      date: ClockNotTrusted, request left open, if there is none).
  *      * 0 rows affected -> UnmatchedRequest
  *  10. Return [ApprovalOutcome].
  */
@@ -47,6 +51,7 @@ class ApprovalConsumer @Inject constructor(
     private val outstandingRepo: OutstandingRequestRepository,
     private val masterKeyStore: MasterKeyStore,
     private val clock: Clock,
+    private val dayClock: TrustedDayClock,
 ) {
 
     suspend fun consume(url: String): Outcome<ApprovalOutcome, ApprovalError> =
@@ -116,30 +121,55 @@ class ApprovalConsumer @Inject constructor(
                 return@withContext Outcome.err(ApprovalError.PayloadInconsistent)
             }
 
-            // 9. Atomic consume + insert grant.
-            val grantedAtMs = nowMs
-            val grantExpiresAtMs = grantedAtMs + payload.durMin * 60_000L
-            val grant = UnlockGrant(
-                requestId = request.requestId,
-                targetPackage = request.targetPackage,
-                grantedAtMs = grantedAtMs,
-                expiresAtMs = grantExpiresAtMs,
-            )
-            val grantId = outstandingRepo.consumeAndInsertGrant(
-                requestId = request.requestId,
-                nowMs = nowMs,
-                grant = grant,
-            ) ?: return@withContext Outcome.err(ApprovalError.UnmatchedRequest)
-
-            // 10.
-            Outcome.ok(
-                ApprovalOutcome(
-                    requestId = request.requestId,
-                    targetPackage = request.targetPackage,
-                    grantedAtMs = grantedAtMs,
-                    grantExpiresAtMs = grantExpiresAtMs,
-                    grantId = grantId,
-                )
-            )
+            // 9. Atomic consume + save what the Guardian allowed.
+            when (val access = payload.access) {
+                is AccessChoice.OneTime -> {
+                    val grantedAtMs = nowMs
+                    val grantExpiresAtMs = grantedAtMs + access.minutes * 60_000L
+                    val grant = UnlockGrant(
+                        requestId = request.requestId,
+                        targetPackage = request.targetPackage,
+                        grantedAtMs = grantedAtMs,
+                        expiresAtMs = grantExpiresAtMs,
+                    )
+                    val grantId = outstandingRepo.consumeAndInsertGrant(
+                        requestId = request.requestId,
+                        nowMs = nowMs,
+                        grant = grant,
+                    ) ?: return@withContext Outcome.err(ApprovalError.UnmatchedRequest)
+                    Outcome.ok(
+                        ApprovalOutcome.OneTime(
+                            requestId = request.requestId,
+                            targetPackage = request.targetPackage,
+                            grantedAtMs = grantedAtMs,
+                            grantExpiresAtMs = grantExpiresAtMs,
+                            grantId = grantId,
+                        )
+                    )
+                }
+                is AccessChoice.EveryDay -> {
+                    // The rule's days start today, so today must be trustworthy; if it
+                    // isn't, leave the request open so the approval works later.
+                    val zone = clock.zone()
+                    val today = dayClock.today(zone)
+                        ?: return@withContext Outcome.err(ApprovalError.ClockNotTrusted)
+                    val allowance = DailyAllowance(
+                        packageName = request.targetPackage,
+                        minutesPerDay = access.minutes,
+                        firstDay = today,
+                        lastDay = today.plusDays(access.days - 1L),
+                        zone = zone,
+                        requestId = request.requestId,
+                        createdAtMs = nowMs,
+                    )
+                    val saved = outstandingRepo.consumeAndUpsertDailyAllowance(
+                        requestId = request.requestId,
+                        nowMs = nowMs,
+                        allowance = allowance,
+                    )
+                    if (!saved) return@withContext Outcome.err(ApprovalError.UnmatchedRequest)
+                    Outcome.ok(ApprovalOutcome.EveryDay(request.requestId, request.targetPackage, allowance))
+                }
+            }
         }
 }
