@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -48,8 +49,11 @@ class AccessibilityHealthWorkerTest {
     @Before
     fun setUp() {
         hilt.inject()
-        InstrumentationRegistry.getInstrumentation().uiAutomation
-            .grantRuntimePermission(targetContext.packageName, Manifest.permission.POST_NOTIFICATIONS)
+        // A runtime permission only from Android 13; earlier, granting it throws "Unknown permission".
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            InstrumentationRegistry.getInstrumentation().uiAutomation
+                .grantRuntimePermission(targetContext.packageName, Manifest.permission.POST_NOTIFICATIONS)
+        }
         securityAlertsChannel.ensureCreated() // KryptApplication does this in the app
         notifications.cancelAll()
     }
