@@ -1,0 +1,27 @@
+<!-- @dsCard group="Feedback" height=460 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>UnlockFlash — preview</title></head>
+<body>
+<div class="kx-stage">
+  <div class="kx-phone" style="height:400px;width:300px">
+    <div class="kx-pad-x" style="padding-top:var(--space-8);display:flex;flex-direction:column;gap:var(--space-3)">
+      <div style="height:14px;width:50%;border-radius:var(--radius-sm);background:var(--outline-variant)"></div>
+      <div style="height:140px;border-radius:var(--radius-lg);background:var(--surface-container)"></div>
+      <div style="height:14px;width:75%;border-radius:var(--radius-sm);background:var(--outline-variant)"></div>
+    </div>
+    <div class="kx-flash" id="f" aria-hidden="true"><span class="kx-flash__mark"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9.29 16.29 5.7 12.7c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L10 14.17l6.88-6.88c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-7.59 7.59c-.38.39-1.02.39-1.41 0z"/></svg></span></div>
+    <div style="position:absolute;left:0;right:0;bottom:var(--space-6);display:flex;justify-content:center"><span class="kx-toast" id="toast" style="visibility:hidden" role="status">Instagram is open until 14:35</span></div>
+  </div>
+  <div class="kx-specimen">
+    <span class="kx-note">On approval</span>
+    <p class="kx-body" style="font-size:14px;line-height:20px">A mint field with a ringed check for 700 ms, a 50 ms vibration, TalkBack “Opened by your Guardian”, then the toast, and the app opens. No buttons, no fields.</p>
+    <div><button class="kx-btn kx-btn--secondary" id="p">Play again</button></div>
+  </div>
+</div>
+<script>
+function run(){var f=document.getElementById('f'),t=document.getElementById('toast');f.classList.remove('kx-flash--run');void f.offsetWidth;f.classList.add('kx-flash--run');t.style.visibility='hidden';setTimeout(function(){t.style.visibility='visible';},560);}
+document.getElementById('p').onclick=run;run();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!-- @dsCard group="PIN" height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>LockoutCountdown — preview</title></head>
+<body>
+<div class="kx-stage">
+  <div class="kx-specimen" style="gap:var(--space-4)">
+    <span class="kx-note">Live · seconds</span>
+    <div class="kx-ring" role="timer" aria-label="Try again in 30 seconds">
+      <svg viewBox="0 0 120 120"><circle class="kx-ring__track" cx="60" cy="60" r="56"/><circle class="kx-ring__bar" id="bar" cx="60" cy="60" r="56" stroke-dasharray="351.86" stroke-dashoffset="0"/></svg>
+      <span class="kx-ring__num" id="n">0:30</span>
+    </div>
+    <p class="kx-msg">Too many wrong PINs. Try again when the timer ends.</p>
+  </div>
+  <div class="kx-specimen" style="gap:var(--space-4)">
+    <span class="kx-note">Past 60 s · minutes</span>
+    <div class="kx-ring"><svg viewBox="0 0 120 120"><circle class="kx-ring__track" cx="60" cy="60" r="56"/><circle class="kx-ring__bar" cx="60" cy="60" r="56" stroke-dasharray="351.86" stroke-dashoffset="120"/></svg><span class="kx-ring__num">7 min</span></div>
+    <p class="kx-small" style="text-align:center">1st–2nd wrong: tries left · 3rd: 30 s · 4th–5th: 2 min · 6th–7th: 10 min · 8th+: 1 hour</p>
+  </div>
+</div>
+<script>
+var s=30,b=document.getElementById('bar'),t=document.getElementById('n');
+setInterval(function(){s=s>1?s-1:30;t.textContent='0:'+String(s).padStart(2,'0');b.style.strokeDashoffset=351.86*(1-s/30);},1000);
+</script>
+</body>
+</html>

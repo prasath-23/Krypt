@@ -1,0 +1,39 @@
+<!-- @dsCard group="PIN" height=560 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PinEntry — preview</title></head>
+<body>
+<div class="kx-stage">
+  <div class="kx-specimen" style="width:300px;gap:var(--space-5)">
+    <span class="kx-note">Typing · 4 of 4–6</span>
+    <div class="kx-dots" role="textbox" aria-label="Guardian PIN, 4 digits entered" id="d">
+      <span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--opt"></span><span class="kx-dot kx-dot--opt"></span>
+    </div>
+    <p class="kx-msg" id="m">Enter the Guardian PIN</p>
+    <div class="kx-pad" id="pad">
+      <button class="kx-key">1</button><button class="kx-key">2</button><button class="kx-key">3</button>
+      <button class="kx-key">4</button><button class="kx-key">5</button><button class="kx-key">6</button>
+      <button class="kx-key">7</button><button class="kx-key">8</button><button class="kx-key">9</button>
+      <span></span><button class="kx-key">0</button><button class="kx-key kx-key--fn" aria-label="Delete"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L.37 11.45c-.22.34-.22.77 0 1.11l5.04 7.56c.36.52.9.88 1.59.88h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3.7 13.3c-.39.39-1.02.39-1.41 0L14 13.41l-2.89 2.89c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L12.59 12 9.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L14 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L15.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg></button>
+    </div>
+    <button class="kx-btn kx-btn--primary kx-btn--block">Continue</button>
+  </div>
+  <div class="kx-col" style="display:flex;flex-direction:column;gap:var(--space-8);width:260px">
+    <div class="kx-specimen" style="width:260px"><span class="kx-note">Wrong PIN · cleared</span>
+      <div class="kx-dots kx-dots--error"><span class="kx-dot"></span><span class="kx-dot"></span><span class="kx-dot"></span><span class="kx-dot"></span><span class="kx-dot kx-dot--opt"></span><span class="kx-dot kx-dot--opt"></span></div>
+      <p class="kx-msg kx-msg--error" role="alert">That PIN isn't right. 2 tries left.</p></div>
+    <div class="kx-specimen" style="width:260px"><span class="kx-note">Checking · ~0.3 s</span>
+      <div class="kx-dots kx-dots--busy" aria-busy="true"><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--opt"></span></div>
+      <p class="kx-msg">Checking…</p></div>
+    <div class="kx-specimen" style="width:260px"><span class="kx-note">Guardian screen · 4–8</span>
+      <div class="kx-dots"><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--on"></span><span class="kx-dot kx-dot--opt"></span><span class="kx-dot kx-dot--opt"></span><span class="kx-dot kx-dot--opt"></span></div>
+      <p class="kx-msg">Your PIN never leaves this phone.</p></div>
+  </div>
+</div>
+<script>
+var n=4,max=6,d=document.getElementById('d');
+function draw(){var h='';for(var i=0;i<max;i++)h+='<span class="kx-dot'+(i<n?' kx-dot--on':(i>=4?' kx-dot--opt':''))+'"></span>';d.innerHTML=h;d.setAttribute('aria-label','Guardian PIN, '+n+' digits entered');}
+document.querySelectorAll('#pad .kx-key').forEach(function(k){k.onclick=function(){if(k.getAttribute('aria-label')==='Delete'){n=Math.max(0,n-1);}else{n=Math.min(max,n+1);}draw();};});
+</script>
+</body>
+</html>
