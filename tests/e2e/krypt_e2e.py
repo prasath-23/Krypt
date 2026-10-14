@@ -131,12 +131,21 @@ def tap_text(pattern, timeout=20, index=0):
     return n
 
 
+def keyboard_shown():
+    return "mInputShown=true" in sh("dumpsys input_method")
+
+
 def type_text(text):
     """Type into the focused text field (Home's search, the Guardian's Custom minutes and days)
-    and hide the keyboard. PINs go through enter_pin: no PIN screen has a text field."""
+    and hide the keyboard. PINs go through enter_pin: no PIN screen has a text field.
+
+    BACK only while the keyboard is up: with a hardware keyboard (or an emulator set up with
+    one) no on-screen keyboard appears, and BACK would leave the screen instead."""
     sh(f"input text {text}")
-    sh("input keyevent KEYCODE_BACK")  # hide the keyboard
     time.sleep(0.5)
+    if keyboard_shown():
+        sh("input keyevent KEYCODE_BACK")  # hide the keyboard
+        time.sleep(0.5)
 
 
 def keypad_keys():
