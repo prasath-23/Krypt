@@ -16,6 +16,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          # The default also asks for 'tools', which current cmdline-tools no longer has.
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v3
       - name: Run JVM unit tests + lint + manifest audit
         run: ./gradlew testDebugUnitTest lint verifyManifest

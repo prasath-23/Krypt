@@ -159,12 +159,15 @@ tasks.register("verifyManifest") {
     group = "verification"
     description = "Fails the build if INTERNET permission appears in the assembled debug APK."
     dependsOn("assembleDebug")
+    // Resolved here, not in doLast: the configuration cache can't carry the project
+    // (file(), the android extension) into the task's action.
+    val apk = file("build/outputs/apk/debug/app-debug.apk")
+    val buildToolsDir = android.sdkDirectory.resolve("build-tools")
+    val aaptName = if (org.gradle.internal.os.OperatingSystem.current().isWindows) "aapt.exe" else "aapt"
     doLast {
-        val apk = file("build/outputs/apk/debug/app-debug.apk")
         require(apk.exists()) { "APK not found at $apk; did assembleDebug succeed?" }
-        val buildToolsDir = android.sdkDirectory.resolve("build-tools")
         val aapt = buildToolsDir.listFiles()?.sortedBy { it.name }?.lastOrNull()
-            ?.resolve(if (org.gradle.internal.os.OperatingSystem.current().isWindows) "aapt.exe" else "aapt")
+            ?.resolve(aaptName)
             ?: error("aapt not found under $buildToolsDir; install Android SDK build-tools")
         val processBuilder = ProcessBuilder(aapt.absolutePath, "dump", "permissions", apk.absolutePath)
         processBuilder.redirectErrorStream(true)
