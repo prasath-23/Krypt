@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -114,9 +115,19 @@ fun PinEntry(
 ) {
     val lockoutLeftMs = lockoutCountdown(lockoutMs, onLockoutElapsed)
     val acceptsInput = enabled && !busy && lockoutMs == null
+    // Taps that queue up while the main thread is busy are handled back to back, before the
+    // next recomposition, while [pin] still holds the old value. Each edit builds on the last
+    // value sent instead, or a quick second digit would replace the first.
+    val buffer = remember { PinBuffer(pin) }
+    SideEffect { buffer.follow(pin) }
     val update: (String) -> Unit = { typed ->
-        onPinChange(typed.filter { it in '0'..'9' }.take(maxLength))
+        buffer.sent = typed.filter { it in '0'..'9' }.take(maxLength)
+        onPinChange(buffer.sent)
     }
+    val append: (String) -> Unit = { typed ->
+        if (buffer.sent.length < maxLength) update(buffer.sent + typed)
+    }
+    val deleteLast: () -> Unit = { update(buffer.sent.dropLast(1)) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -130,7 +141,9 @@ fun PinEntry(
             busy = busy,
             isError = isError,
             errorKey = errorKey,
-            update = update,
+            replace = update,
+            append = append,
+            deleteLast = deleteLast,
             onSubmit = onSubmit,
             tag = tag,
         )
@@ -143,9 +156,24 @@ fun PinEntry(
         Spacer(Modifier.height(KryptSpace.s5))
         PinKeypad(
             enabled = acceptsInput,
-            onDigit = { digit -> if (pin.length < maxLength) update(pin + digit) },
-            onDelete = { update(pin.dropLast(1)) },
+            onDigit = { digit -> append(digit.toString()) },
+            onDelete = deleteLast,
         )
+    }
+}
+
+/**
+ * What the next edit builds on: the last PIN [PinEntry] sent, until the
+ * caller's `pin` changes (e.g. cleared after a submit) and takes over.
+ */
+private class PinBuffer(private var seen: String) {
+    var sent: String = seen
+
+    fun follow(pin: String) {
+        if (pin != seen) {
+            seen = pin
+            sent = pin
+        }
     }
 }
 
@@ -158,7 +186,9 @@ private fun PinDots(
     busy: Boolean,
     isError: Boolean,
     errorKey: Any?,
-    update: (String) -> Unit,
+    replace: (String) -> Unit,
+    append: (String) -> Unit,
+    deleteLast: () -> Unit,
     onSubmit: () -> Unit,
     tag: String,
 ) {
@@ -200,7 +230,7 @@ private fun PinDots(
         if (!acceptsInput || event.type != KeyEventType.KeyDown) return false
         return when (event.key) {
             Key.Backspace, Key.Delete -> {
-                update(pin.dropLast(1))
+                deleteLast()
                 true
             }
             Key.Enter, Key.NumPadEnter -> {
@@ -210,7 +240,7 @@ private fun PinDots(
             else -> {
                 val typed = event.utf16CodePoint.toChar()
                 if (typed in '0'..'9') {
-                    if (pin.length < maxLength) update(pin + typed)
+                    append(typed.toString())
                     true
                 } else {
                     false
@@ -235,11 +265,11 @@ private fun PinDots(
                     true
                 }
                 setText { text ->
-                    update(text.text)
+                    replace(text.text)
                     true
                 }
                 insertTextAtCursor { text ->
-                    update(pin + text.text)
+                    append(text.text)
                     true
                 }
             }
