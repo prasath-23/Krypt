@@ -151,10 +151,12 @@ def type_text(text):
 def keypad_keys():
     """Krypt's own PIN keypad on screen, as {digit: node}. Each key is a clickable node without
     text, with its digit as a child text node that is not clickable itself; tapping the digit's
-    centre lands inside the key. (The Delete key is the one with content-desc "Delete".)"""
+    centre lands inside the key. (The Delete key is the one with content-desc "Delete".)
+    Text fields are left out: the Guardian's Custom minutes and days can hold one digit too, and
+    they come before the keypad on the page."""
     keys = {}
     for n in nodes():
-        if n["pkg"] == KRYPT and re.fullmatch(r"[0-9]", n["text"]):
+        if n["pkg"] == KRYPT and re.fullmatch(r"[0-9]", n["text"]) and n["class"] != "android.widget.EditText":
             keys.setdefault(n["text"], n)
     return keys
 
