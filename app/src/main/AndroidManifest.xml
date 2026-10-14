@@ -52,6 +52,12 @@
     <!-- FR-010: surviving Doze requires user-granted battery-optimisation ignore. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- FR-005: WorkManager's own manifest asks for ACCESS_NETWORK_STATE, which it uses
+         only for work with a network constraint. Krypt schedules none, so the merged
+         manifest drops it (verifyManifest audits the built APK). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"
+                     tools:node="remove" />
+
     <!-- FR-012: DeviceAdmin-backed uninstall friction (WP11).
          Requires the device to support device-admin provisioning. -->
     <uses-feature android:name="android.software.device_admin"
