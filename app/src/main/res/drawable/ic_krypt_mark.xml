@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Krypt mark: a keyhole with a cat's ears, a smaller keyhole cut through
+    its leg (docs/design-system/assets/Logos). One flat silhouette; tint it
+    with on-surface. The viewport is the mark's own 36 x 66 box.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="12dp"
+    android:height="22dp"
+    android:viewportWidth="36"
+    android:viewportHeight="66">
+    <group
+        android:translateX="-36"
+        android:translateY="-22">
+        <path
+            android:fillColor="#FF1F1F1F"
+            android:fillType="evenOdd"
+            android:pathData="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 30.6 C52 30.4 53 30.3 54 30.3 C55 30.3 56 30.4 57 30.6 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z M54 62 A4.8 4.8 0 0 1 56.6 70.8 L58.5 78.4 A1.7 1.7 0 0 1 56.85 80.5 H51.15 A1.7 1.7 0 0 1 49.5 78.4 L51.4 70.8 A4.8 4.8 0 0 1 54 62 Z" />
+    </group>
+</vector>

@@ -2,11 +2,11 @@
 <!--
     WP22 Amendment 1: ApprovalTrampolineActivity layout.
 
-    A single full-bleed FrameLayout holds the 500 ms green-flash overlay.
-    No text fields, no buttons, no PIN input — FR-018 guarantees the
+    The approval flash (docs/design-system/components/UnlockFlash): a mint
+    field over the whole translucent window with a ringed check in its
+    centre. No text fields, no buttons, no PIN input — FR-018 guarantees the
     Subject device never prompts for a PIN during approval consumption.
-    The parent theme is translucent; this FrameLayout only becomes visible
-    during the flash animation.
+    Both views stay invisible until UnlockSuccessEffect plays the flash.
 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -16,17 +16,29 @@
     android:clickable="false"
     android:focusable="false">
 
-    <!--
-        The flash view. Alpha is animated from 0 -> 0.6 -> 0 by
-        UnlockSuccessEffect. Tint colour is the Material 3 "onTertiaryContainer"
-        green used elsewhere in Krypt; hard-coded here because this view is
-        inflated from XML outside of Compose's theme cascade.
-    -->
     <View
         android:id="@+id/unlock_flash"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#8035C759"
-        android:alpha="0.0" />
+        android:alpha="0.0"
+        android:background="@color/krypt_flash"
+        android:importantForAccessibility="no" />
+
+    <FrameLayout
+        android:id="@+id/unlock_flash_mark"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center"
+        android:alpha="0.0"
+        android:background="@drawable/flash_ring"
+        android:importantForAccessibility="no">
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_flash_check" />
+    </FrameLayout>
 
 </FrameLayout>

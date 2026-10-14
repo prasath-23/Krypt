@@ -50,7 +50,13 @@ class GuardianPinViewModel @Inject constructor(
     private val _state = MutableStateFlow<GuardianPinState>(GuardianPinState.Loading)
     val state: StateFlow<GuardianPinState> = _state.asStateFlow()
 
+    /** The link the form was made for, so re-reading it (e.g. after a rotation) keeps the Guardian's choice. */
+    private var parsedUrl: String? = null
+
     fun parseIncoming(url: String) {
+        val current = _state.value
+        if (url == parsedUrl && (current is GuardianPinState.Ready || current is GuardianPinState.Validating)) return
+        parsedUrl = url
         val parsed = parser.parse(url, clock.nowSeconds())
         _state.value = when (parsed) {
             is Outcome.Ok -> withLimiterState(
@@ -95,6 +101,14 @@ class GuardianPinViewModel @Inject constructor(
         }
         val access = ready.form.choice ?: run {
             pin.fill(' ')
+            return
+        }
+        // The link's expiry is checked when it is read; the Guardian may have
+        // lingered since. Without this, an expired request would cost a PIN
+        // attempt and produce a reply the locked phone refuses.
+        if (clock.nowSeconds() > ready.request.expiresAtSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS) {
+            pin.fill(' ')
+            _state.value = GuardianPinState.FatalError(messageKey = "request_expired")
             return
         }
         if (limiter.lockedForMs() > 0) {

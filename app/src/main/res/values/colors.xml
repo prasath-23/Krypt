@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The `background` token (docs/design-system/tokens.json), used as every
+        Krypt window's background so a screen's first frame matches Compose's.
+        Keep in step with ui/theme/Color.kt.
+    -->
+    <color name="krypt_background">#FFFFFFFF</color>
+
+    <!--
+        The approval flash (`flash` / `on-flash`): mint, used only for the
+        approval moment, the same in light and dark. Drawn by the translucent
+        ApprovalTrampolineActivity, outside Compose.
+    -->
+    <color name="krypt_flash">#FF3CCB8C</color>
+    <color name="krypt_on_flash">#FF121212</color>
+</resources>

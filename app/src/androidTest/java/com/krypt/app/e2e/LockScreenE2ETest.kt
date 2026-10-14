@@ -104,18 +104,18 @@ class LockScreenE2ETest {
     fun showsTheLockedAppAndItsOptions() {
         launch().use {
             compose.onNodeWithText("Settings").assertIsDisplayed()
-            compose.onNodeWithText("This app is locked").assertIsDisplayed()
-            compose.onNodeWithText("Ask Guardian").assertIsDisplayed()
-            compose.onNodeWithText("Paste approval link").assertIsDisplayed()
-            compose.onNodeWithText("Go to home screen").assertIsDisplayed()
+            compose.onNodeWithText("Locked.").assertIsDisplayed()
+            compose.onNodeWithText("Request access").assertIsDisplayed()
+            compose.onNodeWithText("Paste reply").assertIsDisplayed()
+            compose.onNodeWithText("Back to home").assertIsDisplayed()
         }
     }
 
     @Test
-    fun askGuardian_sharesARequestAndSavesThePendingRequest() {
+    fun requestAccess_sharesARequestAndSavesThePendingRequest() {
         launch().use {
-            compose.onNodeWithText("Ask Guardian").performClick()
-            waitForText("Request sent", substring = true)
+            compose.onNodeWithText("Request access").performClick()
+            waitForText("Request sent")
         }
 
         intended(
@@ -125,7 +125,7 @@ class LockScreenE2ETest {
                     equalTo(Intent.EXTRA_INTENT),
                     allOf(
                         hasAction(Intent.ACTION_SEND),
-                        hasExtra(equalTo(Intent.EXTRA_TEXT), containsString("Krypt unlock request for Settings")),
+                        hasExtra(equalTo(Intent.EXTRA_TEXT), containsString("Krypt access request for Settings")),
                         hasExtra(equalTo(Intent.EXTRA_TEXT), containsString("krypt://request?")),
                     ),
                 ),
@@ -142,19 +142,19 @@ class LockScreenE2ETest {
     }
 
     @Test
-    fun askGuardian_withoutPinSetup_explainsAndSharesNothing() {
+    fun requestAccess_withoutPinSetup_explainsAndSharesNothing() {
         state.reset(onboardingComplete = true, pinConfigured = false)
         launch().use {
-            compose.onNodeWithText("Ask Guardian").performClick()
+            compose.onNodeWithText("Request access").performClick()
             waitForText("Krypt isn't set up yet", substring = true)
         }
         intended(hasAction(Intent.ACTION_CHOOSER), times(0))
     }
 
     @Test
-    fun goHome_leavesForTheLauncher() {
+    fun backToHome_leavesForTheLauncher() {
         launch().use { scenario ->
-            compose.onNodeWithText("Go to home screen").performClick()
+            compose.onNodeWithText("Back to home").performClick()
             waitUntilDestroyed(scenario)
         }
         intended(homeIntent)
@@ -171,22 +171,25 @@ class LockScreenE2ETest {
     }
 
     @Test
-    fun pasteApprovalLink_opensTheCopiedApproval() {
+    fun pasteReply_opensTheCopiedApproval() {
         val approval = "krypt://approve?v=1&req=12345678-1234-4abc-8def-123456789abc&data=AAAA&iat=1700000000"
-        copyToClipboard("Krypt approval for Settings.\nTap the link to unlock it.\n$approval")
+        copyToClipboard(
+            "Krypt reply for Settings: 15 minutes, once.\nTap the link to open it. If it doesn't open, " +
+                "copy this whole message, open the locked app and tap Paste reply.\n$approval"
+        )
         launch().use {
-            compose.onNodeWithText("Paste approval link").performClick()
+            compose.onNodeWithText("Paste reply").performClick()
             compose.waitForIdle()
         }
         intended(allOf(hasComponent(ApprovalTrampolineActivity::class.java.name), hasData(approval)))
     }
 
     @Test
-    fun pasteApprovalLink_withoutAnApprovalOnTheClipboard_saysSo() {
+    fun pasteReply_withoutAReplyOnTheClipboard_saysSo() {
         copyToClipboard("krypt://request?v=1&req=12345678-1234-4abc-8def-123456789abc")
         launch().use {
-            compose.onNodeWithText("Paste approval link").performClick()
-            waitForText("No approval link on the clipboard", substring = true)
+            compose.onNodeWithText("Paste reply").performClick()
+            waitForText("No reply on the clipboard", substring = true)
         }
         intended(hasComponent(ApprovalTrampolineActivity::class.java.name), times(0))
     }
@@ -199,7 +202,7 @@ class LockScreenE2ETest {
     }
 
     @Test
-    fun usedUpDailyTime_saysTimesUp_andStillOffersAskGuardian() {
+    fun usedUpDailyTime_saysDoneForToday_andStillOffersRequestAccess() {
         runBlocking {
             val today = LocalDate.now(zone).toEpochDay()
             db.dailyAllowanceDao().upsert(
@@ -209,9 +212,9 @@ class LockScreenE2ETest {
             dailyMeter.reloadForTest()
         }
         launch().use {
-            waitForText("Time's up for today")
-            waitForText("Today's 1 minute is used up", substring = true)
-            compose.onNodeWithText("Ask Guardian").assertIsDisplayed()
+            waitForText("Done for today.")
+            waitForText("Today's 1 minute is used", substring = true)
+            compose.onNodeWithText("Request access").assertIsDisplayed()
         }
     }
 
@@ -221,7 +224,7 @@ class LockScreenE2ETest {
         autoTime.on = false
         dailyMeter.reevaluate()
         launch().use {
-            waitForText("Daily time is paused")
+            waitForText("Paused.")
         }
     }
 

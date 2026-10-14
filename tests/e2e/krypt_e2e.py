@@ -131,10 +131,51 @@ def tap_text(pattern, timeout=20, index=0):
     return n
 
 
-def type_pin(pin):
-    sh(f"input text {pin}")
+def type_text(text):
+    """Type into the focused text field (Home's search, the Guardian's Custom minutes and days)
+    and hide the keyboard. PINs go through enter_pin: no PIN screen has a text field."""
+    sh(f"input text {text}")
     sh("input keyevent KEYCODE_BACK")  # hide the keyboard
     time.sleep(0.5)
+
+
+def keypad_keys():
+    """Krypt's own PIN keypad on screen, as {digit: node}. Each key is a clickable node without
+    text, with its digit as a child text node that is not clickable itself; tapping the digit's
+    centre lands inside the key. (The Delete key is the one with content-desc "Delete".)"""
+    keys = {}
+    for n in nodes():
+        if n["pkg"] == KRYPT and re.fullmatch(r"[0-9]", n["text"]):
+            keys.setdefault(n["text"], n)
+    return keys
+
+
+def enter_pin(pin, timeout=20):
+    """Type [pin] on Krypt's keypad as a person would: find the keys in one dump, then tap the
+    digits in order. Waits up to [timeout] s for the keypad, and scrolls once if only part of it
+    is on screen. Where the whole keypad starts below the fold (the Guardian screen), scroll first."""
+    deadline = time.time() + timeout
+    scrolled = False
+    keys = keypad_keys()
+    while set(pin) - set(keys):
+        if time.time() > deadline:
+            missing = ", ".join(sorted(set(pin) - set(keys)))
+            raise Check(f"no keypad key for {missing} on screen; the screen shows {screen_texts()}")
+        if keys and not scrolled:
+            scroll_down()  # the rest of the keypad is below the fold
+            scrolled = True
+        else:
+            time.sleep(1.5)
+        keys = keypad_keys()
+    for digit in pin:
+        sh(f"input tap {keys[digit]['x']} {keys[digit]['y']}")
+        time.sleep(0.3)
+    time.sleep(0.5)
+    # The row of dots reads out how many digits it holds: check that no tap was lost.
+    dots = [n for n in nodes() if n["desc"].startswith("Guardian PIN, ")]
+    if dots:
+        expect(re.fullmatch(rf"Guardian PIN, {len(pin)} digits? entered", dots[0]["desc"]),
+               f"tapped {len(pin)} keys, but the PIN entry says {dots[0]['desc']!r}")
 
 
 def open_krypt_home():
@@ -142,16 +183,19 @@ def open_krypt_home():
     launch(KRYPT)
     if wait_text(r"^Search apps$", 3):
         return
-    tap_text(r"^PIN$")
-    type_pin(PIN)
-    tap_text(r"^Unlock$")
+    enter_pin(PIN)
+    tap_text(r"^Continue$")
     expect(wait_text(r"^Search apps$", 120), "Home did not open")
 
 
 def search_home(text):
     tap_text(r"^Search apps$")
-    type_pin(text)  # types it and hides the keyboard
+    type_text(text)  # types it and hides the keyboard
     time.sleep(1)
+
+
+# A Home row's status. Case-sensitive, so that it isn't the LOCKED section header.
+LOCKED_STATUS = r"(?-i:^Locked$)"
 
 
 def home_switches():
@@ -352,8 +396,22 @@ def restore_device_time():
     sh("cmd time_detector set_auto_detection_enabled true")
 
 
+_SCREEN = []
+
+
+def screen_size():
+    """The display's width and height in pixels (an override set with `wm size` wins)."""
+    if not _SCREEN:
+        sizes = re.findall(r"(\d+)x(\d+)", sh("wm size"))
+        _SCREEN.append(tuple(int(v) for v in sizes[-1]) if sizes else (1080, 2400))
+    return _SCREEN[0]
+
+
 def scroll_down():
-    sh("input swipe 540 1800 540 600 400")
+    """Swipe the page up by half a screen. Starts above the buttons Krypt pins to the bottom of a
+    page (e.g. Approve and send), so the swipe lands on the part that scrolls."""
+    width, height = screen_size()
+    sh(f"input swipe {width // 2} {height * 7 // 10} {width // 2} {height // 5} 400")
     time.sleep(1)
 
 
@@ -367,11 +425,11 @@ def set_auto_time(on):
     time.sleep(2)  # Krypt hears about it through a settings observer
 
 
-def ask_guardian_for(pkg):
-    """On the child's phone: open the locked app, tap Ask Guardian, return the request link."""
+def request_access_for(pkg):
+    """On the child's phone: open the locked app, tap Request access, return the request link."""
     launch(pkg)
     expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"{pkg} was not blocked; top is {top_activity()}")
-    tap_text(r"^Ask Guardian$")
+    tap_text(r"^Request access$")
     request = re.search(r"krypt://request\?[A-Za-z0-9._~*%+=&-]+", shared_text())
     expect(request, "no request link")
     expect("caps=daily" in request.group(0), "the request doesn't say this phone takes every-day approvals")
@@ -379,20 +437,33 @@ def ask_guardian_for(pkg):
     return request.group(0)
 
 
+def wait_guardian_form(timeout=20):
+    """Wait for the Guardian's approval form. Not for its ACCESS REQUEST eyebrow: the screen for an
+    expired or unreadable request has that too, and it can still be up from an earlier case."""
+    if not wait_text(r"^For how long$", timeout):
+        raise Check(f"the Guardian's approval form did not open; the screen shows {screen_texts()}")
+
+
+def guardian_approve(pin):
+    """On the Guardian's form: type [pin] on the keypad and tap Approve and send."""
+    scroll_down()  # the keypad is below the request and its choices
+    enter_pin(pin)
+    tap_text(r"^Approve and send$")  # pinned to the bottom of the screen, never scrolled away
+
+
 def approve_every_day(request_url, minutes, days):
     """As the Guardian: allow [minutes] a day for [days] days. Returns the shared text and the approval link."""
     open_link(request_url)
-    tap_text(r"^Every day$", timeout=20)
-    tap_text(r"^Set minutes$")
-    tap_text(r"^Minutes \(1–1440\)$")
-    type_pin(str(minutes))
-    tap_text(r"^Set days$")
-    tap_text(r"^Days \(1–365\)$")
-    type_pin(str(days))
-    scroll_down()  # the PIN field is below the fold now
-    tap_text(r"^Enter PIN$", timeout=20)
-    type_pin(PIN)
-    tap_text(r"Verify & send approval")
+    tap_text(r"^Daily$", timeout=20)
+    # With Daily there are two Custom chips: minutes first, then days. Tap both before typing, while
+    # both are on screen; neither focuses its field, so tap each field (by its label) to type in it.
+    tap_text(r"^Custom$", index=0)
+    tap_text(r"^Custom$", index=1)
+    tap_text(r"^Minutes$")
+    type_text(str(minutes))
+    tap_text(r"^Days$")
+    type_text(str(days))
+    guardian_approve(PIN)
     text = shared_text(APPROVAL_TIMEOUT)
     approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", text)
     expect(approval, f"no approval link in {text!r}")
@@ -486,28 +557,28 @@ def auto_lock_new_install():
     expect("Success" in adb("install", "-r", TARGET_APK), "target app did not install")
     rows = wait_for(lambda: db(f"select lockState, lockSource from locked_apps where packageName='{TARGET}'"), 20)
     expect(rows == [("LOCKED", "DEFAULT_DENY")], f"locked_apps row: {rows}")
-    notif = wait_for(lambda: "New App Protected" in krypt_notification_text(), 10)
-    expect(notif, "no 'New App Protected' notification")
+    notif = wait_for(lambda: "New app protected" in krypt_notification_text(), 10)
+    expect(notif, "no 'New app protected' notification")
 
 
 @case("03 locked app is blocked before setup")
 def blocked_before_setup():
     launch(TARGET)
     expect(re.search(re.escape(LOCK_SCREEN), wait_top(re.escape(LOCK_SCREEN))), f"top is {top_activity()}")
-    expect(wait_text(r"This app is locked"), "lock screen text missing")
+    expect(wait_text(r"^Locked\.$"), "lock screen text missing")
 
 
-@case("04 Ask Guardian before a PIN exists explains it (negative)")
-def ask_guardian_not_configured():
-    tap_text(r"^Ask Guardian$")
+@case("04 Request access before a PIN exists explains it (negative)")
+def request_access_not_configured():
+    tap_text(r"^Request access$")
     expect(wait_text(r"isn't set up yet", 15), "no 'not set up' message")
     expect("intentresolver" not in top_activity() and "ResolverActivity" not in top_activity(),
            "a share sheet opened without a PIN")
 
 
-@case("05 Go to home screen leaves for the launcher")
-def go_home_from_lock():
-    tap_text(r"^Go to home screen$")
+@case("05 Back to home leaves for the launcher")
+def back_to_home_from_lock():
+    tap_text(r"^Back to home$")
     launcher = launcher_package()
     expect(re.search(re.escape(launcher), wait_top(re.escape(launcher))), f"top is {top_activity()}")
 
@@ -515,64 +586,64 @@ def go_home_from_lock():
 @case("06 onboarding with the mandatory permissions granted")
 def onboarding():
     launch(KRYPT)
-    expect(wait_text(r"Required permissions: 3 of 3", 30), "mandatory progress is not 3 of 3")
-    for _ in range(4):
-        tap_text(r"^Next$")
-    tap_text(r"^Finish$")
-    expect(wait_text(r"^Set Guardian PIN$", 20), "PIN setup screen did not appear")
+    # First run asks who the phone is for; protecting it leads to the permission checklist.
+    if wait_text(r"^I'm protecting this phone$", 30):
+        tap_text(r"^I'm protecting this phone$")
+    expect(wait_text(r"3 of 3 required", 30), "mandatory progress is not 3 of 3")
+    tap_text(r"^Start protecting$")
+    expect(wait_text(r"^Give this phone to your Guardian\.$", 20), "PIN setup screen did not appear")
 
 
 @case("07 PIN setup: mismatched PINs cannot be saved (negative)")
 def pin_setup_mismatch():
-    tap_text(r"^PIN$")
-    type_pin(PIN)
-    tap_text(r"^Confirm PIN$")
-    type_pin("1357")
+    tap_text(r"^Continue$")  # the phone is with the Guardian now
+    expect(wait_text(r"^Choose a PIN$", 10), "the PIN step did not open")
+    enter_pin(PIN)
+    tap_text(r"^Continue$")
+    expect(wait_text(r"^Once more$", 10), "the confirm step did not open")
+    enter_pin("1357")
     tap_text(r"^Save PIN$")
-    time.sleep(3)
-    expect(not matching(r"Securing PIN|^Krypt Admin$"), "mismatched PINs were saved")
-    expect(matching(r"^Set Guardian PIN$"), "left the PIN setup screen")
+    expect(wait_text(r"Those PINs don't match", 10), "no 'PINs don't match' message")
+    expect(not matching(r"Securing your PIN|^Guardian only$|^KRYPT ADMIN$"), "mismatched PINs were saved")
+    expect(matching(r"^Choose a PIN$"), "not back on the PIN setup's first step")
 
 
 @case("08 PIN setup saves the Guardian PIN")
 def pin_setup_ok():
-    # Clear the confirm field and type the matching PIN.
-    confirm = [n for n in nodes() if n["class"].endswith("EditText")][1]
-    sh(f"input tap {confirm['x']} {confirm['y']}")
-    sh("input keyevent KEYCODE_MOVE_END")
-    for _ in range(6):
-        sh("input keyevent KEYCODE_DEL")
-    type_pin(PIN)
+    # Case 07 left the setup on its first step again, with both PINs cleared.
+    expect(wait_text(r"^Choose a PIN$", 10), "not on the PIN setup's first step")
+    enter_pin(PIN)
+    tap_text(r"^Continue$")
+    expect(wait_text(r"^Once more$", 10), "the confirm step did not open")
+    enter_pin(PIN)
     tap_text(r"^Save PIN$")
-    expect(wait_text(r"^Krypt Admin$", 180), "app-entry screen did not appear after saving")
+    expect(wait_text(r"^Guardian only$", 180), "app-entry screen did not appear after saving")
 
 
 @case("09 app entry: wrong PIN is refused (negative)")
 def app_entry_wrong_pin():
-    tap_text(r"^PIN$")
-    type_pin("1111")
-    tap_text(r"^Unlock$")
-    expect(wait_text(r"Wrong PIN\. 2 attempts left\.", 120), "no wrong-PIN message")
+    enter_pin("1111")
+    tap_text(r"^Continue$")
+    expect(wait_text(r"That PIN isn't right\. 2 tries left\.", 120), "no wrong-PIN message")
 
 
 @case("10 app entry: right PIN opens Home with the auto-locked app")
 def app_entry_ok():
-    tap_text(r"^PIN$")
-    type_pin(PIN)
-    tap_text(r"^Unlock$")
+    enter_pin(PIN)
+    tap_text(r"^Continue$")
     expect(wait_text(r"^Search apps$", 120), "Home did not open")
     expect(wait_text(r"Krypt E2E Target", 10), "target app missing from Home")
-    expect(wait_text(r"^Locked$", 5), "target app not shown as Locked")
+    expect(wait_text(LOCKED_STATUS, 5), "target app not shown as Locked")
 
 
 @case("11 Home toggle locks Chrome")
 def manual_lock_chrome():
-    chrome = wait_text(r"^Chrome$", 10)
-    expect(chrome, "Chrome not listed")
-    switches = [n for n in nodes() if n["clickable"] and n["bounds"][1] <= chrome[0]["y"] <= n["bounds"][3]
-                and n["x"] > 800]
-    expect(switches, "no switch on Chrome's row")
-    sh(f"input tap {switches[0]['x']} {switches[0]['y']}")
+    switch = wait_text(r"^Lock Chrome$", 10)  # Chrome's lock switch, by its label
+    if not switch:  # below the fold: bring it up with the search
+        search_home("Chrome")
+        switch = wait_text(r"^Lock Chrome$", 10)
+    expect(switch, "no lock switch for Chrome")
+    sh(f"input tap {switch[0]['x']} {switch[0]['y']}")
     rows = wait_for(lambda: db(f"select lockState, lockSource from locked_apps where packageName='{CHROME}'"), 10)
     expect(rows == [("LOCKED", "MANUAL")], f"Chrome row: {rows}")
 
@@ -581,7 +652,7 @@ def manual_lock_chrome():
 def app_entry_relocks():
     home()
     launch(KRYPT)
-    expect(wait_text(r"^Krypt Admin$", 20), "Krypt reopened without asking for the PIN")
+    expect(wait_text(r"^Guardian only$", 20), "Krypt reopened without asking for the PIN")
     expect(not matching(r"^Search apps$"), "Home Screen visible without the PIN")
     home()
 
@@ -625,13 +696,13 @@ def recents_blocked():
     expect(re.search(re.escape(LOCK_SCREEN), wait_top(re.escape(LOCK_SCREEN))), f"top is {top_activity()}")
 
 
-@case("16 Ask Guardian shares a request link and saves the pending request")
-def ask_guardian():
+@case("16 Request access shares a request link and saves the pending request")
+def request_access():
     expect(wait_text(r"Krypt E2E Target"), "not on the target's lock screen")
-    tap_text(r"^Ask Guardian$")
+    tap_text(r"^Request access$")
     text = shared_text()
     m = re.search(r"krypt://request\?[A-Za-z0-9._~*%+=&-]+", text)
-    expect(m and "Krypt unlock request for Krypt E2E Target" in text, f"share text: {text!r}")
+    expect(m and "Krypt access request for Krypt E2E Target" in text, f"share text: {text!r}")
     STATE["request"] = m.group(0)
     req = re.search(r"req=([0-9a-f-]+)", STATE["request"]).group(1)
     rows = db(f"select targetPackage, consumed from outstanding_requests where requestId='{req}'")
@@ -640,12 +711,12 @@ def ask_guardian():
     dismiss_share_sheet()
 
 
-@case("16b pasting a request link as an approval is refused (negative)")
+@case("16b pasting a request link as a reply is refused (negative)")
 def paste_request_as_approval():
     expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"not back on the lock screen; top is {top_activity()}")
     expect(wait_text(r"Krypt E2E Target"), "lock screen is not for the target app")
-    tap_text(r"^Paste approval link$")
-    expect(wait_text(r"No approval link on the clipboard", 10), "no 'no approval link' message")
+    tap_text(r"^Paste reply$")
+    expect(wait_text(r"No reply on the clipboard", 10), "no 'no reply' message")
     expect(LOCK_SCREEN in top_activity(), "left the lock screen")
 
 
@@ -667,24 +738,22 @@ def process_death_under_lock_screen():
 @case("17 Guardian: wrong PIN is refused (negative)")
 def guardian_wrong_pin():
     open_link(STATE["request"])
-    expect(wait_text(r"Approve unlocking this app", 20), "Guardian screen did not open")
-    tap_text(r"^Enter PIN$")
-    type_pin("0000")
-    tap_text(r"Verify & send approval")
-    expect(wait_text(r"Wrong PIN\. 2 attempts left\.", 120), "no wrong-PIN message")
+    wait_guardian_form()
+    guardian_approve("0000")
+    expect(wait_text(r"That PIN isn't right\. 2 tries left\.", 120), "no wrong-PIN message")
 
 
 @case("18 Guardian: an expired request is refused (negative)")
 def guardian_expired():
     iat = int(re.search(r"iat=(\d+)", STATE["request"]).group(1))
     open_link(STATE["request"].replace(f"iat={iat}", f"iat={iat - 3600}"))
-    expect(wait_text(r"has expired", 20), "expired request was not refused")
+    expect(wait_text(r"This request expired", 20), "expired request was not refused")
 
 
 @case("19 Guardian: a garbled request is refused (negative)")
 def guardian_garbled():
     open_link("krypt://request?v=1&req=not-a-uuid")
-    expect(wait_text(r"Could not read this unlock request", 20), "garbled request was not refused")
+    expect(wait_text(r"Couldn't read this request", 20), "garbled request was not refused")
 
 
 @case("20 legacy krypt://pair links are no longer handled (negative)")
@@ -696,13 +765,11 @@ def legacy_pair_link():
 @case("21 Guardian: right PIN shares an approval link")
 def guardian_ok():
     open_link(STATE["request"])
-    expect(wait_text(r"Approve unlocking this app", 20), "Guardian screen did not open")
-    tap_text(r"^Enter PIN$")
-    type_pin(PIN)
-    tap_text(r"Verify & send approval")
+    wait_guardian_form()
+    guardian_approve(PIN)
     text = shared_text(APPROVAL_TIMEOUT)
     m = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", text)
-    expect(m and "Krypt approval for" in text, f"share text: {text!r}")
+    expect(m and "Krypt reply for Krypt E2E Target" in text, f"share text: {text!r}")
     STATE["approval"] = m.group(0)
     dismiss_share_sheet()
     home()
@@ -768,23 +835,24 @@ def home_shows_unlock():
     open_krypt_home()
     search_home("E2E")
     expect(wait_text(r"^Krypt E2E Target$", 10), "target app missing from Home")
-    status = wait_text(r"^Unlocked · \d+ min left$", 10)
-    expect(status, "the unlocked app is not shown as unlocked")
+    status = wait_text(r"^Open · \d+ min left$", 10)
+    expect(status, "the unlocked app is not shown as open")
     minutes = int(re.search(r"(\d+) min", status[0]["text"]).group(1))
     expect(1 <= minutes <= 15, f"time left shown as {minutes} min")
     switches = home_switches()
     expect(len(switches) == 1 and switches[0]["checked"], f"the lock switch should stay on: {switches}")
 
 
-@case("26c Lock now ends the unlock: the app is blocked again (negative)")
-def lock_now_ends_unlock():
-    tap_text(r"^Lock now$")
-    expect(wait_text(r"^Locked$", 10), "the row did not change to Locked")
-    expect(not matching(r"^Unlocked · "), "the row still shows the unlock")
+@case("26c Relock now ends the unlock: the app is blocked again (negative)")
+def relock_now_ends_unlock():
+    tap_text(r"^Krypt E2E Target$")  # a row open now has no buttons; it opens a sheet
+    tap_text(r"^Relock now$")
+    expect(wait_text(LOCKED_STATUS, 10), "the row did not change to Locked")
+    expect(not matching(r"^Open · "), "the row still shows the unlock")
     home()
     launch(TARGET)
     top = wait_top(re.escape(LOCK_SCREEN))
-    expect(LOCK_SCREEN in top, f"the app still opened after Lock now; top is {top}")
+    expect(LOCK_SCREEN in top, f"the app still opened after Relock now; top is {top}")
     home()
 
 
@@ -792,23 +860,21 @@ def lock_now_ends_unlock():
 def paste_approval_path():
     launch(CHROME)
     wait_top(re.escape(LOCK_SCREEN))
-    tap_text(r"^Ask Guardian$")
+    tap_text(r"^Request access$")
     request = re.search(r"krypt://request\?[A-Za-z0-9._~*%+=&-]+", shared_text())
     expect(request, "no request link for Chrome")
     dismiss_share_sheet()
     open_link(request.group(0))
     tap_text(r"^30 min$", timeout=20)
-    expect(wait_text(r"^Allows: 30 minutes, one time$", 10), "30 minutes not selected")
-    tap_text(r"^Enter PIN$", timeout=20)
-    type_pin(PIN)
-    tap_text(r"Verify & send approval")
+    expect(wait_text(r"^Chrome, 30 minutes, once\.$", 10), "30 minutes not selected")
+    guardian_approve(PIN)
     text = shared_text(APPROVAL_TIMEOUT)
-    expect("30 minutes, one time" in text, f"share text: {text!r}")
+    expect("Krypt reply for Chrome: 30 minutes, once." in text, f"share text: {text!r}")
     copy_from_share_sheet()
     dismiss_share_sheet()
     launch(CHROME)
     wait_top(re.escape(LOCK_SCREEN))
-    tap_text(r"^Paste approval link$")
+    tap_text(r"^Paste reply$")
     top = wait_top(re.escape(CHROME) + r"/", 20)
     expect(CHROME in top, f"top is {top}")
     grants = db(f"select (expiresAt - grantedAt) / 60000 from unlock_grants where targetPackage='{CHROME}'")
@@ -836,7 +902,7 @@ def catch_up_after_protection_off():
 @case("28b every day: the Guardian allows 1 minute a day for 2 days, and the app opens")
 def daily_approval_opens_app():
     grants_before = db(f"select count(*) from unlock_grants where targetPackage='{TARGET}'")[0][0]
-    request = ask_guardian_for(TARGET)
+    request = request_access_for(TARGET)
     text, approval = approve_every_day(request, minutes=1, days=2)
     expect("1 minute a day for 2 days" in text, f"share text: {text!r}")
     open_link(approval)
@@ -857,7 +923,7 @@ def daily_time_paused_without_auto_time():
         set_auto_time(False)
         launch(TARGET)
         expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"top is {top_activity()}")
-        expect(wait_text(r"^Daily time is paused$", 10), "the lock screen doesn't say daily time is paused")
+        expect(wait_text(r"^Paused\.$", 10), "the lock screen doesn't say daily time is paused")
         home()
     finally:
         set_auto_time(True)
@@ -881,8 +947,8 @@ def daily_time_runs_out():
     launch(TARGET)  # a window change, so counting resumes
     top = wait_top(re.escape(LOCK_SCREEN), timeout=(60_000 - used) // 1000 + 20)
     expect(LOCK_SCREEN in top, f"not blocked when today's minute ran out; top is {top}")
-    expect(wait_text(r"^Time's up for today$", 10), "the lock screen doesn't say today's time is up")
-    expect(wait_text(r"^Ask Guardian$", 5), "Ask Guardian is not offered for extra time")
+    expect(wait_text(r"^Done for today\.$", 10), "the lock screen doesn't say today's time is up")
+    expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
     home()
     launch(TARGET)
     expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), "the used-up app opened again")
@@ -916,7 +982,7 @@ def reboot_ends_grants():
     # The first screen dumps after a reboot are slow, and the lock screen may still be Chrome's.
     if not wait_text(rf"^{re.escape(TARGET)}$", 60):
         expect(False, f"the lock screen is not for {TARGET}; it shows {screen_texts()}")
-    if not wait_text(r"^Time's up for today$", 20):
+    if not wait_text(r"^Done for today\.$", 20):
         expect(False, f"after the reboot, today's time is no longer used up; the lock screen shows "
                       f"{screen_texts()}, and {daily_used_ms(TARGET)} ms is saved for today")
     home()
@@ -928,14 +994,13 @@ def grant_expiry_in_app():
     daily_before = daily_used_ms(TARGET)
     launch(TARGET)
     wait_top(re.escape(LOCK_SCREEN))
-    tap_text(r"^Ask Guardian$")
+    tap_text(r"^Request access$")
     request = re.search(r"krypt://request\?[A-Za-z0-9._~*%+=&-]+", shared_text())
     expect(request, "no request link")
     dismiss_share_sheet()
     open_link(request.group(0))
-    tap_text(r"^Enter PIN$", timeout=20)
-    type_pin(PIN)
-    tap_text(r"Verify & send approval")
+    wait_guardian_form()
+    guardian_approve(PIN)
     approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", shared_text(APPROVAL_TIMEOUT))
     expect(approval, "no approval link")
     dismiss_share_sheet()
@@ -975,13 +1040,13 @@ def date_forward_gives_no_new_day():
         set_device_time(device_time_ms() + 24 * 60 * 60_000)  # also switches automatic time off
         launch(TARGET)
         expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"top is {top_activity()}")
-        expect(wait_text(r"^Daily time is paused$", 10), "daily time not paused with automatic time off")
+        expect(wait_text(r"^Paused\.$", 10), "daily time not paused with automatic time off")
         home()
         set_auto_time(True)  # back on, the date still a day ahead
         launch(TARGET)
         top = wait_top(re.escape(LOCK_SCREEN))
         expect(LOCK_SCREEN in top, f"a changed date gave a fresh day of time; top is {top}")
-        expect(wait_text(r"^Time's up for today$", 10), "the lock screen doesn't say today's time is up")
+        expect(wait_text(r"^Done for today\.$", 10), "the lock screen doesn't say today's time is up")
         home()
     finally:
         restore_device_time()
@@ -990,7 +1055,7 @@ def date_forward_gives_no_new_day():
 @case("30d a far date jump and a restart of Krypt don't erase today's used-up time (negative)")
 def date_jump_keeps_used_up_day():
     # A rule that outlasts the jump, so only today's saved use could be lost. Today's use carries over.
-    request = ask_guardian_for(TARGET)
+    request = request_access_for(TARGET)
     _, approval = approve_every_day(request, minutes=1, days=60)
     open_link(approval)
     rule_sql = f"select minutesPerDay, lastEpochDay - firstEpochDay from daily_allowances where packageName='{TARGET}'"
@@ -1010,7 +1075,7 @@ def date_jump_keeps_used_up_day():
     launch(TARGET)
     top = wait_top(re.escape(LOCK_SCREEN))
     expect(LOCK_SCREEN in top, f"a date jump gave a fresh day of time; top is {top}")
-    expect(wait_text(r"^Time's up for today$", 10), "the lock screen doesn't say today's time is up")
+    expect(wait_text(r"^Done for today\.$", 10), "the lock screen doesn't say today's time is up")
     home()
 
 
@@ -1029,13 +1094,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true", help="skip the 15-minute expiry case and Device Admin")
     args = parser.parse_args()
-    all_cases = [install_fresh, auto_lock_new_install, blocked_before_setup, ask_guardian_not_configured,
-                 go_home_from_lock, onboarding, pin_setup_mismatch, pin_setup_ok, app_entry_wrong_pin,
+    all_cases = [install_fresh, auto_lock_new_install, blocked_before_setup, request_access_not_configured,
+                 back_to_home_from_lock, onboarding, pin_setup_mismatch, pin_setup_ok, app_entry_wrong_pin,
                  app_entry_ok, manual_lock_chrome, app_entry_relocks, blocked_chrome, back_goes_home,
-                 recents_blocked, ask_guardian, paste_request_as_approval, process_death_under_lock_screen,
+                 recents_blocked, request_access, paste_request_as_approval, process_death_under_lock_screen,
                  guardian_wrong_pin, guardian_expired, guardian_garbled,
                  legacy_pair_link, guardian_ok, tampered_approval, approval_opens_app, relaunch_during_grant,
-                 replay_approval, grant_survives_restart, home_shows_unlock, lock_now_ends_unlock,
+                 replay_approval, grant_survives_restart, home_shows_unlock, relock_now_ends_unlock,
                  paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
                  daily_time_paused_without_auto_time, daily_time_runs_out,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,

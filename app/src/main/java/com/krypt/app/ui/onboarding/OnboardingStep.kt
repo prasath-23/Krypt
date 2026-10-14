@@ -5,10 +5,11 @@ import com.krypt.app.permission.PermissionClassification
 import com.krypt.app.permission.PermissionKey
 
 /**
- * Canonical descriptor for each onboarding permission step.
+ * Canonical descriptor for each onboarding permission step: one row of the
+ * onboarding checklist.
  *
- * [ORDERED] places Mandatory steps first so the mandatory progress bar fills
- * as the user moves through the natural onboarding sequence.
+ * [ORDERED] places Mandatory steps first, so the checklist's Required group
+ * comes before its Optional one.
  */
 sealed class OnboardingStep(
     val key: PermissionKey,
@@ -20,41 +21,41 @@ sealed class OnboardingStep(
     data object Accessibility : OnboardingStep(
         key = PermissionKey.ACCESSIBILITY,
         classification = PermissionClassification.MANDATORY,
-        titleRes = R.string.onboarding_step1_title,
-        bodyRes = R.string.onboarding_step1_body,
-        grantRes = R.string.onboarding_step1_grant,
+        titleRes = R.string.onboarding_accessibility_title,
+        bodyRes = R.string.onboarding_accessibility_line,
+        grantRes = R.string.permission_allow_in_settings,
     )
 
     data object Overlay : OnboardingStep(
         key = PermissionKey.OVERLAY,
         classification = PermissionClassification.MANDATORY,
-        titleRes = R.string.onboarding_step2_title,
-        bodyRes = R.string.onboarding_step2_body,
-        grantRes = R.string.onboarding_step2_grant,
+        titleRes = R.string.onboarding_overlay_title,
+        bodyRes = R.string.onboarding_overlay_line,
+        grantRes = R.string.permission_allow_in_settings,
     )
 
     data object Battery : OnboardingStep(
         key = PermissionKey.BATTERY,
         classification = PermissionClassification.MANDATORY,
-        titleRes = R.string.onboarding_step5_title,
-        bodyRes = R.string.onboarding_step5_body,
-        grantRes = R.string.onboarding_step5_grant,
+        titleRes = R.string.onboarding_battery_title,
+        bodyRes = R.string.onboarding_battery_line,
+        grantRes = R.string.permission_allow_in_settings,
     )
 
     data object DeviceAdmin : OnboardingStep(
         key = PermissionKey.DEVICE_ADMIN,
         classification = PermissionClassification.OPTIONAL,
-        titleRes = R.string.onboarding_step3_title,
-        bodyRes = R.string.onboarding_step3_body,
-        grantRes = R.string.onboarding_step3_grant,
+        titleRes = R.string.onboarding_admin_title,
+        bodyRes = R.string.onboarding_admin_line,
+        grantRes = R.string.permission_allow_in_settings,
     )
 
     data object Notifications : OnboardingStep(
         key = PermissionKey.NOTIFICATIONS,
         classification = PermissionClassification.OPTIONAL,
-        titleRes = R.string.onboarding_step4_title,
-        bodyRes = R.string.onboarding_step4_body,
-        grantRes = R.string.onboarding_step4_grant,
+        titleRes = R.string.onboarding_notifications_title,
+        bodyRes = R.string.onboarding_notifications_line,
+        grantRes = R.string.permission_allow,
     )
 
     companion object {

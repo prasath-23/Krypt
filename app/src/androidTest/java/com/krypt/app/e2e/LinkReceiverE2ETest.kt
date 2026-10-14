@@ -65,7 +65,7 @@ class LinkReceiverE2ETest {
     fun sharedMessageWithARequest_opensTheGuardianScreen() {
         send(
             Intent(Intent.ACTION_SEND).setType("text/plain")
-                .putExtra(Intent.EXTRA_TEXT, "Krypt unlock request for Example.\nTap the link.\n$request")
+                .putExtra(Intent.EXTRA_TEXT, "Krypt access request for Example.\nTap the link to review it.\n$request")
         )
         intended(allOf(hasComponent(GuardianActivity::class.java.name), hasData(request)))
     }
@@ -74,7 +74,7 @@ class LinkReceiverE2ETest {
     fun selectedTextWithAnApproval_opensTheApprovalSilently() {
         send(
             Intent(Intent.ACTION_PROCESS_TEXT).setType("text/plain")
-                .putExtra(Intent.EXTRA_PROCESS_TEXT, "Krypt approval for Example.\n$approval")
+                .putExtra(Intent.EXTRA_PROCESS_TEXT, "Krypt reply for Example: 15 minutes, once.\n$approval")
         )
         intended(allOf(hasComponent(ApprovalTrampolineActivity::class.java.name), hasData(approval)))
     }

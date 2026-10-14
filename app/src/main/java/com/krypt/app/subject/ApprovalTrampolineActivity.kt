@@ -18,7 +18,9 @@ import com.krypt.app.deeplink.ApprovalOutcome
 import com.krypt.app.ui.common.dayText
 import com.krypt.app.ui.common.durationText
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
@@ -49,6 +51,14 @@ class ApprovalTrampolineActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_approval_trampoline)
 
+        // Recreated (e.g. after the process died mid-approval): the reply is
+        // single-use and may already be spent, so reading it again could only
+        // show a misleading error. The person can tap the link again.
+        if (savedInstanceState != null) {
+            finish()
+            return
+        }
+
         val url = intent?.dataString
         if (url.isNullOrBlank()) {
             Toast.makeText(this, R.string.approval_error_unreadable, Toast.LENGTH_SHORT).show()
@@ -62,7 +72,10 @@ class ApprovalTrampolineActivity : ComponentActivity() {
         // letting the next tap re-open.
         lifecycleScope.launch {
             when (val outcome = consumer.consume(url)) {
-                is Outcome.Ok  -> onUnlockSuccess(outcome.value)
+                // Once the reply is spent, finish the job even if Back closes this
+                // window mid-flash: the grant is recorded either way, so the toast
+                // and the app must follow.
+                is Outcome.Ok  -> withContext(NonCancellable) { onUnlockSuccess(outcome.value) }
                 is Outcome.Err -> onUnlockError(outcome.error)
             }
         }
@@ -107,7 +120,8 @@ class ApprovalTrampolineActivity : ComponentActivity() {
     private fun openUnlockedApp(pkg: String) {
         val launch = packageManager.getLaunchIntentForPackage(pkg) ?: return
         try {
-            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // The application context still works if this window has already closed.
+            applicationContext.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (_: ActivityNotFoundException) {
             // Uninstalled or disabled since the request; the grant still stands.
         }

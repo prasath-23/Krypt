@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -83,9 +84,10 @@ class GuardianScreenE2ETest {
     )
 
     private fun ComposeTestRule.enterGuardianPin(pin: String) {
-        awaitText("Verify & send approval")
+        awaitText("Approve and send")
         onNodeWithTag(PIN_FIELD_TAG).performScrollTo().performTextInput(pin)
-        onNodeWithText("Verify & send approval").performScrollTo().performClick()
+        // Pinned under the form, outside its scrolling column: nothing to scroll to.
+        onNodeWithText("Approve and send").performClick()
     }
 
     @Test
@@ -93,7 +95,7 @@ class GuardianScreenE2ETest {
         open(issueRequest()).use {
             compose.awaitText("com.example.target")
             compose.enterGuardianPin(TEST_PIN)
-            compose.awaitText("Approval sent", substring = true)
+            compose.awaitText("Sent.")
         }
         intended(
             allOf(
@@ -101,7 +103,7 @@ class GuardianScreenE2ETest {
                 hasExtra(
                     equalTo(Intent.EXTRA_INTENT),
                     allOf(
-                        hasExtra(equalTo(Intent.EXTRA_TEXT), containsString("Krypt approval for com.example.target")),
+                        hasExtra(equalTo(Intent.EXTRA_TEXT), containsString("Krypt reply for com.example.target")),
                         hasExtra(equalTo(Intent.EXTRA_TEXT), containsString("krypt://approve?")),
                     ),
                 ),
@@ -114,15 +116,15 @@ class GuardianScreenE2ETest {
         open(issueRequest()).use {
             compose.awaitText("30 min")
             compose.onNodeWithText("30 min").performClick()
-            compose.awaitText("Allows: 30 minutes, one time")
+            compose.awaitText("com.example.target, 30 minutes, once.")
             compose.enterGuardianPin(TEST_PIN)
-            compose.awaitText("Approval sent", substring = true)
+            compose.awaitText("Sent.")
         }
         val shared = Intents.getIntents()
             .first { it.action == Intent.ACTION_CHOOSER }
             .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
             .getStringExtra(Intent.EXTRA_TEXT)!!
-        assertEquals(true, shared.contains("Krypt approval for com.example.target: 30 minutes, one time."))
+        assertEquals(true, shared.contains("Krypt reply for com.example.target: 30 minutes, once."))
 
         // The request was issued on this device, so it can consume its own approval.
         val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
@@ -131,23 +133,24 @@ class GuardianScreenE2ETest {
     }
 
     @Test
-    fun everyDay_withTypedMinutesAndDays_isWhatTheApprovalAllows() {
+    fun daily_withCustomMinutesAndDays_isWhatTheApprovalAllows() {
         open(issueRequest()).use {
-            compose.awaitText("Every day")
-            compose.onNodeWithText("Every day").performClick()
-            compose.onNodeWithText("Set minutes").performClick()
+            compose.awaitText("Daily")
+            compose.onNodeWithText("Daily").performClick()
+            // With Daily there are two Custom chips: minutes first, then days.
+            compose.onAllNodesWithText("Custom")[0].performClick()
             compose.onNodeWithTag(MINUTES_FIELD_TAG).performTextInput("1")
-            compose.onNodeWithText("Set days").performScrollTo().performClick()
+            compose.onAllNodesWithText("Custom")[1].performScrollTo().performClick()
             compose.onNodeWithTag(DAYS_FIELD_TAG).performScrollTo().performTextInput("2")
-            compose.awaitText("Allows: 1 minute a day for 2 days")
+            compose.awaitText("com.example.target, 1 minute a day for 2 days.")
             compose.enterGuardianPin(TEST_PIN)
-            compose.awaitText("Approval sent", substring = true)
+            compose.awaitText("Sent.")
         }
         val shared = Intents.getIntents()
             .first { it.action == Intent.ACTION_CHOOSER }
             .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
             .getStringExtra(Intent.EXTRA_TEXT)!!
-        assertEquals(true, shared.contains("Krypt approval for com.example.target: 1 minute a day for 2 days."))
+        assertEquals(true, shared.contains("Krypt reply for com.example.target: 1 minute a day for 2 days."))
 
         val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
         val daily = (runBlocking { consumer.consume(url) } as Outcome.Ok).value as ApprovalOutcome.EveryDay
@@ -159,19 +162,19 @@ class GuardianScreenE2ETest {
     fun aRequestFromAnOlderPhone_offersOneTimeOnly() {
         open(issueRequest().replace("&caps=daily", "")).use {
             compose.awaitText("30 min")
-            compose.onAllNodes(hasText("Every day")).assertCountEquals(0)
+            compose.onAllNodes(hasText("Daily")).assertCountEquals(0)
         }
     }
 
     @Test
     fun unusableTypedMinutes_blockTheApproval() {
         open(issueRequest()).use {
-            compose.awaitText("Set minutes")
-            compose.onNodeWithText("Set minutes").performClick()
+            compose.awaitText("Custom")
+            compose.onAllNodesWithText("Custom")[0].performClick()
             compose.onNodeWithTag(MINUTES_FIELD_TAG).performTextInput("0")
-            compose.awaitText("Enter a number of minutes from 1 to 1440.")
+            compose.awaitText("Choose 1 to 1440 minutes.")
             compose.onNodeWithTag(PIN_FIELD_TAG).performTextInput(TEST_PIN)
-            compose.onNodeWithText("Verify & send approval").assertIsNotEnabled()
+            compose.onNodeWithText("Approve and send").assertIsNotEnabled()
         }
         intended(hasAction(Intent.ACTION_CHOOSER), times(0))
     }
@@ -180,12 +183,14 @@ class GuardianScreenE2ETest {
     fun wrongPins_countDownThenLockOut_andNoApprovalIsShared() {
         open(issueRequest()).use {
             compose.enterGuardianPin("0000")
-            compose.awaitText("Wrong PIN. 2 attempts left.")
+            compose.awaitText("That PIN isn't right. 2 tries left.")
             compose.enterGuardianPin("1111")
-            compose.awaitText("Wrong PIN. 1 attempt left.")
+            compose.awaitText("That PIN isn't right. 1 try left.")
             compose.enterGuardianPin("2222")
             compose.awaitText("Too many wrong PINs", substring = true)
-            compose.onNodeWithText("Verify & send approval").assertIsNotEnabled()
+            compose.onNodeWithText("Approve and send").assertIsNotEnabled()
+            // The button is also disabled for an empty PIN, so check the PIN entry itself takes nothing.
+            compose.onNodeWithTag(PIN_FIELD_TAG).assertIsNotEnabled()
         }
         intended(hasAction(Intent.ACTION_CHOOSER), times(0))
     }
@@ -195,21 +200,21 @@ class GuardianScreenE2ETest {
         val url = issueRequest()
         val iat = Regex("iat=(\\d+)").find(url)!!.groupValues[1].toLong()
         open(url.replace("iat=$iat", "iat=${iat - 3_600}")).use {
-            compose.awaitText("This unlock request has expired", substring = true)
+            compose.awaitText("This request expired", substring = true)
         }
     }
 
     @Test
     fun garbledRequest_isUnreadable() {
         open("krypt://request?v=1&req=not-a-uuid").use {
-            compose.awaitText("Could not read this unlock request.")
+            compose.awaitText("Couldn't read this request.")
         }
     }
 
     @Test
     fun legacyPairingLink_isUnknown() {
         open("krypt://pair?v=1&sub=12345678-1234-4abc-8def-123456789abc").use {
-            compose.awaitText("Unknown Krypt link")
+            compose.awaitText("Not a Krypt request")
         }
     }
 }

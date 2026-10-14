@@ -75,7 +75,7 @@ class AccessibilityHealthWorkerTest {
         val deadline = SystemClock.uptimeMillis() + withinMs
         while (true) {
             val shown = notifications.activeNotifications.any {
-                it.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() == "Krypt protection is off"
+                it.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() == "Krypt is off"
             }
             if (shown || SystemClock.uptimeMillis() >= deadline) return shown
             Thread.sleep(100)
@@ -88,7 +88,7 @@ class AccessibilityHealthWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), runWorker())
 
-        assertTrue("no 'Krypt protection is off' alert", protectionOffAlertShown(withinMs = 5_000))
+        assertTrue("no 'Krypt is off' alert", protectionOffAlertShown(withinMs = 5_000))
     }
 
     @Test

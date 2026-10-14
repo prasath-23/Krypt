@@ -19,7 +19,7 @@ class LinkReceiverActivity : ComponentActivity() {
         val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)
             ?: intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
         if (!openKryptLinkIn(text)) {
-            Toast.makeText(this, R.string.link_not_found, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.link_not_found_toast, Toast.LENGTH_LONG).show()
         }
         finish()
     }

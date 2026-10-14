@@ -1,26 +1,16 @@
 package com.krypt.app.ui.main
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -29,22 +19,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krypt.app.R
-import com.krypt.app.ui.common.lockoutCountdown
-import com.krypt.app.ui.common.pinLockoutMessage
+import com.krypt.app.ui.components.Eyebrow
+import com.krypt.app.ui.components.KryptIcons
+import com.krypt.app.ui.components.KryptPage
+import com.krypt.app.ui.components.PinEntry
+import com.krypt.app.ui.components.PrimaryButton
+import com.krypt.app.ui.components.ScreenTitle
+import com.krypt.app.ui.components.TertiaryButton
 import com.krypt.app.ui.link.pasteKryptLinkAction
 import com.krypt.app.ui.setup.PinSetupViewModel
+import com.krypt.app.ui.theme.KryptSpace
 import kotlinx.coroutines.launch
 
 /**
- * Guardian PIN gate in front of the Home Screen. Also offers "Paste link",
- * so a Krypt link copied from a chat can be opened when the messaging app
- * does not make it tappable.
+ * The Krypt Admin gate in front of Home (docs/design-system/Screens.md): the
+ * Guardian PIN on Krypt's own keypad, then Continue. A lockout puts its
+ * countdown in place of the message line. Paste a link opens a Krypt link
+ * copied from a chat, for messengers that don't make it tappable.
+ *
+ * The PIN lives only in plain [remember] state, never in saved state. It is
+ * cleared the moment it is sent, after a wrong PIN and when the screen closes
+ * (best effort: the old String stays on the heap until GC).
  */
 @Composable
 fun AppEntryPinScreen(
@@ -52,113 +51,104 @@ fun AppEntryPinScreen(
     viewModel: AppEntryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var pinText by remember { mutableStateOf("") }
+    val current = state
+    var pin by remember { mutableStateOf("") }
+    // The length of the PIN being checked, so its dots stay filled and breathe; the PIN itself is already cleared.
+    var sentDigits by remember { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val noLinkMessage = stringResource(R.string.link_not_found)
+    val linkNotFound = stringResource(R.string.link_not_found)
     val pasteLink = pasteKryptLinkAction {
-        scope.launch { snackbarHostState.showSnackbar(noLinkMessage) }
+        scope.launch { snackbarHostState.showSnackbar(linkNotFound) }
     }
 
-    LaunchedEffect(state) {
-        when (state) {
+    DisposableEffect(Unit) {
+        onDispose { pin = " ".repeat(pin.length) }
+    }
+
+    LaunchedEffect(current) {
+        if (current !is AppEntryState.Validating) sentDigits = 0
+        when (current) {
             AppEntryState.Success -> {
                 viewModel.onSuccessHandled()
                 onSuccess()
             }
             is AppEntryState.WrongPin,
             is AppEntryState.LockedOut,
-            AppEntryState.NotConfigured -> pinText = ""
+            AppEntryState.NotConfigured -> pin = ""
             else -> Unit
         }
     }
 
-    val lockout = state as? AppEntryState.LockedOut
-    val lockoutLeftMs = lockoutCountdown(lockout?.retryInMs, onFinished = viewModel::acknowledgeError)
-    val isValidating = state is AppEntryState.Validating
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { inner ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner),
-            contentAlignment = Alignment.Center
+    val checking = current is AppEntryState.Validating
+    val lockout = current as? AppEntryState.LockedOut
+    val isError = current is AppEntryState.WrongPin || current is AppEntryState.NotConfigured
+    // Reads the live PIN and state, so a double tap or Enter never sends an empty PIN (the check rejects one).
+    val submit: () -> Unit = {
+        val now = viewModel.state.value
+        if (pin.length >= PinSetupViewModel.MIN_PIN_LEN &&
+            now !is AppEntryState.Validating &&
+            now !is AppEntryState.LockedOut
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.app_entry_title),
-                    style = MaterialTheme.typography.headlineMedium
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.app_entry_prompt),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-
-                OutlinedTextField(
-                    value = pinText,
-                    onValueChange = { input ->
-                        pinText = input.filter(Char::isDigit).take(PinSetupViewModel.MAX_PIN_LEN)
-                        if (state is AppEntryState.WrongPin || state is AppEntryState.NotConfigured) {
-                            viewModel.acknowledgeError()
-                        }
-                    },
-                    label = { Text(stringResource(R.string.app_entry_pin_label)) },
-                    singleLine = true,
-                    enabled = lockout == null && !isValidating,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                val error = when (val s = state) {
-                    is AppEntryState.WrongPin ->
-                        pluralStringResource(R.plurals.pin_error_wrong, s.attemptsLeft, s.attemptsLeft)
-                    is AppEntryState.LockedOut -> pinLockoutMessage(lockoutLeftMs)
-                    AppEntryState.NotConfigured -> stringResource(R.string.app_entry_not_configured)
-                    else -> null
-                }
-                error?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Button(
-                    onClick = { viewModel.submitPin(pinText.toCharArray()) },
-                    enabled = pinText.length >= PinSetupViewModel.MIN_PIN_LEN &&
-                        !isValidating && lockout == null,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isValidating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(2.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text(stringResource(R.string.app_entry_unlock))
-                    }
-                }
-
-                TextButton(
-                    onClick = pasteLink,
-                    modifier = Modifier.padding(top = 8.dp),
-                ) { Text(stringResource(R.string.paste_link)) }
-            }
+            sentDigits = pin.length
+            viewModel.submitPin(pin.toCharArray())
+            pin = ""
         }
+    }
+
+    KryptPage(
+        snackbarHostState = snackbarHostState,
+        actions = {
+            PrimaryButton(
+                text = stringResource(R.string.action_continue),
+                onClick = submit,
+                enabled = pin.length >= PinSetupViewModel.MIN_PIN_LEN && !checking && lockout == null,
+                busy = checking,
+                busyText = stringResource(R.string.guardian_checking),
+            )
+            TertiaryButton(
+                text = stringResource(R.string.paste_link),
+                onClick = pasteLink,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                icon = KryptIcons.Link,
+            )
+            // HintText's style, centred under Paste a link.
+            Text(
+                text = stringResource(R.string.paste_link_hint),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        },
+    ) {
+        Eyebrow(stringResource(R.string.app_entry_eyebrow))
+        Spacer(Modifier.height(KryptSpace.s2))
+        ScreenTitle(stringResource(R.string.app_entry_title))
+        Spacer(Modifier.height(KryptSpace.s6))
+        PinEntry(
+            pin = if (sentDigits > 0) " ".repeat(sentDigits) else pin,
+            onPinChange = { typed ->
+                pin = typed
+                if (current is AppEntryState.WrongPin || current is AppEntryState.NotConfigured) {
+                    viewModel.acknowledgeError()
+                }
+            },
+            maxLength = PinSetupViewModel.MAX_PIN_LEN,
+            minLength = PinSetupViewModel.MIN_PIN_LEN,
+            busy = checking,
+            message = when (current) {
+                AppEntryState.Validating -> stringResource(R.string.pin_checking)
+                is AppEntryState.WrongPin ->
+                    pluralStringResource(R.plurals.pin_error_wrong, current.attemptsLeft, current.attemptsLeft)
+                AppEntryState.NotConfigured -> stringResource(R.string.app_entry_not_configured)
+                else -> stringResource(R.string.app_entry_prompt)
+            },
+            isError = isError,
+            errorKey = current.takeIf { isError },
+            lockoutMs = lockout?.retryInMs,
+            onLockoutElapsed = viewModel::acknowledgeError,
+            onSubmit = submit,
+        )
     }
 }

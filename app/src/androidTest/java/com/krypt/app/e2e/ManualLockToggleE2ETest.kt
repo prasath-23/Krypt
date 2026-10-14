@@ -1,5 +1,6 @@
 package com.krypt.app.e2e
 
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -33,9 +34,13 @@ import javax.inject.Inject
 
 /**
  * e2e test for the Home Screen lock toggle (FR-032). The Home Screen is
- * behind the Guardian PIN, so both directions write straight through.
+ * behind the Guardian PIN: turning a lock on writes straight through, and
+ * turning one off asks first in a sheet. A row that is open now has no
+ * buttons; tapping it opens a sheet that ends the access early.
  *
  * Installed apps come from [FakeInstalledAppsRepository]: Alpha, Beta, Gamma.
+ * Home groups them into Open now, Locked and Not locked, so a locked app is
+ * listed before the unlocked ones.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -62,6 +67,9 @@ class ManualLockToggleE2ETest {
         compose.awaitText("Alpha")
     }
 
+    /** [app]'s lock switch, found by its label ("Lock Beta") whatever section the row is in. */
+    private fun lockSwitch(app: String) = compose.onNode(isToggleable() and hasContentDescription("Lock $app"))
+
     private fun isLocked(pkg: String) = runBlocking { lockedAppsRepo.checkIfAppIsLocked(pkg) }
 
     private fun waitForLockState(pkg: String, locked: Boolean) {
@@ -73,7 +81,7 @@ class ManualLockToggleE2ETest {
     fun togglingAnUnlockedApp_locksIt() {
         ActivityScenario.launch(MainActivity::class.java).use {
             openHome()
-            compose.onAllNodes(isToggleable())[0].performClick() // Alpha
+            lockSwitch("Alpha").performClick() // locking needs no confirmation
 
             waitForLockState("com.example.alpha", locked = true)
             assertTrue("Alpha should be locked after toggle", isLocked("com.example.alpha"))
@@ -82,12 +90,17 @@ class ManualLockToggleE2ETest {
     }
 
     @Test
-    fun togglingALockedApp_unlocksIt() {
+    fun togglingALockedApp_andRemovingTheLock_unlocksIt() {
         runBlocking { lockedAppsRepo.lock("com.example.beta", "Beta", LockSource.MANUAL) }
         ActivityScenario.launch(MainActivity::class.java).use {
             openHome()
             compose.awaitText("Locked")
-            compose.onAllNodes(isToggleable())[1].performClick() // Beta
+            lockSwitch("Beta").performClick()
+
+            // Removing a lock opens the app for good, so Home asks first.
+            compose.awaitText("Unlock Beta for good?")
+            assertTrue("the switch alone must not remove the lock", isLocked("com.example.beta"))
+            compose.onNodeWithText("Remove lock").performClick()
 
             waitForLockState("com.example.beta", locked = false)
             assertFalse("Beta should be unlocked after toggle", isLocked("com.example.beta"))
@@ -95,15 +108,17 @@ class ManualLockToggleE2ETest {
     }
 
     @Test
-    fun guardianUnlock_showsTheTimeLeft_andLockNowEndsIt() {
+    fun guardianUnlock_showsTheTimeLeft_andRelockNowEndsIt() {
         runBlocking { lockedAppsRepo.lock("com.example.beta", "Beta", LockSource.MANUAL) }
         sessionStore.recordGrant("com.example.beta", clock.nowMs() + 20 * 60_000L)
         ActivityScenario.launch(MainActivity::class.java).use {
             openHome()
-            compose.awaitText("Unlocked · 20 min left")
+            compose.awaitText("Open · 20 min left")
             assertTrue("the switch still shows the lock", isLocked("com.example.beta"))
 
-            compose.onNodeWithText("Lock now").performClick()
+            compose.onNodeWithText("Beta").performClick() // the row opens its sheet
+            compose.awaitText("Relock now")
+            compose.onNodeWithText("Relock now").performClick()
 
             compose.awaitText("Locked")
             assertFalse(sessionStore.isUnlockedNow("com.example.beta"))
@@ -112,7 +127,7 @@ class ManualLockToggleE2ETest {
     }
 
     @Test
-    fun everyDayRule_showsTodaysTimeLeft_andEndDailyTimeEndsIt() {
+    fun everyDayRule_showsTodaysTimeLeft_andStopDailyTimeEndsIt() {
         runBlocking { lockedAppsRepo.lock("com.example.beta", "Beta", LockSource.MANUAL) }
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
@@ -121,9 +136,11 @@ class ManualLockToggleE2ETest {
         )
         ActivityScenario.launch(MainActivity::class.java).use {
             openHome()
-            compose.awaitText("Daily: 60 of 60 min left today", substring = true)
+            compose.awaitText("Daily · 60 of 60 min left", substring = true)
 
-            compose.onNodeWithText("End daily time").performClick()
+            compose.onNodeWithText("Beta").performClick() // the row opens its sheet
+            compose.awaitText("Stop daily time")
+            compose.onNodeWithText("Stop daily time").performClick()
 
             compose.awaitText("Locked")
             assertEquals(DailyAccess.None, dailyMeter.access("com.example.beta"))

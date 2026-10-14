@@ -3,177 +3,244 @@
     User-visible strings. All literal text in Kotlin / Compose MUST reference a
     key from this file (enforced by lint in WP18). Placeholders use the %1$s
     syntax for future localisation.
+
+    Voice (docs/design-system/README.md): short, warm and adult. Serif
+    statements end with a full stop ("Locked."); buttons are sentence-case
+    verbs of at most three words; " · " is the only separator in status
+    lines; toasts have no closing full stop; no exclamation marks.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Krypt</string>
 
-    <!-- Notifications (WP07) -->
-    <string name="notif_app_locked_title">New App Protected</string>
-    <string name="notif_app_locked_body">%1$s (%2$s) has been locked by default</string>
-    <string name="notif_protection_off_title">Krypt protection is off</string>
-    <string name="notif_protection_off_body">Locked apps can be opened freely. Tap to turn Krypt Locker back on in Accessibility settings.</string>
-
-    <!-- Lock screen (Amendment 2; replaces the WP09 overlay) -->
-    <string name="lock_icon_desc">Locked app icon</string>
-    <string name="lock_title">This app is locked</string>
-    <string name="lock_body">Ask your Guardian for access. The app opens as soon as they approve.</string>
-    <string name="lock_ask_guardian">Ask Guardian</string>
-    <string name="lock_go_home">Go to home screen</string>
-    <string name="lock_status_preparing">Preparing your request…</string>
-    <plurals name="lock_status_sent">
-        <item quantity="one">Request sent. When your Guardian approves, tap the link in their reply, or copy the reply and tap Paste approval link, and %1$s will open. Requests expire after %2$d minute.</item>
-        <item quantity="other">Request sent. When your Guardian approves, tap the link in their reply, or copy the reply and tap Paste approval link, and %1$s will open. Requests expire after %2$d minutes.</item>
-    </plurals>
-    <string name="lock_status_not_configured">Krypt isn\'t set up yet. Open Krypt and set a Guardian PIN first.</string>
-    <string name="lock_status_failed">Couldn\'t create the request. Please try again.</string>
-    <string name="lock_paste_approval">Paste approval link</string>
-    <string name="lock_paste_no_approval">No approval link on the clipboard. Copy your Guardian\'s whole reply first.</string>
-    <string name="lock_footer">Krypt protects this app</string>
-    <string name="lock_title_daily_used_up">Time\'s up for today</string>
-    <plurals name="lock_body_daily_used_up">
-        <item quantity="one">Today\'s %d minute is used up. Ask your Guardian if you need more time now.</item>
-        <item quantity="other">Today\'s %d minutes are used up. Ask your Guardian if you need more time now.</item>
-    </plurals>
-    <string name="lock_title_daily_paused">Daily time is paused</string>
-    <string name="lock_body_daily_paused">This app\'s daily time needs Set time automatically. Turn it on in Settings, or ask your Guardian.</string>
-
-    <!-- Sharing and opening Krypt links (Amendment 2) -->
-    <string name="request_share_text">Krypt unlock request for %1$s.\nTap the link to review it. If it doesn\'t open, copy this whole message, open Krypt and tap Paste link.\n%2$s</string>
-    <!-- %1$s: the app; %2$s: what the approval allows, e.g. "30 minutes, one time"; %3$s: the link. -->
-    <string name="approval_share_text">Krypt approval for %1$s: %2$s.\nTap the link to unlock it. If it doesn\'t open, copy this whole message, open the locked app and tap Paste approval link.\n%3$s</string>
-    <string name="paste_link">Paste link</string>
+    <!-- Shared -->
+    <string name="eyebrow_krypt">KRYPT</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_back">Back</string>
+    <string name="paste_link">Paste a link</string>
+    <string name="paste_link_hint">Got a Krypt link that won\'t open? Copy it and tap Paste a link.</string>
+    <!-- Snackbar after Paste a link on Krypt's own screens. -->
+    <string name="link_not_found">No Krypt link found. Copy the whole message first.</string>
+    <!-- Toast from "Open in Krypt" (shared or selected text). Toasts have no closing full stop. -->
+    <string name="link_not_found_toast">No Krypt link found. Copy the whole message first</string>
     <string name="link_receiver_label">Open in Krypt</string>
-    <string name="link_not_found">No Krypt link found. Copy the whole message that contains the link first.</string>
-    <string name="link_unknown_title">Unknown Krypt link</string>
-    <string name="link_unknown_body">Krypt can\'t open this link. Ask for a new unlock request.</string>
 
-    <!-- Accessibility service (WP10) -->
-    <string name="accessibility_service_label">Krypt Locker</string>
-    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and block locked apps until your Guardian approves. For apps your Guardian gives daily time, Krypt counts the minutes they are used each day, on this device only. Krypt does not read your app content and does not send any data off the device.</string>
-    <string name="accessibility_service_summary">Blocks locked apps from opening until your Guardian approves.</string>
-
-    <!-- Device Admin (WP11) -->
-    <string name="device_admin_label">Krypt Device Admin</string>
-    <string name="device_admin_description">Required so Krypt cannot be uninstalled without first being disabled here. Krypt does not use any other device-admin privilege.</string>
-    <string name="device_admin_disable_warning">Disabling Krypt device admin will allow anyone to uninstall Krypt and remove protection from your locked apps. Are you sure?</string>
-    <string name="device_admin_explanation">Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first.</string>
-
-    <!-- App entry: Guardian PIN gate in front of the Home Screen -->
-    <string name="app_entry_title">Krypt Admin</string>
-    <string name="app_entry_prompt">Enter the Guardian PIN to manage locked apps.</string>
-    <string name="app_entry_pin_label">PIN</string>
-    <string name="app_entry_unlock">Unlock</string>
-    <string name="app_entry_not_configured">The Guardian PIN isn\'t set up on this device.</string>
-
-    <!-- Wrong-PIN messages shared by the entry and Guardian screens -->
+    <!-- PIN entry: dots over Krypt's own keypad -->
+    <plurals name="pin_a11y_digits">
+        <item quantity="one">Guardian PIN, %1$d digit entered</item>
+        <item quantity="other">Guardian PIN, %1$d digits entered</item>
+    </plurals>
+    <string name="pin_key_delete">Delete</string>
+    <string name="pin_checking">Checking…</string>
+    <!-- Wrong-PIN message shared by the Krypt Admin gate and the Guardian screen. -->
     <plurals name="pin_error_wrong">
-        <item quantity="one">Wrong PIN. %1$d attempt left.</item>
-        <item quantity="other">Wrong PIN. %1$d attempts left.</item>
+        <item quantity="one">That PIN isn\'t right. %1$d try left.</item>
+        <item quantity="other">That PIN isn\'t right. %1$d tries left.</item>
     </plurals>
-    <string name="pin_error_lockout_seconds">Too many wrong PINs. Try again in %1$d s.</string>
-    <string name="pin_error_lockout_minutes">Too many wrong PINs. Try again in %1$d min.</string>
+    <string name="pin_lockout_line">Too many wrong PINs. Try again when the timer ends.</string>
+    <!-- Inside the lockout ring past 60 seconds, e.g. "7 min". -->
+    <string name="pin_lockout_minutes">%1$d min</string>
+    <plurals name="pin_lockout_a11y_seconds">
+        <item quantity="one">Try again in %1$d second</item>
+        <item quantity="other">Try again in %1$d seconds</item>
+    </plurals>
+    <plurals name="pin_lockout_a11y_minutes">
+        <item quantity="one">Try again in %1$d minute</item>
+        <item quantity="other">Try again in %1$d minutes</item>
+    </plurals>
 
-    <!-- Home Screen app-locker list (feature 002, WP04) -->
-    <string name="home_search_hint">Search apps</string>
-    <string name="home_share_chooser_title">Send unlock request to Guardian</string>
-    <string name="home_label_locked">Locked</string>
-    <!-- A Guardian unlock that is still running; the app locks again by itself. -->
-    <plurals name="home_status_unlocked">
-        <item quantity="one">Unlocked · %d min left</item>
-        <item quantity="other">Unlocked · %d min left</item>
+    <!-- First run: who is this phone for? -->
+    <string name="first_run_title">Welcome to Krypt</string>
+    <string name="first_run_protect">I\'m protecting this phone</string>
+    <string name="first_run_protect_line">Lock apps here. Only your Guardian can open them.</string>
+    <string name="first_run_guardian">I\'m a Guardian</string>
+    <string name="first_run_guardian_line">Approve requests sent from a locked phone.</string>
+    <string name="guardian_home_eyebrow">GUARDIAN</string>
+    <string name="guardian_home_title">Ready to approve.</string>
+    <string name="guardian_home_body">You only need Krypt to approve requests. When a request arrives in a chat, tap its link.</string>
+
+    <!-- Onboarding: one checklist -->
+    <string name="onboarding_title">Before Krypt can protect</string>
+    <string name="onboarding_body">Each item opens its page in Settings. Come back here when it says Allowed.</string>
+    <string name="onboarding_required">REQUIRED</string>
+    <string name="onboarding_optional">OPTIONAL</string>
+    <string name="onboarding_accessibility_title">See when a locked app opens</string>
+    <string name="onboarding_accessibility_line">Krypt notices which app opens. It never reads what\'s on screen.</string>
+    <string name="onboarding_overlay_title">Show the lock over apps</string>
+    <string name="onboarding_overlay_line">Lets Krypt put its lock screen in front of a locked app.</string>
+    <string name="onboarding_battery_title">Keep running in the background</string>
+    <string name="onboarding_battery_line">So the battery saver never switches Krypt off.</string>
+    <string name="onboarding_admin_title">Make Krypt harder to remove</string>
+    <string name="onboarding_admin_line">Krypt can\'t be uninstalled until this is turned off in Settings.</string>
+    <string name="onboarding_notifications_title">Alerts about new apps</string>
+    <string name="onboarding_notifications_line">Krypt tells you when it locks a newly installed app.</string>
+    <string name="permission_allowed">Allowed</string>
+    <string name="permission_not_allowed_yet">Not allowed yet</string>
+    <string name="permission_not_allowed">Not allowed</string>
+    <string name="permission_allow_in_settings">Allow in settings</string>
+    <string name="permission_allow">Allow</string>
+    <string name="onboarding_battery_help">Help for Xiaomi, Samsung and others</string>
+    <string name="onboarding_settings_missing">This phone didn\'t open that page. Look for it in the Settings app.</string>
+    <!-- Mandatory progress; counts only the required items, of which there are always 3. -->
+    <string name="onboarding_progress" tools:ignore="PluralsCandidate">%1$d of %2$d required</string>
+    <string name="onboarding_progress_ready" tools:ignore="PluralsCandidate">%1$d of %2$d required · ready</string>
+    <string name="onboarding_start">Start protecting</string>
+    <string name="onboarding_start_hint" tools:ignore="PluralsCandidate">Allow the %1$d required items to start.</string>
+
+    <!-- Set Guardian PIN: a hand-over in three beats -->
+    <string name="pin_setup_handover_title">Give this phone to your Guardian.</string>
+    <string name="pin_setup_handover_body">They\'ll choose a PIN only they know.</string>
+    <!-- e.g. "STEP 1 OF 2" -->
+    <string name="pin_setup_step">STEP %1$d OF %2$d</string>
+    <string name="pin_setup_choose_title">Choose a PIN</string>
+    <string name="pin_setup_choose_line">4 to 6 digits</string>
+    <string name="pin_setup_confirm_title">Once more</string>
+    <string name="pin_setup_confirm_line">Type the same PIN again</string>
+    <string name="pin_setup_save">Save PIN</string>
+    <string name="pin_setup_saving">Securing your PIN…</string>
+    <string name="pin_setup_done_title">Done. Hand the phone back.</string>
+    <string name="pin_setup_error_too_short">Use at least 4 digits.</string>
+    <string name="pin_setup_error_not_numeric">Numbers only.</string>
+    <string name="pin_setup_error_mismatch">Those PINs don\'t match.</string>
+    <string name="pin_setup_error_save_failed">Couldn\'t save the PIN. Try again.</string>
+
+    <!-- Krypt Admin gate in front of Home -->
+    <string name="app_entry_eyebrow">KRYPT ADMIN</string>
+    <string name="app_entry_title">Guardian only</string>
+    <string name="app_entry_prompt">Enter the Guardian PIN to manage apps</string>
+    <string name="app_entry_not_configured">The Guardian PIN isn\'t set up on this phone.</string>
+
+    <!-- Home: your apps -->
+    <string name="home_title">Your apps</string>
+    <plurals name="home_badge_locked">
+        <item quantity="one">%1$d locked</item>
+        <item quantity="other">%1$d locked</item>
     </plurals>
-    <string name="home_action_lock_now">Lock now</string>
+    <plurals name="home_badge_open">
+        <item quantity="one">%1$d open now</item>
+        <item quantity="other">%1$d open now</item>
+    </plurals>
+    <string name="home_search_hint">Search apps</string>
+    <string name="home_section_open">OPEN NOW</string>
+    <string name="home_section_locked">LOCKED</string>
+    <string name="home_section_not_locked">NOT LOCKED</string>
+    <string name="home_status_locked">Locked</string>
+    <string name="home_status_not_locked">Not locked</string>
+    <!-- A one-time Guardian unlock that is still running; the app locks again by itself. -->
+    <plurals name="home_status_open">
+        <item quantity="one">Open · %1$d min left</item>
+        <item quantity="other">Open · %1$d min left</item>
+    </plurals>
     <!-- Every-day time. %1$d: minutes left today; %2$d: minutes a day; %3$s: the last day, e.g. "Sep 28". -->
     <plurals name="home_status_daily_left">
-        <item quantity="one">Daily: %1$d of %2$d min left today · until %3$s</item>
-        <item quantity="other">Daily: %1$d of %2$d min left today · until %3$s</item>
+        <item quantity="one">Daily · %1$d of %2$d min left · until %3$s</item>
+        <item quantity="other">Daily · %1$d of %2$d min left · until %3$s</item>
     </plurals>
-    <string name="home_status_daily_used_up">Daily: time\'s up today · until %1$s</string>
-    <string name="home_status_daily_paused">Daily time paused: needs automatic date &amp; time · until %1$s</string>
-    <string name="home_action_end_daily">End daily time</string>
-    <string name="home_empty_loading">Loading apps…</string>
-    <string name="home_empty_no_match">No apps match "%1$s"</string>
+    <string name="home_status_daily_used_up">Daily · done for today · until %1$s</string>
+    <string name="home_status_daily_paused">Daily · paused until automatic time is on</string>
+    <!-- In the row's sheet: a status line followed by the clock time it ends, e.g. "Open · 12 min left · until 14:35". -->
+    <string name="home_status_with_end">%1$s · until %2$s</string>
+    <string name="home_switch_a11y">Lock %1$s</string>
+    <!-- TalkBack label of a row that opens a sheet. %1$s: app; %2$s: its status line. -->
+    <string name="home_row_a11y_options">%1$s, %2$s. Tap for options</string>
+    <string name="home_sheet_relock">Relock now</string>
+    <string name="home_sheet_stop_daily">Stop daily time</string>
+    <string name="home_sheet_keep_open">Keep it open</string>
+    <string name="home_sheet_keep_daily">Keep daily time</string>
+    <string name="home_unlock_title">Unlock %1$s for good?</string>
+    <string name="home_unlock_body">It will open without asking your Guardian. You can lock it again here anytime.</string>
+    <string name="home_unlock_confirm">Remove lock</string>
+    <string name="home_unlock_cancel">Keep it locked</string>
+    <string name="home_loading">Finding your apps…</string>
+    <string name="home_empty_no_match">No apps match “%1$s”.</string>
+    <string name="home_empty_title">No apps to lock</string>
+    <string name="home_empty_body">Apps you install show up here, locked from the start.</string>
 
-    <!-- Permission indicators (feature 002, WP03) -->
-    <string name="permission_indicator_granted">Permission granted</string>
-    <string name="permission_indicator_denied">Permission not granted</string>
-    <string name="onboarding_mandatory_progress">Required permissions: %1$d of %2$d</string>
-    <string name="onboarding_skip">Skip</string>
+    <!-- Appearance (System default / Light / Dark), from Home's header -->
+    <string name="appearance">Appearance</string>
+    <string name="appearance_system">System default</string>
+    <string name="appearance_system_line">Matches your phone</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_light_line">Always light</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_dark_line">Always dark</string>
+    <string name="appearance_note">Applies to every Krypt screen, the lock screen included.</string>
 
-    <!-- Onboarding (WP12) -->
-    <string name="onboarding_title">Welcome to Krypt</string>
-    <string name="onboarding_step_of">Step %1$d of %2$d</string>
-    <string name="onboarding_back">Back</string>
-    <string name="onboarding_next">Next</string>
-    <string name="onboarding_finish">Finish</string>
+    <!-- Lock screen (Amendment 2): what appears instead of a locked app -->
+    <string name="lock_eyebrow">PROTECTED BY KRYPT</string>
+    <string name="lock_title">Locked.</string>
+    <!-- %1$s: the locked app. -->
+    <string name="lock_body">Your Guardian can open %1$s for you. Ask, and it opens the moment they approve.</string>
+    <string name="lock_title_daily_used_up">Done for today.</string>
+    <plurals name="lock_body_daily_used_up">
+        <item quantity="one">Today\'s %1$d minute is used. If you need more, ask your Guardian for extra time.</item>
+        <item quantity="other">Today\'s %1$d minutes are used. If you need more, ask your Guardian for extra time.</item>
+    </plurals>
+    <string name="lock_title_daily_paused">Paused.</string>
+    <string name="lock_body_daily_paused">Daily time needs automatic date and time. Turn it on in Settings, or ask your Guardian.</string>
+    <string name="lock_request_access">Request access</string>
+    <string name="lock_request_hint">Pick any chat to send the request to your Guardian.</string>
+    <string name="lock_preparing">Preparing request</string>
+    <string name="lock_step_sent">Request sent</string>
+    <string name="lock_step_waiting">Waiting for your Guardian</string>
+    <!-- %1$s: time left, e.g. "4:59". -->
+    <string name="lock_step_expires">Expires in %1$s</string>
+    <!-- %1$s: the locked app. -->
+    <string name="lock_step_open">Tap the link in their reply, or copy it and tap Paste reply. %1$s opens.</string>
+    <string name="lock_request_expired">This request expired. Ask again.</string>
+    <string name="lock_status_not_configured">Krypt isn\'t set up yet. Open Krypt and set a Guardian PIN first.</string>
+    <string name="lock_status_failed">The request couldn\'t be made. Try again.</string>
+    <string name="lock_paste_reply">Paste reply</string>
+    <string name="lock_paste_no_reply">No reply on the clipboard. Copy your Guardian\'s whole message, then try again.</string>
+    <string name="lock_back_home">Back to home</string>
+    <string name="lock_share_title">Send your request</string>
+    <!-- The message shared with the Guardian. %1$s: the app; %2$s: the krypt://request link. -->
+    <string name="request_share_text">Krypt access request for %1$s.\nTap the link to review it. If it doesn\'t open, copy this whole message, open Krypt and tap Paste a link.\n%2$s</string>
 
-    <string name="onboarding_step1_title">Accessibility access</string>
-    <string name="onboarding_step1_body">Krypt needs Accessibility access so it can detect when a locked app is about to open and block it. Krypt does not read your app content.</string>
-    <string name="onboarding_step1_grant">Open Accessibility Settings</string>
-
-    <string name="onboarding_step2_title">Display over other apps</string>
-    <string name="onboarding_step2_body">Krypt needs this permission so it can bring up its lock screen the moment you open a locked app.</string>
-    <string name="onboarding_step2_grant">Grant overlay permission</string>
-
-    <string name="onboarding_step3_title">Device Admin</string>
-    <string name="onboarding_step3_body">Activating Device Admin makes Krypt harder to uninstall without Guardian approval. Krypt does not use any other admin privilege.</string>
-    <string name="onboarding_step3_grant">Activate Device Admin</string>
-
-    <string name="onboarding_step4_title">Notifications</string>
-    <string name="onboarding_step4_body">Krypt posts a notification when a new app gets auto-locked. On Android 13+ this needs your permission.</string>
-    <string name="onboarding_step4_grant">Allow notifications</string>
-
-    <string name="onboarding_step5_title">Battery optimisation</string>
-    <string name="onboarding_step5_body">Krypt must stay running in the background. Grant the battery-optimisation exemption so the OS does not kill it while your screen is off.</string>
-    <string name="onboarding_step5_grant">Open battery settings</string>
-
-    <!-- PIN setup (WP19, Amendment 1) -->
-    <string name="pin_setup_title">Set Guardian PIN</string>
-    <string name="pin_setup_body">Hand this device to your Guardian. They will set a 4–6 digit PIN that only they know. You will not see the PIN — this is what protects your locked apps.</string>
-    <string name="pin_setup_pin_label">PIN</string>
-    <string name="pin_setup_confirm_label">Confirm PIN</string>
-    <string name="pin_setup_save">Save PIN</string>
-    <string name="pin_setup_saving">Securing PIN…</string>
-    <string name="pin_setup_done">Saved. Hand the phone back to the owner.</string>
-    <string name="pin_setup_error_mismatch">The two PINs don\'t match.</string>
-    <string name="pin_setup_error_too_short">PIN must be at least 4 digits.</string>
-    <string name="pin_setup_error_not_numeric">PIN must contain digits only.</string>
-    <string name="pin_setup_error_save_failed">Could not save the PIN. Please try again.</string>
-
-    <!-- Approval trampoline (WP22 Amendment 1) -->
-    <string name="approval_toast_unlocked">Unlocked %1$s until %2$s</string>
-    <!-- %1$s: the app; %2$s: a duration, e.g. "1 hour"; %3$s: the rule's last day, e.g. "Sep 28". -->
-    <string name="approval_toast_daily">%1$s: %2$s a day until %3$s</string>
-    <string name="approval_toast_daily_used_up">%1$s: daily time is set, but today\'s is already used up.</string>
-    <string name="approval_error_needs_auto_time">Turn on Set time automatically in Settings, then tap the approval again.</string>
-    <string name="approval_a11y_announcement">Unlocked by Guardian</string>
-    <string name="approval_error_unreadable">Could not read this approval.</string>
-    <string name="approval_error_unmatched">This approval doesn\'t match a pending unlock request.</string>
-    <string name="approval_error_expired">Your original request expired before the approval arrived.</string>
-    <string name="approval_error_tamper">This approval failed cryptographic verification.</string>
-    <string name="approval_error_not_configured">This device isn\'t set up yet. Open Krypt first.</string>
-
-    <!-- Guardian request (WP14 + WP21 Amendment 1) -->
-    <string name="guardian_request_title">Unlock request</string>
-    <string name="guardian_request_prompt">Approve unlocking this app for your Subject device?</string>
-    <string name="guardian_pin_label">Enter PIN</string>
-    <string name="guardian_allow_for">Allow for</string>
-    <string name="guardian_set_minutes">Set minutes</string>
-    <string name="guardian_minutes_label">Minutes (1–1440)</string>
-    <string name="guardian_minutes_error">Enter a number of minutes from 1 to 1440.</string>
-    <!-- %1$s: what the approval will allow, e.g. "30 minutes, one time". -->
-    <string name="guardian_allows">Allows: %1$s</string>
-    <!-- %1$s: a duration, e.g. "30 minutes". -->
-    <string name="access_one_time">%1$s, one time</string>
+    <!-- Guardian approval (on the Guardian's phone) -->
+    <string name="guardian_eyebrow">ACCESS REQUEST</string>
+    <string name="guardian_why_package">Why only a package name?</string>
+    <string name="guardian_why_package_body">A request names the app by its package, the ID Android uses for it. This app isn\'t installed on your phone, so Krypt can\'t show its name or icon here.</string>
+    <string name="guardian_sent_just_now">Sent just now</string>
+    <plurals name="guardian_sent_ago">
+        <item quantity="one">Sent %1$d min ago</item>
+        <item quantity="other">Sent %1$d min ago</item>
+    </plurals>
+    <!-- %1$s: "Sent 1 min ago"; %2$s: time left, e.g. "4:00". -->
+    <string name="guardian_age">%1$s · expires in %2$s</string>
+    <string name="guardian_age_expired">%1$s · expired</string>
+    <string name="guardian_how_often">How often</string>
+    <string name="guardian_once">Once</string>
+    <string name="guardian_daily">Daily</string>
+    <string name="guardian_how_long">For how long</string>
+    <string name="guardian_custom">Custom</string>
+    <string name="guardian_minutes_label">Minutes</string>
+    <string name="guardian_minutes_suffix">minutes</string>
+    <string name="guardian_minutes_error">Choose 1 to 1440 minutes.</string>
+    <string name="guardian_how_many_days">For how many days</string>
+    <string name="guardian_days_label">Days</string>
+    <string name="guardian_days_suffix">days</string>
+    <string name="guardian_days_error">Choose 1 to 365 days.</string>
+    <string name="guardian_daily_note">Today counts as day 1, including time already used. Need more time today? Choose Once.</string>
+    <!-- The choice read back as one serif sentence. %1$s: the app; %2$s: a duration (set in italic); %3$s: a number of days. -->
+    <string name="guardian_summary_once">%1$s, %2$s, once.</string>
+    <string name="guardian_summary_daily">%1$s, %2$s a day for %3$s.</string>
+    <string name="guardian_pin_line">Your PIN never leaves this phone.</string>
+    <string name="guardian_approve">Approve and send</string>
+    <string name="guardian_checking">Checking PIN</string>
+    <string name="guardian_sent_title">Sent.</string>
+    <string name="guardian_sent_body">You can close this screen.</string>
+    <string name="guardian_share_title">Send your reply</string>
+    <!-- What an approval allows, in the reply message. %1$s: a duration, e.g. "30 minutes". -->
+    <string name="access_once">%1$s, once</string>
     <!-- %1$s: a duration, e.g. "1 hour"; %2$s: a number of days, e.g. "7 days". -->
-    <string name="access_every_day">%1$s a day for %2$s</string>
-    <string name="guardian_allow_one_time">One time</string>
-    <string name="guardian_allow_every_day">Every day</string>
-    <string name="guardian_for_days">For</string>
-    <string name="guardian_set_days">Set days</string>
-    <string name="guardian_days_label">Days (1–365)</string>
-    <string name="guardian_days_error">Enter a number of days from 1 to 365.</string>
-    <string name="guardian_daily_hint">Day 1 is today, and time already used today counts. For extra time today, choose One time.</string>
+    <string name="access_daily">%1$s a day for %2$s</string>
+    <!-- The reply shared back. %1$s: the app; %2$s: what it allows, e.g. "30 minutes, once"; %3$s: the krypt://approve link. -->
+    <string name="approval_share_text">Krypt reply for %1$s: %2$s.\nTap the link to open it. If it doesn\'t open, copy this whole message, open the locked app and tap Paste reply.\n%3$s</string>
+    <string name="guardian_error_expired">This request expired. Ask for a new one.</string>
+    <string name="guardian_error_corrupt">This request looks damaged.</string>
+    <string name="guardian_error_unreadable">Couldn\'t read this request.</string>
+    <string name="link_unknown_title">Not a Krypt request</string>
+    <string name="link_unknown_body">Krypt can\'t open this link. Ask for a new request.</string>
     <plurals name="duration_days">
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
@@ -190,15 +257,41 @@
         <item quantity="one">%d hour</item>
         <item quantity="other">%d hours</item>
     </plurals>
-    <string name="guardian_send_approval">Verify &amp; send approval</string>
-    <string name="guardian_validating">Verifying PIN…</string>
-    <string name="guardian_sent">Approval sent. You can close this screen.</string>
-    <string name="guardian_error_expired">This unlock request has expired. Ask your Subject to send a new one.</string>
-    <string name="guardian_error_corrupt">This unlock request appears corrupted.</string>
-    <string name="guardian_error_unreadable">Could not read this unlock request.</string>
+
+    <!-- Approval confirmation on the locked phone (toasts: no closing full stop) -->
+    <!-- %1$s: the app; %2$s: the clock time it locks again, e.g. "14:35". -->
+    <string name="approval_toast_unlocked">%1$s is open until %2$s</string>
+    <!-- %1$s: the app; %2$s: a duration, e.g. "1 hour"; %3$s: the rule's last day, e.g. "Sep 28". -->
+    <string name="approval_toast_daily">%1$s: %2$s a day until %3$s</string>
+    <string name="approval_toast_daily_used_up">%1$s: daily time is set, but today\'s is used up</string>
+    <string name="approval_a11y_announcement">Opened by your Guardian</string>
+    <string name="approval_error_unreadable">Couldn\'t read this reply</string>
+    <string name="approval_error_unmatched">This reply doesn\'t match a waiting request</string>
+    <string name="approval_error_expired">Your request expired before the reply arrived</string>
+    <string name="approval_error_tamper">This reply couldn\'t be verified</string>
+    <string name="approval_error_not_configured">Set up Krypt on this phone first</string>
+    <string name="approval_error_needs_auto_time">Turn on automatic date and time, then tap the reply again</string>
+
+    <!-- Notifications (WP07) -->
+    <string name="notif_app_locked_title">New app protected</string>
+    <!-- %1$s: the app; %2$s: its package. -->
+    <string name="notif_app_locked_body">%1$s (%2$s) is locked by default.</string>
+    <string name="notif_protection_off_title">Krypt is off</string>
+    <string name="notif_protection_off_body">Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings.</string>
 
     <!-- Watchdog (WP16) -->
     <string name="watchdog_channel">Krypt Watchdog</string>
-    <string name="watchdog_title">Krypt is protecting your device</string>
+    <string name="watchdog_title">Krypt is protecting this phone</string>
     <string name="watchdog_body">Tap to open Krypt.</string>
+
+    <!-- Accessibility service (WP10) -->
+    <string name="accessibility_service_label">Krypt Locker</string>
+    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and block locked apps until your Guardian approves. For apps your Guardian gives daily time, Krypt counts the minutes they are used each day, on this device only. Krypt does not read your app content and does not send any data off the device.</string>
+    <string name="accessibility_service_summary">Blocks locked apps from opening until your Guardian approves.</string>
+
+    <!-- Device Admin (WP11) -->
+    <string name="device_admin_label">Krypt Device Admin</string>
+    <string name="device_admin_description">Required so Krypt cannot be uninstalled without first being disabled here. Krypt does not use any other device-admin privilege.</string>
+    <string name="device_admin_disable_warning">Disabling Krypt device admin will allow anyone to uninstall Krypt and remove protection from your locked apps. Are you sure?</string>
+    <string name="device_admin_explanation">Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first.</string>
 </resources>

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher tile: Android's own dark surface, #121212. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#2E1A47"/>
+    <solid android:color="#FF121212"/>
 </shape>

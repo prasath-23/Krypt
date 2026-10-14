@@ -43,7 +43,9 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
-    private val _allInstalled = MutableStateFlow<List<InstalledAppMeta>>(emptyList())
+
+    /** Null until the installed apps have been read once. */
+    private val _allInstalled = MutableStateFlow<List<InstalledAppMeta>?>(null)
 
     /** Ticks once a second while any app is unlocked, so its time left counts down. */
     private val countdown: Flow<Unit> = sessionStore.grants
@@ -61,22 +63,30 @@ class HomeViewModel @Inject constructor(
     ) { (all, lockedSet, query), grants, _, _ ->
         // Asking the store also clears unlocks that have run out, which stops the countdown.
         val timeLeft = grants.keys.associateWith(sessionStore::remainingMs)
-        val rows = all
-            .filter { query.isBlank() || it.displayName.contains(query, ignoreCase = true) }
+        val allRows = all.orEmpty()
             .map { meta ->
                 val isLocked = meta.packageName in lockedSet
+                val grantRemainingMs = timeLeft[meta.packageName] ?: 0L
                 InstalledAppRowState(
                     packageName = meta.packageName,
                     displayName = meta.displayName,
                     isLocked = isLocked,
                     status = appRowStatus(
                         isLocked = isLocked,
-                        grantRemainingMs = timeLeft[meta.packageName] ?: 0L,
+                        grantRemainingMs = grantRemainingMs,
                         daily = dailyAllowances.access(meta.packageName),
                     ),
+                    grantRemainingMs = if (isLocked) grantRemainingMs else 0L,
                 )
             }
-        HomeUiState(rows = rows, query = query)
+        HomeUiState(
+            rows = allRows.filter { query.isBlank() || it.displayName.contains(query, ignoreCase = true) },
+            query = query,
+            loaded = all != null,
+            // Counted before the search filter, so the header doesn't change while searching.
+            lockedCount = allRows.count { it.isLocked },
+            openCount = allRows.count { it.status.isOpenNow },
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init { refresh() }
@@ -125,6 +135,12 @@ class HomeViewModel @Inject constructor(
 data class HomeUiState(
     val rows: List<InstalledAppRowState> = emptyList(),
     val query: String = "",
+    /** False until the installed apps have been read once, so "no apps" can be told from "loading". */
+    val loaded: Boolean = false,
+    /** Every locked app, including those open now (the switch shows the lock setting); ignores [query]. */
+    val lockedCount: Int = 0,
+    /** Apps open now: a running Guardian unlock or daily time left today; ignores [query]. */
+    val openCount: Int = 0,
 )
 
 data class InstalledAppRowState(
@@ -132,4 +148,6 @@ data class InstalledAppRowState(
     val displayName: String,
     val isLocked: Boolean,
     val status: AppRowStatus = if (isLocked) AppRowStatus.Locked else AppRowStatus.NotLocked,
+    /** Time left on the app's Guardian unlock, for the "until 14:35" in its sheet; 0 when none. */
+    val grantRemainingMs: Long = 0L,
 )

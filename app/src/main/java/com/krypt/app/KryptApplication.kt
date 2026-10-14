@@ -11,6 +11,7 @@ import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.data.UnlockGrantRepository
 import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.data.daily.DailyAllowanceRepository
+import com.krypt.app.data.settings.AppearanceStore
 import com.krypt.app.di.ApplicationScope
 import com.krypt.app.notifications.SecurityAlertsChannel
 import com.krypt.app.service.KryptWatchdogService
@@ -43,6 +44,7 @@ class KryptApplication : Application(), Configuration.Provider {
     @Inject lateinit var dailyMeter: DailyAllowanceMeter
     @Inject lateinit var dailyRepo: DailyAllowanceRepository
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
+    @Inject lateinit var appearanceStore: AppearanceStore
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -53,6 +55,11 @@ class KryptApplication : Application(), Configuration.Provider {
         super.onCreate()
         securityAlertsChannel.ensureCreated()
         restoreUnlockGrants()
+        // The chosen theme must hold before any window exists: AppCompat's
+        // in-process default now; the system's copy (Android 12+, kept across
+        // restarts) is only re-synced, so its system call stays off the main thread.
+        appearanceStore.applyStored()
+        appScope.launch { appearanceStore.syncSystem() }
         startDailyAllowances()
         KryptWatchdogService.start(this)
         AccessibilityHealthWorker.schedule(WorkManager.getInstance(this))

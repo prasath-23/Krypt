@@ -71,12 +71,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Krypt">
 
-        <!-- Main launcher Activity. Full Compose host + onboarding wizard wired
-             in WP12; WP01 ships only a placeholder greeting. -->
+        <!-- Main launcher Activity: first run, onboarding, PIN setup, the
+             Krypt Admin gate and Home. Resizes for the search keyboard. -->
         <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Krypt">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -104,6 +105,7 @@
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Krypt">
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
@@ -126,13 +128,16 @@
 
         <!-- WP22 Amendment 1: silent approval-URL trampoline. Translucent
              theme, no input surface (FR-018). Runs ApprovalConsumer and
-             plays the 500 ms green flash + haptic + toast, then finishes. -->
+             plays the approval flash + haptic + toast, then finishes. It
+             handles configuration changes itself, so a rotation mid-flash
+             can't restart it and re-read the single-use reply. -->
         <activity
             android:name=".subject.ApprovalTrampolineActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:taskAffinity=""
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.Krypt.Trampoline">
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />

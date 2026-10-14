@@ -68,9 +68,12 @@ class PermissionStateObserver @Inject constructor(
      * Attaches this observer to [owner]'s lifecycle. On each [LifecycleOwner.onResume]
      * the probe runs synchronously and the StateFlow emits. Listeners are cleaned up
      * on [LifecycleOwner.onPause] to prevent leaks.
+     *
+     * Returns a function that detaches it again, for a screen that leaves
+     * while its activity stays (e.g. onboarding's Back to the first-run choice).
      */
-    fun bind(owner: LifecycleOwner) {
-        owner.lifecycle.addObserver(object : DefaultLifecycleObserver {
+    fun bind(owner: LifecycleOwner): () -> Unit {
+        val observer = object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
                 refresh()
                 registerListeners()
@@ -79,7 +82,12 @@ class PermissionStateObserver @Inject constructor(
             override fun onPause(owner: LifecycleOwner) {
                 unregisterListeners()
             }
-        })
+        }
+        owner.lifecycle.addObserver(observer)
+        return {
+            owner.lifecycle.removeObserver(observer)
+            unregisterListeners()
+        }
     }
 
     private fun registerListeners() {

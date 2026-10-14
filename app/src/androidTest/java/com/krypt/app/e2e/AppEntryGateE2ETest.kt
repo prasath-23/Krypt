@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -19,6 +20,7 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasData
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.subject.ApprovalTrampolineActivity
+import com.krypt.app.ui.components.PIN_ENTRY_TAG
 import com.krypt.app.ui.guardian.GuardianActivity
 import com.krypt.app.ui.main.MainActivity
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -32,7 +34,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import javax.inject.Inject
 
-/** The Guardian PIN gate in front of the Home Screen. */
+/** The Guardian PIN gate (Krypt Admin, "Guardian only") in front of the Home Screen. */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class AppEntryGateE2ETest {
@@ -62,10 +64,10 @@ class AppEntryGateE2ETest {
     }
 
     @Test
-    fun wrongPin_showsTheAttemptsLeft() {
+    fun wrongPin_showsTheTriesLeft() {
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.enterPin("1111")
-            compose.awaitText("Wrong PIN. 2 attempts left.")
+            compose.awaitText("That PIN isn't right. 2 tries left.")
         }
     }
 
@@ -73,12 +75,14 @@ class AppEntryGateE2ETest {
     fun threeWrongPins_lockTheScreenOut() {
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.enterPin("1111")
-            compose.awaitText("Wrong PIN. 2 attempts left.")
+            compose.awaitText("That PIN isn't right. 2 tries left.")
             compose.enterPin("2222")
-            compose.awaitText("Wrong PIN. 1 attempt left.")
+            compose.awaitText("That PIN isn't right. 1 try left.")
             compose.enterPin("3333")
             compose.awaitText("Too many wrong PINs", substring = true)
-            compose.onNodeWithText("Unlock").assertIsNotEnabled()
+            compose.onNodeWithText("Continue").assertIsNotEnabled()
+            // Continue is also disabled for an empty PIN, so check the PIN entry itself takes nothing.
+            compose.onNodeWithTag(PIN_ENTRY_TAG).assertIsNotEnabled()
         }
     }
 
@@ -92,39 +96,47 @@ class AppEntryGateE2ETest {
             scenario.moveToState(Lifecycle.State.CREATED)
             scenario.moveToState(Lifecycle.State.RESUMED)
 
-            compose.awaitText("Enter the Guardian PIN to manage locked apps.")
+            compose.awaitText("Enter the Guardian PIN to manage apps")
         }
     }
 
     @Test
-    fun pasteLink_opensACopiedRequestInTheGuardianScreen() {
+    fun pasteALink_opensACopiedRequestInTheGuardianScreen() {
         val request = "krypt://request?v=1&req=12345678-1234-4abc-8def-123456789abc&app=com.example.app"
-        copyToClipboard("Krypt unlock request for Example.\n$request")
+        copyToClipboard(
+            "Krypt access request for Example.\nTap the link to review it. If it doesn't open, " +
+                "copy this whole message, open Krypt and tap Paste a link.\n$request"
+        )
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNodeWithText("Paste link").performClick()
+            compose.awaitText("Paste a link")
+            compose.onNodeWithText("Paste a link").performClick()
             compose.waitForIdle()
         }
         intended(allOf(hasComponent(GuardianActivity::class.java.name), hasData(request)))
     }
 
     @Test
-    fun pasteLink_withNoKryptLinkOnTheClipboard_saysSo() {
+    fun pasteALink_withNoKryptLinkOnTheClipboard_saysSo() {
         copyToClipboard("see you at 5")
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNodeWithText("Paste link").performClick()
+            compose.awaitText("Paste a link")
+            compose.onNodeWithText("Paste a link").performClick()
             compose.awaitText("No Krypt link found", substring = true)
         }
     }
 }
 
-/** Type [pin] into the PIN field and tap Unlock. */
+/**
+ * Type [pin] into the PIN entry and tap Continue. The entry is the row of
+ * dots over Krypt's own keypad; it takes text input the way a field does.
+ */
 fun ComposeTestRule.enterPin(pin: String) {
     waitUntil(10_000) {
         onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() &&
-            onAllNodes(hasText("Unlock")).fetchSemanticsNodes().isNotEmpty()
+            onAllNodes(hasText("Continue")).fetchSemanticsNodes().isNotEmpty()
     }
     onNode(hasSetTextAction()).performTextInput(pin)
-    onNodeWithText("Unlock").performClick()
+    onNodeWithText("Continue").performClick()
 }
 
 /** Wait (PBKDF2 is slow on emulators) until [text] is on screen. */

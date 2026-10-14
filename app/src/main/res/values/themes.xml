@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Krypt base theme (light).
-    WP01 ships a minimal Theme.Material3.DayNight host so the app is buildable;
-    WP12 replaces this with the full Krypt brand ColorScheme / Typography /
-    Shapes via Compose. The Android theme only sets window-level properties
-    that Compose itself cannot set (edge-to-edge, status-bar handling).
+    Krypt window themes. Compose draws everything else (ui/theme/); these set
+    only what the window needs before Compose runs. The window background is
+    the theme's `background` token (values/colors.xml, values-night/colors.xml),
+    so a screen's very first frame is already its finished background and
+    nothing flashes. The Appearance setting (System default / Light / Dark)
+    picks values or values-night through the app's night mode.
 -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Krypt" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/krypt_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
     </style>
 
     <!--
-        Amendment 2: LockScreenActivity. The window background is the lock
-        screen's gradient, so the first frame the system draws for the
-        activity already hides the locked app, before Compose runs.
+        Amendment 2: LockScreenActivity. Its first frame is the plain theme
+        background, which already hides the locked app before Compose draws.
     -->
-    <style name="Theme.Krypt.LockScreen" parent="Theme.Krypt">
-        <item name="android:windowBackground">@drawable/lock_screen_background</item>
-        <item name="android:windowLightStatusBar">false</item>
-    </style>
+    <style name="Theme.Krypt.LockScreen" parent="Theme.Krypt" />
 
     <!--
         WP22 Amendment 1: Translucent no-UI theme for ApprovalTrampolineActivity.
-        The trampoline's job is silent consumption + a 500 ms green flash; it
-        must not flash a white window before the flash effect runs.
+        The trampoline's job is silent consumption + the approval flash; it
+        must not flash an opaque window before the flash effect runs.
     -->
     <style name="Theme.Krypt.Trampoline" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>

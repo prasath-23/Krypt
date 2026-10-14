@@ -102,6 +102,58 @@ class GuardianPinViewModelTest {
     }
 
     @Test
+    fun theSameLinkReadAgain_keepsTheGuardiansChoice() = runTest {
+        // A rotation re-reads the link; the form must not reset under the Guardian.
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.pickMinutes(60)
+
+        vm.parseIncoming("krypt://request?v=1")
+
+        assertEquals(AccessChoice.OneTime(60), readyState(vm).form.choice)
+    }
+
+    @Test
+    fun theSameLinkAfterApproval_startsAFreshForm() = runTest {
+        // Opening the request again after sending lets the Guardian send a new reply.
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.pickMinutes(60)
+        vm.approve("1234".toCharArray())
+
+        vm.parseIncoming("krypt://request?v=1")
+
+        assertEquals(AccessChoice.OneTime(AccessChoice.DEFAULT_MINUTES), readyState(vm).form.choice)
+    }
+
+    @Test
+    fun approvingAfterTheRequestExpired_isRefused_withoutCostingAnAttempt() = runTest {
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        // The Guardian lingers past the 5-minute lifetime and the clock-skew allowance.
+        clock.advance((sampleRequest.ttlSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS + 1) * 1_000)
+
+        vm.approve("1234".toCharArray())
+
+        assertEquals(GuardianPinState.FatalError("request_expired"), vm.state.value)
+        coVerify(exactly = 0) { validator.validate(any(), any(), any()) }
+    }
+
+    @Test
+    fun approvingWithinTheClockSkewAllowance_stillWorks() = runTest {
+        pinIsCorrect()
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        clock.advance((sampleRequest.ttlSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS - 1) * 1_000)
+
+        vm.approve("1234".toCharArray())
+
+        assertTrue("got ${vm.state.value}", vm.state.value is GuardianPinState.Approved)
+    }
+
+    @Test
     fun parseIncoming_badUrl_movesToFatalError() = runTest {
         every { parser.parse(any(), any()) } returns Outcome.err(RequestParseError.BadScheme)
         val vm = newVm()

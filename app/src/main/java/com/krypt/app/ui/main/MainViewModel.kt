@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -20,8 +21,13 @@ class MainViewModel @Inject constructor(
     private val masterKeyStore: MasterKeyStore,
 ) : ViewModel() {
 
-    val onboardingComplete: StateFlow<Boolean> = settings.settings
-        .map { it.onboardingComplete }
+    /** Null until the settings have been read once. */
+    private val storedOnboardingComplete: StateFlow<Boolean?> = settings.settings
+        .map<_, Boolean?> { it.onboardingComplete }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val onboardingComplete: StateFlow<Boolean> = storedOnboardingComplete
+        .map { it == true }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /**
@@ -31,6 +37,17 @@ class MainViewModel @Inject constructor(
      */
     private val _masterKeyConfigured = MutableStateFlow(false)
     val masterKeyConfigured: StateFlow<Boolean> = _masterKeyConfigured.asStateFlow()
+
+    private val masterKeyChecked = MutableStateFlow(false)
+
+    /**
+     * `false` until the settings and the PIN store have both been read once.
+     * Until then the route shows only the background, so no screen (such as
+     * the first-run welcome) flashes before the right one.
+     */
+    val ready: StateFlow<Boolean> = combine(storedOnboardingComplete, masterKeyChecked) { onboarding, checked ->
+        onboarding != null && checked
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     init {
         refreshMasterKeyConfigured()
@@ -43,6 +60,7 @@ class MainViewModel @Inject constructor(
     fun refreshMasterKeyConfigured() {
         viewModelScope.launch {
             _masterKeyConfigured.value = masterKeyStore.isConfigured()
+            masterKeyChecked.value = true
         }
     }
 

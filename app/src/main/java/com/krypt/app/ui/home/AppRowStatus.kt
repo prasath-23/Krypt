@@ -24,6 +24,10 @@ sealed interface AppRowStatus {
     data class Daily(val line: DailyLine) : AppRowStatus
 }
 
+/** The app can be used right now: a Guardian unlock is running, or daily time is left today. */
+val AppRowStatus.isOpenNow: Boolean
+    get() = this is AppRowStatus.Unlocked || (this is AppRowStatus.Daily && line is DailyLine.Left)
+
 /** How an app's every-day time stands; its rule runs until [lastDay]. */
 sealed interface DailyLine {
     val minutesPerDay: Int

@@ -2,10 +2,11 @@ package com.krypt.app.e2e
 
 import android.content.ComponentName
 import android.content.Context
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
@@ -33,6 +34,9 @@ import javax.inject.Inject
 
 /**
  * e2e test for the onboarding mandatory-permission gate (FR-027, SC-009).
+ * First run opens on "who is this phone for?"; protecting it leads to one
+ * checklist whose Start protecting stays disabled until the three required
+ * permissions are allowed.
  *
  * Uses [FakeE2EPermissionStatusProbe] so permission state is driven
  * programmatically without actual OS-level grants.
@@ -76,67 +80,83 @@ class OnboardingMandatoryGateE2ETest {
         permissionState.refresh()
     }
 
-    private fun goToLastStep() {
-        repeat(4) {
-            composeRule.onNodeWithText("Next").performClick()
-            composeRule.waitForIdle()
-        }
+    /** First run: "I'm protecting this phone" opens the permission checklist. */
+    private fun openChecklist() {
+        composeRule.awaitText("I'm protecting this phone")
+        composeRule.onNodeWithText("I'm protecting this phone").performClick()
+        composeRule.awaitText("Start protecting")
     }
 
     @Test
-    fun finishDisabled_whenNoMandatoryPermissionsGranted() {
+    fun startProtectingDisabled_whenNoMandatoryPermissionsGranted() {
         grant()
         ActivityScenario.launch(MainActivity::class.java).use {
-            goToLastStep()
-            composeRule.onNodeWithText("Finish").assertIsNotEnabled()
+            openChecklist()
+            composeRule.onNodeWithText("Start protecting").assertIsNotEnabled()
         }
     }
 
     @Test
-    fun finishDisabled_withTwoOfThreeMandatoryPermissions() {
+    fun startProtectingDisabled_withTwoOfThreeMandatoryPermissions() {
         grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY, PermissionKey.NOTIFICATIONS)
         ActivityScenario.launch(MainActivity::class.java).use {
-            goToLastStep()
-            composeRule.onNodeWithText("Required permissions: 2 of 3").assertExists()
-            composeRule.onNodeWithText("Finish").assertIsNotEnabled()
+            openChecklist()
+            composeRule.onNodeWithText("2 of 3 required").assertExists()
+            composeRule.onNodeWithText("Start protecting").assertIsNotEnabled()
         }
     }
 
     @Test
-    fun finishEnabled_whenAllMandatoryGranted() {
+    fun startProtectingEnabled_whenAllMandatoryGranted() {
         grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY, PermissionKey.BATTERY)
         ActivityScenario.launch(MainActivity::class.java).use {
-            goToLastStep()
-            composeRule.onNodeWithText("Finish").assertIsEnabled()
+            openChecklist()
+            composeRule.onNodeWithText("3 of 3 required · ready").assertExists()
+            composeRule.onNodeWithText("Start protecting").assertIsEnabled()
         }
     }
 
+    /** There is no Skip any more: an optional item is skipped by leaving it alone. */
     @Test
-    fun skipButtonVisible_onOptionalStep() {
-        grant()
+    fun optionalItems_needNoSkip_andNeverBlockStartProtecting() {
+        grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY, PermissionKey.BATTERY)
         ActivityScenario.launch(MainActivity::class.java).use {
-            repeat(3) {
-                composeRule.onNodeWithText("Next").performClick()
-                composeRule.waitForIdle()
-            }
-            composeRule.onNodeWithText("Skip").assertExists()
+            openChecklist()
+            composeRule.onNodeWithText("OPTIONAL").assertExists()
+            // Device Admin and Notifications, left alone.
+            composeRule.onAllNodesWithText("Not allowed").assertCountEquals(2)
+            composeRule.onNodeWithText("Start protecting").assertIsEnabled()
         }
     }
 
     @Test
-    fun permissionIndicator_showsGranted_whenAccessibilityGranted() {
+    fun permissionIndicator_showsAllowed_whenAccessibilityGranted() {
         grant(PermissionKey.ACCESSIBILITY)
         ActivityScenario.launch(MainActivity::class.java).use {
-            composeRule.waitForIdle()
-            composeRule.onNodeWithContentDescription("Permission granted").assertExists()
+            openChecklist()
+            composeRule.onNodeWithText("Allowed").assertExists()
+            // The other two required items.
+            composeRule.onAllNodesWithText("Not allowed yet").assertCountEquals(2)
         }
     }
 
     @Test
-    fun onboardingOffersPasteLink_forAGuardianOnlyPhone() {
+    fun firstRunOffersPasteALink_forAGuardianOnlyPhone() {
         grant()
         ActivityScenario.launch(MainActivity::class.java).use {
-            composeRule.onNodeWithText("Paste link").assertExists()
+            composeRule.awaitText("I'm a Guardian")
+            composeRule.onNodeWithText("I'm a Guardian").performClick()
+            composeRule.awaitText("Ready to approve.")
+            composeRule.onNodeWithText("Paste a link").assertExists()
+        }
+    }
+
+    @Test
+    fun checklistOffersPasteALink_too() {
+        grant()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            openChecklist()
+            composeRule.onNodeWithText("Paste a link").assertExists()
         }
     }
 }

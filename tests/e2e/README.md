@@ -44,6 +44,13 @@ The script reads the screen with `uiautomator dump --windows` and keeps the
 focused window. A plain dump reads accessibility's "active window", which can
 still be the previous window when the focus changed between dumps.
 
+No PIN screen has a text field: a PIN is typed on Krypt's own keypad, so the
+script taps its digit keys the way a person would (`enter_pin`), then checks
+that the row of dots holds every digit. The Guardian screen's keypad sits
+below the request and its choices, so the script scrolls before typing there.
+`input text` is only used for real text fields: Home's search and the
+Guardian's Custom minutes and days.
+
 Every `uiautomator dump` briefly unbinds Krypt's accessibility service, so
 the script waits for the service to be bound again before it opens an app.
 On a real device nothing unbinds it. A service bound again only learns which
@@ -56,16 +63,16 @@ activity.
 
 | Area | Positive cases | Negative cases |
 |------|----------------|----------------|
-| Auto-lock | A new install is locked and announced before and after setup (01-02). Catch-up locks an app installed while protection was off (28). | |
-| Blocking | A locked app shows Krypt's lock screen, never the app (03, 13). Back and "Go to home screen" go to the launcher (05, 14). Reopening from Recents is blocked (15). | If Krypt's process dies under the lock screen, the home screen shows, not the app (16c). |
-| Setup | Onboarding with the mandatory permissions (06). PIN setup (08). | Mismatched PINs can't be saved (07). |
+| Auto-lock | A new install is locked and announced ("New app protected") before and after setup (01-02). Catch-up locks an app installed while protection was off (28). | |
+| Blocking | A locked app shows Krypt's lock screen ("Locked."), never the app (03, 13). Back and "Back to home" go to the launcher (05, 14). Reopening from Recents is blocked (15). | If Krypt's process dies under the lock screen, the home screen shows, not the app (16c). |
+| Setup | First run's "I'm protecting this phone", then the permission checklist with the mandatory permissions allowed, and Start protecting (06). PIN setup: the hand-over, "Choose a PIN" and "Once more" save the PIN (08). | Mismatched PINs can't be saved (07). |
 | PIN gate | The right PIN opens Home (10). Leaving Krypt locks it again (12). | A wrong PIN is refused (09). |
-| Home | The toggle locks an app (11). A Guardian unlock shows with its time left while the switch stays on (26b). | "Lock now" ends the unlock, and the app is blocked again (26c). |
-| Ask Guardian | The request link is shared and the pending request saved (16). | Asking before a PIN exists is refused (04). A request link pasted as an approval is refused (16b). |
-| Guardian | The right PIN shares an approval (21). The Guardian can choose how long it unlocks the app (27: 30 minutes). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
-| Unlock | The approval link opens the app (23). The app opens freely during the grant (24). The grant survives a process restart (26). The copy-and-paste path works (27). An app still open when its grant ends is blocked (30). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
-| Health | The accessibility health check is scheduled (29). The "protection is off" alert itself is tested by the instrumented `AccessibilityHealthWorkerTest`, because WorkManager won't run a periodic job early. | |
-| Every day | The Guardian allows 1 minute a day for 2 days, and the app opens (28b). A minute of use runs out and blocks the app, with "Ask Guardian" still offered; usage survives a restart of Krypt (28d) and a reboot (29b). Time under a one-time unlock doesn't count (30). | Automatic date & time off pauses daily time (28c). Moving the date forward gives no fresh day (30c). A 40-day date jump and a restart of Krypt don't erase today's used-up time (30d). |
+| Home | The toggle locks an app (11). A Guardian unlock shows with its time left while the switch stays on (26b). | "Relock now", in the row's sheet, ends the unlock, and the app is blocked again (26c). |
+| Request access | The request link is shared and the pending request saved (16). | Requesting before a PIN exists is refused (04). A request link pasted as a reply is refused (16b). |
+| Guardian | The right PIN shares a reply (21). The Guardian can choose how long it unlocks the app (27: 30 minutes). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
+| Unlock | The approval link opens the app (23). The app opens freely during the grant (24). The grant survives a process restart (26). The copy-and-paste path ("Paste reply") works (27). An app still open when its grant ends is blocked (30). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
+| Health | The accessibility health check is scheduled (29). The "Krypt is off" alert itself is tested by the instrumented `AccessibilityHealthWorkerTest`, because WorkManager won't run a periodic job early. | |
+| Every day | The Guardian allows 1 minute a day for 2 days (Daily, with Custom minutes and days), and the app opens (28b). A minute of use runs out and blocks the app ("Done for today."), with "Request access" still offered; usage survives a restart of Krypt (28d) and a reboot (29b). Time under a one-time unlock doesn't count (30). | Automatic date & time off pauses daily time ("Paused.", 28c). Moving the date forward gives no fresh day (30c). A 40-day date jump and a restart of Krypt don't erase today's used-up time (30d). |
 | Uninstall | Device Admin blocks uninstalling Krypt (31). | |
 
 Instrumented tests (`./gradlew connectedDebugAndroidTest`) cover the same
