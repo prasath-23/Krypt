@@ -216,7 +216,8 @@ def home_switches():
 
 def top_activity():
     out = sh("dumpsys activity activities")
-    m = re.search(r"topResumedActivity=ActivityRecord\{\S+ u0 (\S+)", out)
+    m = (re.search(r"topResumedActivity=ActivityRecord\{\S+ u0 (\S+)", out)
+         or re.search(r"ResumedActivity: ?ActivityRecord\{\S+ u0 (\S+)", out))  # Android 10 says it this way
     return m.group(1) if m else ""
 
 
@@ -433,6 +434,7 @@ def daily_used_ms(pkg):
 
 def set_auto_time(on):
     sh(f"cmd time_detector set_auto_detection_enabled {'true' if on else 'false'}")
+    sh(f"settings put global auto_time {1 if on else 0}")  # Android 10-11 have no time_detector command
     time.sleep(2)  # Krypt hears about it through a settings observer
 
 
