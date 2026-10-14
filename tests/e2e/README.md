@@ -30,6 +30,12 @@ Requirements:
   `cmd time_detector`, which needs no root. Moving the clock needs
   `set_time_state_for_tests`, which is only on recent Android versions; it
   was checked on Android 16.
+- Android 10 (checked on an API 29 emulator) runs most cases, with three
+  limits. `run-as` there can't see Krypt's own process, so the cases that
+  kill it (16c, 26, 28d) fail. A Chrome that was never updated is a factory
+  system app, which Krypt doesn't list, so the Chrome cases (11, 13, 27, 29b)
+  fail. And `uiautomator dump --windows` is missing, so dumps fall back to
+  the active window, which can still be the previous app's for a while.
 - When a case fails, the run saves a screenshot, the UI dump and the
   focused window for it under `<temp>/krypt_e2e_failures/<case>/`, and
   prints the path. The folder is emptied at the start of each run.
