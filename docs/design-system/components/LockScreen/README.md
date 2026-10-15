@@ -4,7 +4,7 @@ What appears instead of a locked app: a calm, left-aligned page that follows the
 - **Top:** the eyebrow "PROTECTED BY KRYPT" with the mark.
 - **The app:** its 56dp icon tile (`radius-lg`), its name and its package in mono.
 - **The reason:** an `icon-lg` icon, a one-word serif statement in `display-large`, and one line of `body-large`.
-- **Pinned to the bottom:** the primary **Request access** button, then a row with **Paste reply** on the left and **Back to home** on the right.
+- **Pinned to the bottom:** a state-driven action bar. Idle: primary **Request access**, then **Paste reply** · **Back to home**. Waiting for a reply: primary **Paste reply**, then **Send again** · **Back to home** (see ShareHandoff).
 
 | Reason | Icon | Statement | Line |
 |---|---|---|---|

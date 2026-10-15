@@ -1,6 +1,6 @@
 One installed app in Home. Every row has the same shape and height: icon, name, one status line, switch.
 
-**Shows:** the app icon at `app-icon-row` masked to `radius-sm`, the name in `title-medium`, one StatusLine (Not locked shows "Not locked" in `on-surface-variant`, so no row is shorter), and the Material 3 Switch at the end. There are no buttons inside rows; rows are 68dp tall and separated only by hairlines.
+**Shows:** the app icon at `app-icon-row` masked to `radius-sm`, the name in `title-medium`, one StatusLine (Not locked shows "Not locked" in `on-surface-variant` with no icon, so no row is shorter and `lock_open` keeps one meaning), and the Material 3 Switch at the end. There are no buttons inside rows; rows are 68dp tall and separated only by hairlines.
 
 **Ending access early:** a row in Open now is tappable. It opens a small bottom sheet with the app, its status ("Open · 12 min left · until 14:35") and one primary action, **Relock now**, or **Stop daily time** for daily rows, plus **Keep it open**.
 

@@ -30,20 +30,21 @@ See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sec
 
 ## Lock screen
 
-See LockScreen: the eyebrow, the app tile, the one-word serif statement and its line, the ShareHandoff timeline once sent, and the bottom action area. It follows the Appearance setting (System default unless changed).
+See LockScreen: the eyebrow, the app tile, the one-word serif statement and its line, the ShareHandoff timeline once sent, and a state-driven bottom action bar (Request access while idle; Paste reply with Send again while waiting). It follows the Appearance setting (System default unless changed).
 
 ## Guardian approval (on the Guardian's phone)
 
-- **Top:** eyebrow "ACCESS REQUEST", the title "Instagram". If the app isn't installed here, the title is the package in mono, with an `info` tertiary "Why only a package name?". An age line follows: "Sent 1 min ago · expires in 4:00".
-- **Then:** DurationChips, the SummarySentence, PinEntry (4-8), and **Approve and send** (primary, full width).
+Two steps, so the keypad is never inside a scrolling page (see GuardianApproval).
+- **Step 1 · Choose:** eyebrow "ACCESS REQUEST", the title "Instagram" (or the package in mono, with an `info` tertiary "Why only a package name?"), the age line "Sent 1 min ago · expires in 4:00", DurationChips, the live SummarySentence, and a pinned primary **Continue**.
+- **Step 2 · Confirm:** a bottom sheet with the SummarySentence fixed at the top, PinEntry (4-8), and **Approve and send**. Nothing in the sheet scrolls. Dismissing it returns to step 1 with the choice kept and the PIN cleared.
 - **States:**
   - Loading: thin progress line.
   - Fatal: `error-container` panel with one sentence ("This request expired. Ask for a new one." / "This request looks damaged." / "Couldn't read this request.").
-  - Wrong PIN and lockout: via PinEntry and LockoutCountdown.
+  - Wrong PIN and lockout: inside the sheet, via PinEntry and LockoutCountdown.
   - Checking: breathing dots.
   - Approved: `display-large` "Sent." and "You can close this screen." after the share sheet.
   - Unknown link: "Not a Krypt request".
-- Screenshots are blocked.
+- Screenshots are blocked on the whole activity, sheet included.
 
 ## Approval confirmation
 
@@ -51,5 +52,5 @@ No layout: UnlockFlash, then the toast.
 
 ## System surfaces
 
-- **Notification small icon:** `shield`. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off", "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings." and "Krypt is protecting this phone".
+- **Notification small icon:** `krypt-mark-sm.svg`, the small brand mark as a white-on-transparent vector drawable (Android tints it). A generic `shield` would read as antivirus. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off", "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings." and "Krypt is protecting this phone".
 - **Share sheet titles:** "Send your request" and "Send your reply".

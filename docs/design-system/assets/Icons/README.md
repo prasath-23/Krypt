@@ -22,7 +22,7 @@ Material Icons, **Rounded** (`Icons.Rounded.*`, from `material-icons-extended`),
 | `search` | Search apps | `on-surface-variant` |
 | `chevron_right` | Row opens something | `on-surface-variant` |
 | `arrow_forward` | First-run choice rows | `on-surface-variant` |
-| `shield` | Notification small icon | system |
+| `shield` | Not used: the notification small icon is the brand mark, `krypt-mark-sm.svg` (see Logos) | — |
 | `accessibility_new`, `layers`, `battery_alert`, `admin_panel_settings`, `notifications` | The five onboarding items | `on-secondary-container` |
 | `info` | Explanations | `on-surface-variant` |
 | `close` | Dismiss a sheet | `on-surface` |
