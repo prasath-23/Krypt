@@ -2,7 +2,7 @@ The short line under an app's name in Home, always an icon plus words, in the co
 
 | Status | Icon | Colour | Line |
 |---|---|---|---|
-| Not locked | — | — | (none) |
+| Not locked | — (no icon) | `on-surface-variant` | Not locked |
 | Locked | `lock` | `locked` | Locked |
 | Unlocked (one time) | `lock_open` | `open` | Open · 12 min left (ticking) |
 | Daily, time left | `lock_clock` | `open` | Daily · 25 of 60 min left · until Sep 28 |
@@ -12,5 +12,6 @@ The short line under an app's name in Home, always an icon plus words, in the co
 **Badges** (`kx-badge`, fully round) carry the counts in Home's header: "42 locked" on `locked-container`, "2 open now" on `open-container`.
 
 **Rules**
+- `lock_open` means only an active one-time unlock; never put it on a Not locked row. Not locked carries text alone so every row keeps the same height.
 - Use the middle dot " · " as the only separator. Numbers that tick are set in `mono-time` so they don't jitter.
 - Wrap to a second line at large font scale; never cut off the time left.

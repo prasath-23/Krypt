@@ -10,5 +10,5 @@ How the Guardian chooses what to allow: a two-option segmented control for how o
 
 **Rules**
 - Defaults: Once, 15 min. Daily defaults to 7 days.
-- An invalid custom value disables Approve and send.
+- An invalid custom value disables Continue on step 1 of the Guardian flow.
 - The choice is kept through wrong PINs and lockouts.

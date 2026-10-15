@@ -64,7 +64,7 @@ Three bundled families (all SIL OFL, in `fonts/`; put them in `res/font/` and ne
 
 - 4dp grid. `space-5` (20dp) gutter at every width from `screen-min` (320dp). `space-6` between a title block and its content; `space-8` between sections; `space-12` above the first eyebrow on full screens.
 - Corners are soft, not round: `radius-sm` (10) for app icons, keys and chips; `radius-md` (14) for buttons, fields and segments; `radius-lg` (22) for grouped sections and the lock-screen app tile; `radius-xl` (28) for sheets. Only dots, the switch and badges use `radius-full`.
-- Every control has a `touch-target` of at least 48dp. Primary and secondary buttons are `button-height` (52dp); inline row actions are `button-height-sm` (36dp).
+- Every control has a `touch-target` of at least 48dp. Primary and secondary buttons are `button-height` (52dp); small actions inside grouped cards (never inside Home rows) are `button-height-sm` (36dp).
 - Icons are `icon-md` (20dp) in rows and buttons, `icon-sm` (16dp) in status lines and badges, `icon-lg` (24dp) for the lock reason.
 
 ## Motion
@@ -79,13 +79,13 @@ Three bundled families (all SIL OFL, in `fonts/`; put them in `res/font/` and ne
 
 **Material Icons, Rounded** (`Icons.Rounded.*`) only, in `on-surface` or the colour of their meaning. The exact glyphs are in `assets/Icons`. An icon beside its own word is decorative (`contentDescription = null`); every other icon gets a label. There are no illustrations and no emoji.
 
-The **mark** is a keyhole with a cat's ears, and a smaller keyhole set into its leg (`assets/Logos`). At a glance it is a keyhole, the one way in; look again and a cat is keeping watch over a lock of its own, as cats guarded crypts in old legend. It is one flat silhouette in `on-surface`, or near-white on a `#121212` tile. Never outline it, add a face or whiskers, or put it in a circle. Set "Krypt" beside it in Instrument Serif; at small sizes the eyebrow "KRYPT" with the mark is enough.
+The **mark** is a keyhole with a cat's ears, and a smaller keyhole set into its leg (`assets/Logos`). At a glance it is a keyhole, the one way in; look again and a cat is keeping watch over a lock of its own, as cats guarded crypts in old legend. It is one flat silhouette in `on-surface`, or near-white on a `#121212` tile. Never outline it, add a face or whiskers, or put it in a circle. Set "Krypt" beside it in Instrument Serif; at 20dp and below use the optical small mark (`krypt-mark-sm.svg`, no inner keyhole); the eyebrow "KRYPT" uses it.
 
 ## Rules from the spec
 
 These stay true whatever the design does.
 
-- **No PIN entry on the locked phone's unlock path.** The lock screen offers only Request access, Paste reply and Back to home. Back goes to the launcher, never into the app.
+- **No PIN entry on the locked phone's unlock path.** The lock screen offers only Request access (Send again while waiting), Paste reply and Back to home. Back goes to the launcher, never into the app.
 - **PINs are digits only and always masked** (dots, never digits). They are never kept in saved state and are cleared after use. Lengths: 4-6 at setup, up to 6 on the Krypt Admin gate, 4-8 on the Guardian screen.
 - **PIN checks take about 0.3s on purpose:** always show the checking state.
 - **Lockouts:** the 3rd wrong PIN locks for 30s, then 2 min, 10 min, 1 hour. A live countdown shows meanwhile, and input is disabled.
@@ -101,11 +101,11 @@ The instrumented tests in `app/src/androidTest/.../e2e/` find elements by these 
 
 | Old text | New text |
 |---|---|
-| Ask Guardian | Request access |
+| Ask Guardian | Request access (Send again while a request is waiting) |
 | Paste approval link | Paste reply |
 | Go to home screen | Back to home |
 | This app is locked | Locked. |
-| Verify & send approval | Approve and send |
+| Verify & send approval | Continue (step 1), then Approve and send (PIN sheet) |
 | Paste link | Paste a link |
 | Unlock (PIN gate) | Continue |
 | Lock now | Relock now (in the row's sheet) |
