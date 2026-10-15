@@ -142,7 +142,9 @@ def type_text(text):
     BACK only while the keyboard is up: with a hardware keyboard (or an emulator set up with
     one) no on-screen keyboard appears, and BACK would leave the screen instead."""
     sh(f"input text {text}")
-    time.sleep(0.5)
+    # The keyboard may put itself away after hardware-key input (as Gboard does on an emulator
+    # with a hardware keyboard). Let that finish first, or BACK can land on the app instead.
+    time.sleep(1.5)
     if keyboard_shown():
         sh("input keyevent KEYCODE_BACK")  # hide the keyboard
         time.sleep(0.5)
@@ -439,10 +441,11 @@ def set_auto_time(on):
 
 
 def request_access_for(pkg):
-    """On the child's phone: open the locked app, tap Request access, return the request link."""
+    """On the child's phone: open the locked app, tap Request access, return the request link.
+    While an earlier request still waits, the lock screen offers Send again instead."""
     launch(pkg)
     expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), f"{pkg} was not blocked; top is {top_activity()}")
-    tap_text(r"^Request access$")
+    tap_text(r"^(Request access|Send again)$")
     request = re.search(r"krypt://request\?[A-Za-z0-9._~*%+=&-]+", shared_text())
     expect(request, "no request link")
     expect("caps=daily" in request.group(0), "the request doesn't say this phone takes every-day approvals")
@@ -458,10 +461,13 @@ def wait_guardian_form(timeout=20):
 
 
 def guardian_approve(pin):
-    """On the Guardian's form: type [pin] on the keypad and tap Approve and send."""
-    scroll_down()  # the keypad is below the request and its choices
-    enter_pin(pin)
-    tap_text(r"^Approve and send$")  # pinned to the bottom of the screen, never scrolled away
+    """On the Guardian's form: Continue opens the PIN sheet (step 2); type [pin] on its keypad and
+    tap Approve and send. A wrong PIN leaves the sheet open, so Continue is tapped only when needed."""
+    if not matching(r"^Approve and send$"):
+        tap_text(r"^Continue$")  # pinned to the bottom of step 1
+        expect(wait_text(r"^Approve and send$", 20), "the PIN sheet did not open")
+    enter_pin(pin)  # the whole keypad is on the sheet; nothing scrolls
+    tap_text(r"^Approve and send$")
 
 
 def approve_every_day(request_url, minutes, days):
