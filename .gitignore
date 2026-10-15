@@ -16,6 +16,8 @@ build/
 local.properties
 captures/
 *.apk
+# ...except the latest debug build, kept in the repo for sideloading (see README)
+!/apk/krypt-debug.apk
 *.aab
 *.aar
 *.ap_
