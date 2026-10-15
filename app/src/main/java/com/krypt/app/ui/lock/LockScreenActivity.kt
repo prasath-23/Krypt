@@ -203,46 +203,74 @@ private fun LockScreen(
     // each app, and clears again with each new request.
     var noReplyOnClipboard by rememberSaveable(lockedPackage) { mutableStateOf(false) }
     val pasteReply = pasteKryptLinkAction(approvalsOnly = true) { noReplyOnClipboard = true }
+    val askGuardian: () -> Unit = {
+        noReplyOnClipboard = false
+        viewModel.askGuardian()
+    }
     val sentAt = rememberSentAt(lockedPackage, state.request)
+    val secondsLeft = sentAt?.let { rememberSecondsLeft(it) }
+    // Sent and not yet expired: the reply is the next useful thing.
+    val waiting = secondsLeft != null && secondsLeft > 0
 
     KryptPage(
         topPadding = KryptSpace.s12,
         actions = {
-            PrimaryButton(
-                text = stringResource(R.string.lock_request_access),
-                onClick = {
-                    noReplyOnClipboard = false
-                    viewModel.askGuardian()
-                },
-                busy = state.request == RequestStatus.Preparing,
-                busyText = stringResource(R.string.lock_preparing),
-                icon = KryptIcons.Share,
-            )
-            if (state.request == RequestStatus.None) {
-                // The only centred text on the page: the hint under its button.
-                Text(
-                    text = stringResource(R.string.lock_request_hint),
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            ActionPair {
-                // TertiaryButton pads its label by s3; pull each one out by that
-                // much so both labels sit on the gutter, as in the design.
-                TertiaryButton(
+            // The bar follows the request (docs/design-system/components/ShareHandoff).
+            if (waiting) {
+                PrimaryButton(
                     text = stringResource(R.string.lock_paste_reply),
                     onClick = pasteReply,
-                    modifier = Modifier.offset(x = -KryptSpace.s3),
                     icon = KryptIcons.ContentPaste,
                 )
-                TertiaryButton(
-                    text = stringResource(R.string.lock_back_home),
-                    onClick = onGoHome,
-                    modifier = Modifier.offset(x = KryptSpace.s3),
-                    icon = KryptIcons.Home,
+                ActionPair {
+                    // A fresh request, exactly like Request access.
+                    TertiaryButton(
+                        text = stringResource(R.string.lock_send_again),
+                        onClick = askGuardian,
+                        modifier = Modifier.offset(x = -KryptSpace.s3),
+                        icon = KryptIcons.Share,
+                    )
+                    TertiaryButton(
+                        text = stringResource(R.string.lock_back_home),
+                        onClick = onGoHome,
+                        modifier = Modifier.offset(x = KryptSpace.s3),
+                        icon = KryptIcons.Home,
+                    )
+                }
+            } else {
+                PrimaryButton(
+                    text = stringResource(R.string.lock_request_access),
+                    onClick = askGuardian,
+                    busy = state.request == RequestStatus.Preparing,
+                    busyText = stringResource(R.string.lock_preparing),
+                    icon = KryptIcons.Share,
                 )
+                if (state.request != RequestStatus.Preparing && state.request != RequestStatus.NotConfigured) {
+                    // The only centred text on the page: the hint under its button.
+                    Text(
+                        text = stringResource(R.string.lock_request_hint),
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                ActionPair {
+                    // TertiaryButton pads its label by s3; pull each one out by that
+                    // much so both labels sit on the gutter, as in the design.
+                    TertiaryButton(
+                        text = stringResource(R.string.lock_paste_reply),
+                        onClick = pasteReply,
+                        modifier = Modifier.offset(x = -KryptSpace.s3),
+                        icon = KryptIcons.ContentPaste,
+                    )
+                    TertiaryButton(
+                        text = stringResource(R.string.lock_back_home),
+                        onClick = onGoHome,
+                        modifier = Modifier.offset(x = KryptSpace.s3),
+                        icon = KryptIcons.Home,
+                    )
+                }
             }
         },
     ) {
@@ -253,7 +281,7 @@ private fun LockScreen(
             Eyebrow(stringResource(R.string.lock_eyebrow))
             LockedApp(lockedPackage, appLabel, iconCache)
             Reason(state.reason, appLabel, Modifier.padding(top = KryptSpace.s6))
-            RequestHandoff(state.request, sentAt, appLabel)
+            RequestHandoff(state.request, secondsLeft, appLabel)
             if (noReplyOnClipboard) InlineError(stringResource(R.string.lock_paste_no_reply))
         }
     }
@@ -317,15 +345,14 @@ private fun Reason(reason: LockReason, appLabel: String, modifier: Modifier = Mo
 /**
  * What follows Request access (docs/design-system/components/ShareHandoff):
  * nothing before it or while it is prepared, the three-step timeline once it
- * is sent (until it expires, [sentAt] plus 5 minutes), or one error line,
- * after which the button works again.
+ * is sent (while [secondsLeft] of its 5 minutes remain), or one error line,
+ * after which the bar offers Request access again.
  */
 @Composable
-private fun RequestHandoff(request: RequestStatus, sentAt: Long?, appLabel: String) {
+private fun RequestHandoff(request: RequestStatus, secondsLeft: Long?, appLabel: String) {
     when (request) {
         RequestStatus.None, RequestStatus.Preparing -> Unit
-        RequestStatus.Sent -> if (sentAt != null) {
-            val secondsLeft = rememberSecondsLeft(sentAt)
+        RequestStatus.Sent -> if (secondsLeft != null) {
             if (secondsLeft > 0) {
                 SentTimeline(
                     appLabel = appLabel,

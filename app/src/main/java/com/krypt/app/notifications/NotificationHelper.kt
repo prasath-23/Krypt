@@ -70,7 +70,7 @@ class NotificationHelper @Inject constructor(
 
     private fun alert(title: String, body: String, tap: PendingIntent): Notification =
         NotificationCompat.Builder(context, NotificationChannels.SECURITY_ALERTS)
-            .setSmallIcon(R.drawable.ic_notification_shield)
+            .setSmallIcon(R.drawable.ic_notification_mark)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))

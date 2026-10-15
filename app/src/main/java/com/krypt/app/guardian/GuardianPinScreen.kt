@@ -18,14 +18,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +40,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,16 +92,19 @@ import com.krypt.app.ui.theme.KryptTheme
 import kotlinx.coroutines.delay
 
 /**
- * The Guardian's approval screen (docs/design-system/Screens.md, "Guardian
- * approval"), on the Guardian's own phone. Routed from
+ * The Guardian's approval screen (docs/design-system/components/GuardianApproval),
+ * on the Guardian's own phone. Routed from
  * [com.krypt.app.ui.guardian.GuardianActivity] when a `krypt://request` link
- * is opened: which app, how old the request is, what to allow
- * (DurationChips), the choice read back as one sentence, the Guardian PIN,
- * and **Approve and send**, which hands the reply to the share sheet.
+ * is opened. Two steps, so the keypad is never inside a scrolling page.
+ * Step 1 shows which app, how old the request is, what to allow
+ * (DurationChips) and the choice read back as one sentence, then
+ * **Continue**. Step 2 is a sheet with that sentence, the Guardian PIN and
+ * **Approve and send**, which hands the reply to the share sheet.
  *
  * The PIN lives only in this composable's memory, never in saved state. It
- * is cleared after every submit, after a wrong PIN and when the screen
- * closes, and the ViewModel gets it as a [CharArray] that it wipes.
+ * is cleared after every submit, after a wrong PIN, when the sheet is
+ * dismissed and when the screen closes, and the ViewModel gets it as a
+ * [CharArray] that it wipes.
  */
 @Composable
 fun GuardianPinScreen(
@@ -107,6 +115,7 @@ fun GuardianPinScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val currentOnDone by rememberUpdatedState(onDone)
 
     LaunchedEffect(incomingUrl) { viewModel.parseIncoming(incomingUrl) }
@@ -118,6 +127,8 @@ fun GuardianPinScreen(
     DisposableEffect(incomingUrl) {
         onDispose { pin = " ".repeat(pin.length) }
     }
+    // Step 2, the PIN sheet, is up. Only that is saved (it survives rotation), never the PIN.
+    var confirming by rememberSaveable(incomingUrl) { mutableStateOf(false) }
 
     val s = state
     // While the PIN is checked, the form stays on screen as it was, disabled.
@@ -143,6 +154,20 @@ fun GuardianPinScreen(
     }
     val appLabel = rememberAppLabel(request?.targetPackage)
 
+    // The sheet belongs to a live request: it goes once the reply is sent, or
+    // when the request fails or runs out (step 1 then says why).
+    LaunchedEffect(ready == null) {
+        if (ready == null) confirming = false
+    }
+    // A request lasts 5 minutes. If it runs out while this screen is up, say so
+    // then, rather than at the next tap.
+    LaunchedEffect(request) {
+        while (request != null) {
+            delay(TICK_MS)
+            viewModel.expireIfDue()
+        }
+    }
+
     // One rule for the button and for Enter on a hardware keyboard: every
     // approve() call counts against the shared PIN attempt limit.
     fun canApprove(): Boolean =
@@ -159,17 +184,25 @@ fun GuardianPinScreen(
         }
     }
 
+    // Continue needs a whole choice: an invalid custom value disables it.
+    val canContinue = ready != null && !validating && ready.form.choice != null
+    val openSheet: () -> Unit = {
+        if (canContinue) {
+            // Put away a keyboard left open by a Custom field; the sheet has Krypt's keypad.
+            keyboard?.hide()
+            focusManager.clearFocus()
+            confirming = true
+        }
+    }
+
     val actions: (@Composable ColumnScope.() -> Unit)? = if (ready == null) {
         null
     } else {
         {
             PrimaryButton(
-                text = stringResource(R.string.guardian_approve),
-                onClick = submit,
-                enabled = canApprove(),
-                busy = validating,
-                busyText = stringResource(R.string.guardian_checking),
-                icon = KryptIcons.Share,
+                text = stringResource(R.string.action_continue),
+                onClick = openSheet,
+                enabled = canContinue,
             )
         }
     }
@@ -216,44 +249,110 @@ fun GuardianPinScreen(
                     onPickDays = viewModel::pickDays,
                     onEditDays = viewModel::editDays,
                 )
-                Spacer(Modifier.height(KryptSpace.s8))
+                // The live sentence; it hides while a custom value is invalid.
                 shown.form.choice?.let { choice ->
+                    Spacer(Modifier.height(KryptSpace.s8))
                     SummarySentence(
                         choice = choice,
                         appLabel = appLabel,
                         packageName = shown.request.targetPackage,
                     )
-                    Spacer(Modifier.height(KryptSpace.s8))
                 }
-                val wrongPin = shown.errorMessage as? ErrorMessage.WrongPin
-                PinEntry(
-                    pin = if (validating) CHECKING_DOT.repeat(checkingLength) else pin,
-                    onPinChange = { typed ->
-                        pin = typed
-                        // Krypt's keypad is in use: put away a keyboard left open by a Custom field.
-                        keyboard?.hide()
-                        if (shown.errorMessage is ErrorMessage.WrongPin) viewModel.acknowledgeError()
-                    },
-                    maxLength = PIN_MAX_LENGTH,
-                    minLength = PIN_MIN_LENGTH,
-                    busy = validating,
-                    message = when {
-                        validating -> stringResource(R.string.pin_checking)
-                        wrongPin != null -> pluralStringResource(
-                            R.plurals.pin_error_wrong,
-                            wrongPin.attemptsLeft,
-                            wrongPin.attemptsLeft,
-                        )
-                        else -> stringResource(R.string.guardian_pin_line)
-                    },
-                    isError = !validating && wrongPin != null,
-                    errorKey = if (validating) null else shown.errorMessage,
-                    lockoutMs = if (validating) null else shown.lockoutRetryInMs,
-                    onLockoutElapsed = viewModel::lockoutElapsed,
-                    onSubmit = submit,
-                    tag = PIN_FIELD_TAG,
-                )
             }
+        }
+    }
+
+    if (confirming && ready != null) {
+        val wrongPin = ready.errorMessage as? ErrorMessage.WrongPin
+        PinSheet(
+            choice = ready.form.choice,
+            appLabel = appLabel,
+            packageName = ready.request.targetPackage,
+            validating = validating,
+            canApprove = canApprove(),
+            onSubmit = submit,
+            onDismiss = {
+                // Back to step 1: the choice stays, the PIN goes.
+                confirming = false
+                pin = ""
+            },
+        ) {
+            PinEntry(
+                pin = if (validating) CHECKING_DOT.repeat(checkingLength) else pin,
+                onPinChange = { typed ->
+                    pin = typed
+                    if (ready.errorMessage is ErrorMessage.WrongPin) viewModel.acknowledgeError()
+                },
+                maxLength = PIN_MAX_LENGTH,
+                minLength = PIN_MIN_LENGTH,
+                busy = validating,
+                message = when {
+                    validating -> stringResource(R.string.pin_checking)
+                    wrongPin != null -> pluralStringResource(
+                        R.plurals.pin_error_wrong,
+                        wrongPin.attemptsLeft,
+                        wrongPin.attemptsLeft,
+                    )
+                    else -> stringResource(R.string.guardian_pin_line)
+                },
+                isError = !validating && wrongPin != null,
+                errorKey = if (validating) null else ready.errorMessage,
+                lockoutMs = if (validating) null else ready.lockoutRetryInMs,
+                onLockoutElapsed = viewModel::lockoutElapsed,
+                lockoutReplacesKeypad = true,
+                onSubmit = submit,
+                tag = PIN_FIELD_TAG,
+            )
+        }
+    }
+}
+
+/**
+ * Step 2 (GuardianApproval): the choice read back, [pinEntry] and Approve
+ * and send, in a sheet over step 1. It fits a 320 x 640dp phone without
+ * scrolling. While the PIN is checked it can't be dismissed: the approval is
+ * already on its way. Screenshots of it are blocked, as of the whole screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PinSheet(
+    choice: AccessChoice?,
+    appLabel: String?,
+    packageName: String,
+    validating: Boolean,
+    canApprove: Boolean,
+    onSubmit: () -> Unit,
+    onDismiss: () -> Unit,
+    pinEntry: @Composable () -> Unit,
+) {
+    val checking by rememberUpdatedState(validating)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { value -> value != SheetValue.Hidden || !checking },
+    )
+    KryptSheet(
+        onDismissRequest = { if (!checking) onDismiss() },
+        sheetState = sheetState,
+        secure = true,
+    ) {
+        Column(
+            // Only at very large text sizes is there more than fits; then it
+            // scrolls rather than cutting off the keypad.
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(KryptSpace.s4),
+        ) {
+            choice?.let { SummarySentence(choice = it, appLabel = appLabel, packageName = packageName) }
+            pinEntry()
+            PrimaryButton(
+                text = stringResource(R.string.guardian_approve),
+                onClick = onSubmit,
+                enabled = canApprove,
+                busy = validating,
+                busyText = stringResource(R.string.guardian_checking),
+                icon = KryptIcons.Share,
+            )
         }
     }
 }

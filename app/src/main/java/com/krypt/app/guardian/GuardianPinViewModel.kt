@@ -106,7 +106,7 @@ class GuardianPinViewModel @Inject constructor(
         // The link's expiry is checked when it is read; the Guardian may have
         // lingered since. Without this, an expired request would cost a PIN
         // attempt and produce a reply the locked phone refuses.
-        if (clock.nowSeconds() > ready.request.expiresAtSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS) {
+        if (hasExpired(ready.request)) {
             pin.fill(' ')
             _state.value = GuardianPinState.FatalError(messageKey = "request_expired")
             return
@@ -161,6 +161,21 @@ class GuardianPinViewModel @Inject constructor(
         if (ready.lockoutRetryInMs != null) return
         _state.value = ready.copy(errorMessage = null)
     }
+
+    /**
+     * The screen asks every second while a request is up: once it has run
+     * out (as [approve] would judge it), the expired error shows straight
+     * away, and with it the PIN sheet closes.
+     */
+    fun expireIfDue() {
+        val ready = (_state.value as? GuardianPinState.Ready) ?: return
+        if (hasExpired(ready.request)) {
+            _state.value = GuardianPinState.FatalError(messageKey = "request_expired")
+        }
+    }
+
+    private fun hasExpired(request: UnlockRequest): Boolean =
+        clock.nowSeconds() > request.expiresAtSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS
 
     /** The screen's lockout countdown reached zero: allow PIN entry again. */
     fun lockoutElapsed() {

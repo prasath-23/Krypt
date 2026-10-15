@@ -43,7 +43,7 @@ class KryptWatchdogService : Service() {
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, NotificationChannels.WATCHDOG)
-            .setSmallIcon(R.drawable.ic_notification_shield)
+            .setSmallIcon(R.drawable.ic_notification_mark)
             .setContentTitle(getString(R.string.watchdog_title))
             .setContentText(getString(R.string.watchdog_body))
             .setOngoing(true)

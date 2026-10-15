@@ -4,8 +4,10 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.ComponentName
 import android.content.Intent
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
@@ -139,6 +141,24 @@ class LockScreenE2ETest {
         val open = runBlocking { db.outstandingRequestDao().observeOpenAt(System.currentTimeMillis()).first() }
         assertEquals(1, open.size)
         assertEquals(lockedPackage, open.single().targetPackage)
+    }
+
+    @Test
+    fun whileARequestWaits_pasteReplyLeads_andSendAgainSharesAFreshOne() {
+        launch().use {
+            compose.onNodeWithText("Request access").performClick()
+            waitForText("Send again")
+            // The bar follows the request: Paste reply is the main action now.
+            compose.onAllNodesWithText("Request access").assertCountEquals(0)
+            compose.onNodeWithText("Paste reply").assertIsDisplayed()
+            compose.onNodeWithText("Back to home").assertIsDisplayed()
+
+            compose.onNodeWithText("Send again").performClick()
+            compose.waitUntil(10_000) { Intents.getIntents().count { it.action == Intent.ACTION_CHOOSER } == 2 }
+            waitForText("Send again")
+        }
+        val open = runBlocking { db.outstandingRequestDao().observeOpenAt(System.currentTimeMillis()).first() }
+        assertEquals(2, open.size)
     }
 
     @Test

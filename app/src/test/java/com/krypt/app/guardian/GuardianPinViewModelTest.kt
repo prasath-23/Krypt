@@ -154,6 +154,31 @@ class GuardianPinViewModelTest {
     }
 
     @Test
+    fun aRequestThatRunsOutWithTheScreenUp_showsTheExpiredError_withoutATap() = runTest {
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.ONE_TIME)
+        clock.advance((sampleRequest.ttlSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS + 1) * 1_000)
+
+        vm.expireIfDue()
+
+        assertEquals(GuardianPinState.FatalError("request_expired"), vm.state.value)
+        coVerify(exactly = 0) { validator.validate(any(), any(), any()) }
+    }
+
+    @Test
+    fun withinTheClockSkewAllowance_expireIfDue_keepsTheChoice() = runTest {
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.pickMinutes(30)
+        clock.advance((sampleRequest.ttlSeconds + UnlockRequestParser.CLOCK_SKEW_SECONDS - 1) * 1_000)
+
+        vm.expireIfDue()
+
+        assertEquals(AccessForm.Amount.Preset(30), readyState(vm).form.minutes)
+    }
+
+    @Test
     fun parseIncoming_badUrl_movesToFatalError() = runTest {
         every { parser.parse(any(), any()) } returns Outcome.err(RequestParseError.BadScheme)
         val vm = newVm()

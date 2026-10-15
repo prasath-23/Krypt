@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Krypt mark's optical small size (docs/design-system/assets/Logos,
+    krypt-mark-sm.svg): one path, no inner keyhole, slightly deeper ear
+    notches. For 20dp and below, e.g. the eyebrows; tint it with on-surface.
+    The viewport is the mark's own 36 x 66 box.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="9dp"
+    android:height="16dp"
+    android:viewportWidth="36"
+    android:viewportHeight="66">
+    <group
+        android:translateX="-36"
+        android:translateY="-22">
+        <path
+            android:fillColor="#FF1F1F1F"
+            android:pathData="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 32.4 C52 32.2 53 32.1 54 32.1 C55 32.1 56 32.2 57 32.4 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z" />
+    </group>
+</vector>

@@ -13,11 +13,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.SecureFlagPolicy
 import com.krypt.app.ui.theme.KryptSpace
 
 /**
@@ -26,6 +29,9 @@ import com.krypt.app.ui.theme.KryptSpace
  *
  * To close it with its animation, hide [sheetState] and then remove the
  * sheet from composition.
+ *
+ * @param secure blocks screenshots of the sheet's own window whatever its
+ *   activity does (a sheet otherwise inherits the activity's FLAG_SECURE).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +39,7 @@ fun KryptSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    secure: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -40,6 +47,11 @@ fun KryptSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         sheetState = sheetState,
+        properties = if (secure) {
+            ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn)
+        } else {
+            ModalBottomSheetDefaults.properties
+        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = colors.surfaceContainerHigh,
         contentColor = colors.onSurface,

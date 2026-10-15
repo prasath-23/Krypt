@@ -190,6 +190,8 @@
     <string name="lock_status_not_configured">Krypt isn\'t set up yet. Open Krypt and set a Guardian PIN first.</string>
     <string name="lock_status_failed">The request couldn\'t be made. Try again.</string>
     <string name="lock_paste_reply">Paste reply</string>
+    <!-- While a request waits for its reply: makes a fresh request, as Request access does. -->
+    <string name="lock_send_again">Send again</string>
     <string name="lock_paste_no_reply">No reply on the clipboard. Copy your Guardian\'s whole message, then try again.</string>
     <string name="lock_back_home">Back to home</string>
     <string name="lock_share_title">Send your request</string>

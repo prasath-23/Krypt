@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.krypt.app.R
 import com.krypt.app.ui.theme.KryptSize
 
@@ -38,7 +39,6 @@ object KryptIcons {
     @DrawableRes val Search = R.drawable.ic_search
     @DrawableRes val ChevronRight = R.drawable.ic_chevron_right
     @DrawableRes val ArrowForward = R.drawable.ic_arrow_forward
-    @DrawableRes val Shield = R.drawable.ic_shield
     @DrawableRes val AccessibilityNew = R.drawable.ic_accessibility_new
     @DrawableRes val Layers = R.drawable.ic_layers
     @DrawableRes val BatteryAlert = R.drawable.ic_battery_alert
@@ -76,7 +76,9 @@ fun KryptIcon(
 
 /**
  * The Krypt mark: a keyhole with a cat's ears. One flat silhouette in a
- * single colour; never outlined, rotated, circled or given a face.
+ * single colour; never outlined, rotated, circled or given a face. Below
+ * 24dp it is the optical small size, without the inner keyhole (the full
+ * mark is never shrunk that far).
  */
 @Composable
 fun KryptMark(
@@ -85,12 +87,15 @@ fun KryptMark(
     tint: Color = LocalContentColor.current,
 ) {
     Icon(
-        painter = painterResource(R.drawable.ic_krypt_mark),
+        painter = painterResource(if (height < FULL_MARK_MIN) R.drawable.ic_krypt_mark_sm else R.drawable.ic_krypt_mark),
         contentDescription = null,
         modifier = modifier.height(height).width(height * MARK_ASPECT),
         tint = tint,
     )
 }
 
-/** The mark's own box is 36 x 66. */
+/** Both marks' own box is 36 x 66. */
 private const val MARK_ASPECT = 36f / 66f
+
+/** The smallest size the full mark is drawn at (assets/Logos/README.md). */
+private val FULL_MARK_MIN = 24.dp

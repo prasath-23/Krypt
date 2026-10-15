@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
@@ -17,6 +18,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.core.content.IntentCompat
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
@@ -83,10 +85,18 @@ class GuardianScreenE2ETest {
         Intent(Intent.ACTION_VIEW, Uri.parse(url), targetContext, GuardianActivity::class.java)
     )
 
-    private fun ComposeTestRule.enterGuardianPin(pin: String) {
+    /** Step 1's Continue opens the PIN sheet, unless it is still up (a wrong PIN leaves it open). */
+    private fun ComposeTestRule.openPinSheet() {
+        if (onAllNodesWithText("Approve and send").fetchSemanticsNodes().isEmpty()) {
+            awaitText("Continue")
+            onNodeWithText("Continue").performClick()
+        }
         awaitText("Approve and send")
-        onNodeWithTag(PIN_FIELD_TAG).performScrollTo().performTextInput(pin)
-        // Pinned under the form, outside its scrolling column: nothing to scroll to.
+    }
+
+    private fun ComposeTestRule.enterGuardianPin(pin: String) {
+        openPinSheet()
+        onNodeWithTag(PIN_FIELD_TAG).performTextInput(pin)
         onNodeWithText("Approve and send").performClick()
     }
 
@@ -167,14 +177,34 @@ class GuardianScreenE2ETest {
     }
 
     @Test
-    fun unusableTypedMinutes_blockTheApproval() {
+    fun unusableTypedMinutes_keepContinueOff() {
         open(issueRequest()).use {
             compose.awaitText("Custom")
             compose.onAllNodesWithText("Custom")[0].performClick()
             compose.onNodeWithTag(MINUTES_FIELD_TAG).performTextInput("0")
             compose.awaitText("Choose 1 to 1440 minutes.")
-            compose.onNodeWithTag(PIN_FIELD_TAG).performTextInput(TEST_PIN)
-            compose.onNodeWithText("Approve and send").assertIsNotEnabled()
+            compose.onNodeWithText("Continue").assertIsNotEnabled()
+            // No PIN sheet, so nothing to approve with.
+            compose.onAllNodesWithText("Approve and send").assertCountEquals(0)
+        }
+        intended(hasAction(Intent.ACTION_CHOOSER), times(0))
+    }
+
+    @Test
+    fun dismissingThePinSheet_keepsTheChoice_andClearsThePin() {
+        open(issueRequest()).use {
+            compose.awaitText("30 min")
+            compose.onNodeWithText("30 min").performClick()
+            compose.openPinSheet()
+            compose.onNodeWithTag(PIN_FIELD_TAG).performTextInput("12")
+            Espresso.pressBack()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Approve and send").fetchSemanticsNodes().isEmpty()
+            }
+            compose.awaitText("com.example.target, 30 minutes, once.")
+
+            compose.openPinSheet()
+            compose.onNodeWithTag(PIN_FIELD_TAG).assertContentDescriptionEquals("Guardian PIN, 0 digits entered")
         }
         intended(hasAction(Intent.ACTION_CHOOSER), times(0))
     }

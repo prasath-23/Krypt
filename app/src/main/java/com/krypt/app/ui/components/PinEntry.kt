@@ -94,6 +94,9 @@ const val PIN_ENTRY_TAG = "pin_entry"
  * @param errorKey changes after each wrong PIN, and the dots shake once.
  * @param lockoutMs while non-null, the keypad is disabled and the lockout
  *   ring replaces the message line; [onLockoutElapsed] runs when it ends.
+ * @param lockoutReplacesKeypad where height is short (the Guardian's PIN
+ *   sheet, which never scrolls), the lockout ring takes the keypad's place
+ *   instead of the message line's.
  * @param onSubmit Enter on a hardware keyboard.
  */
 @Composable
@@ -110,6 +113,7 @@ fun PinEntry(
     errorKey: Any? = null,
     lockoutMs: Long? = null,
     onLockoutElapsed: () -> Unit = {},
+    lockoutReplacesKeypad: Boolean = false,
     onSubmit: () -> Unit = {},
     tag: String = PIN_ENTRY_TAG,
 ) {
@@ -148,17 +152,21 @@ fun PinEntry(
             tag = tag,
         )
         Spacer(Modifier.height(KryptSpace.s3))
-        if (lockoutMs != null) {
+        if (lockoutMs != null && !lockoutReplacesKeypad) {
             LockoutCountdown(remainingMs = lockoutLeftMs, totalMs = lockoutMs)
         } else {
             PinMessage(message = message, isError = isError)
         }
         Spacer(Modifier.height(KryptSpace.s5))
-        PinKeypad(
-            enabled = acceptsInput,
-            onDigit = { digit -> append(digit.toString()) },
-            onDelete = deleteLast,
-        )
+        if (lockoutMs != null && lockoutReplacesKeypad) {
+            LockoutCountdown(remainingMs = lockoutLeftMs, totalMs = lockoutMs)
+        } else {
+            PinKeypad(
+                enabled = acceptsInput,
+                onDigit = { digit -> append(digit.toString()) },
+                onDelete = deleteLast,
+            )
+        }
     }
 }
 
