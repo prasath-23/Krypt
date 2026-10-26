@@ -442,8 +442,10 @@ def scroll_down():
 
 
 def daily_used_ms(pkg):
-    rows = db(f"select usedMs from daily_usage where packageName='{pkg}' order by epochDay desc limit 1")
-    return rows[0][0] if rows else 0
+    """Time [pkg] was used on the latest day with any use (minute_usage keeps it per minute of the clock)."""
+    rows = db(f"select sum(usedMs) from minute_usage where packageName='{pkg}' and minute / 1440 = "
+              f"(select max(minute) / 1440 from minute_usage where packageName='{pkg}')")
+    return (rows[0][0] or 0) if rows else 0
 
 
 def set_auto_time(on):
@@ -482,14 +484,20 @@ def guardian_approve(pin):
     tap_text(r"^Approve and send$")
 
 
-def approve_every_day(request_url, minutes, days):
-    """As the Guardian: allow [minutes] a day for [days] days. Returns the shared text and the approval link."""
+def approve_every_day(request_url, minutes, days, period=None):
+    """As the Guardian: allow [minutes] a day for [days] days, or in each [period] (a chip, e.g. r"^1 hour$").
+    Returns the shared text and the approval link."""
     open_link(request_url)
-    tap_text(r"^Daily$", timeout=20)
-    # With Daily there are two Custom chips: minutes first, then days. Tap both before typing, while
-    # both are on screen; neither focuses its field, so tap each field (by its label) to type in it.
-    tap_text(r"^Custom$", index=0)
-    tap_text(r"^Custom$", index=1)
+    tap_text(r"^Repeating$", timeout=20)
+    # On phones that take periods, the Every row comes first, with its own Custom chip.
+    every = 1 if matching(r"^Every$") else 0
+    if period:
+        # "30 min", "1 hour" and "2 hours" are minutes chips too.
+        tap_text(period, index=0)
+    # Then a Custom chip for minutes and one for days. Tap both before typing, while both are
+    # on screen; neither focuses its field, so tap each field (by its label) to type in it.
+    tap_text(r"^Custom$", index=every)
+    tap_text(r"^Custom$", index=every + 1)
     tap_text(r"^Minutes$")
     type_text(str(minutes))
     tap_text(r"^Days$")
@@ -985,7 +993,8 @@ def daily_time_runs_out():
     launch(TARGET)  # a window change, so counting resumes
     top = wait_top(re.escape(LOCK_SCREEN), timeout=(60_000 - used) // 1000 + 20)
     expect(LOCK_SCREEN in top, f"not blocked when today's minute ran out; top is {top}")
-    expect(wait_text(r"^Done for today\.$", 10), "the lock screen doesn't say today's time is up")
+    # Just after Krypt's restart, a screen dump can take most of 10 s on its own.
+    expect(wait_text(r"^Done for today\.$", 20), "the lock screen doesn't say today's time is up")
     expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
     home()
     launch(TARGET)
@@ -1128,6 +1137,27 @@ def uninstall_blocked():
     expect("DELETE_FAILED_DEVICE_POLICY_MANAGER" in result, f"uninstall said: {result.strip()}")
 
 
+@case("31b every hour: 1 minute an hour runs out, and the lock screen says when it comes back")
+def hourly_time_runs_out():
+    # Chrome has no rule yet, so none of this hour is used. Two days, so the next hour is covered even near midnight.
+    request = request_access_for(CHROME)
+    text, approval = approve_every_day(request, minutes=1, days=2, period=r"^1 hour$")
+    expect("1 minute an hour for 2 days" in text, f"share text: {text!r}")
+    open_link(approval)
+    top = wait_top(re.escape(CHROME) + r"/", 20)
+    expect(CHROME in top, f"Chrome did not open; top is {top}")
+    rule = db(f"select minutesPerDay, periodMinutes from daily_allowances where packageName='{CHROME}'")
+    expect(rule == [(1, 60)], f"rule: {rule}")
+    # A minute of use, two if it starts just before the hour turns. No uiautomator dumps meanwhile:
+    # a dump unbinds Krypt's service.
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"not blocked when the hour's minute ran out; top is {top}")
+    expect(wait_text(r"^Done for now\.$", 10), "the lock screen doesn't say the time is up for now")
+    expect(wait_text(r"More time at \d", 5), "the lock screen doesn't say when the time comes back")
+    expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
+    home()
+
+
 @case("32 For good: the Guardian unlocks Chrome for good, and it opens with no time limit")
 def for_good_removes_the_lock():
     # Last, so that nothing after it needs Chrome locked.
@@ -1155,7 +1185,7 @@ def for_good_removes_the_lock():
     home()
 
 
-QUICK_SKIP = {"30", "31"}
+QUICK_SKIP = {"30", "30b", "30c", "30d", "31"}
 
 
 def main():
@@ -1173,11 +1203,11 @@ def main():
                  daily_time_paused_without_auto_time, daily_time_runs_out,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,
                  date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked,
-                 for_good_removes_the_lock]
+                 hourly_time_runs_out, for_good_removes_the_lock]
     shutil.rmtree(EVIDENCE, ignore_errors=True)
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)
     for run in all_cases:
-        if args.quick and run.case_name[:2] in QUICK_SKIP:
+        if args.quick and run.case_name.split()[0] in QUICK_SKIP:
             print(f"SKIP  {run.case_name}")
             continue
         run()

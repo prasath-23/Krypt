@@ -15,26 +15,34 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import java.time.LocalDate
+import java.time.Instant
 import java.time.ZoneId
+import java.util.TreeMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Counts the time a locked app is used under the Guardian's every-day rule,
- * and says how much is left today ([access]).
+ * and says how much is left in the rule's current period ([access]): today,
+ * or the stretch of the clock it counts in, e.g. 14:00-16:00 for "every 2
+ * hours".
  *
  * Krypt can't read the screen, so it counts from what the accessibility
  * service reports: the app's time runs while it is the app in front
  * ([onForeground]), the screen is on and unlocked ([onScreenInteractive]),
  * the app is locked, and no one-time Guardian unlock is running (that time
  * is extra). Time is measured on [Clock.elapsedMs], so changing the clock
- * can't add any; the calendar day comes from [TrustedDayClock].
+ * can't add any; the calendar day and time come from [TrustedDayClock].
+ *
+ * Time used is kept per minute of the clock ([LocalMinutes]) and a period
+ * adds up its minutes, so periods of any length count alike, and a rule that
+ * changes period still sees the time already used.
  *
  * Usage is saved every [SAVE_EVERY_MS] and whenever counting stops, so a
- * crash loses at most that much. When today's time runs out - or a rule
- * ends, or the day can't be trusted any more - while the app is in front,
- * the service is told ([attach]) so it can block the app.
+ * crash loses at most that much. When the period's time runs out - or a rule
+ * ends, or the time can't be trusted any more - while the app is in front,
+ * the service is told ([attach]) so it can block the app. When a used-up
+ * period ends, [changes] ticks, so a lock screen showing it can close.
  *
  * Not counted: picture-in-picture and background audio (another app is in
  * front then), and in split screen only the app opened last.
@@ -51,8 +59,8 @@ class DailyAllowanceMeter @Inject constructor(
     private val lock = Any()
     private val rules = HashMap<String, DailyAllowance>()
 
-    /** (package, epoch day) -> milliseconds used; saved ones plus counting not yet saved. */
-    private val used = HashMap<Pair<String, Long>, Long>()
+    /** Package -> ([LocalMinutes] minute -> milliseconds used); saved ones plus counting not yet saved. */
+    private val used = HashMap<String, TreeMap<Long, Long>>()
     private val unsaved = HashSet<Pair<String, Long>>()
 
     /** Apps whose rule was saved or ended while [load] was reading; what it read for them is out of date. */
@@ -68,6 +76,10 @@ class DailyAllowanceMeter @Inject constructor(
     private var onAccessEnded: ((String) -> Unit)? = null
     private var timer: Job? = null
     private var grantsWatch: Job? = null
+
+    /** Ticks [changes] when the first used-up period ends, at [refillAtMs] on the trusted clock. */
+    private var refillTimer: Job? = null
+    private var refillAtMs: Long? = null
 
     private val _loaded = MutableStateFlow(false)
 
@@ -163,13 +175,16 @@ class DailyAllowanceMeter @Inject constructor(
             interactive = true
             timer?.cancel()
             timer = null
+            refillTimer?.cancel()
+            refillTimer = null
+            refillAtMs = null
         }
         _changes.value = _changes.value + 1
     }
 
     private suspend fun load() {
         val saved = try {
-            repo.rules() to repo.usage()
+            repo.rules() to repo.usage(fromMinute = recentUseFrom())
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -183,12 +198,23 @@ class DailyAllowanceMeter @Inject constructor(
                 // A rule saved or ended while this was reading is newer than what it read.
                 savedRules.filter { it.packageName !in changedWhileLoading }
                     .forEach { rules.putIfAbsent(it.packageName, it) }
-                savedUsage.forEach { (key, ms) -> used.merge(key, ms, ::maxOf) }
+                savedUsage.forEach { (key, ms) -> used.getOrPut(key.first) { TreeMap() }.merge(key.second, ms, ::maxOf) }
             }
             changedWhileLoading.clear()
             _loaded.value = true
         }
         reevaluate()
+    }
+
+    /**
+     * The first minute whose saved use can still count. A period is never
+     * longer than a day, so only the last days matter, and loading only them
+     * keeps the start quick however long a rule runs: the service blocks
+     * nothing until it is done. With no trusted time yet, everything.
+     */
+    private fun recentUseFrom(): Long {
+        val now = dayClock.nowMs() ?: return Long.MIN_VALUE
+        return (Math.floorDiv(now, DAY_MS) - DAYS_OF_USE_LOADED) * LocalMinutes.PER_DAY
     }
 
     /** While the saved rules are still loading, remember that [pkg]'s rule changed. */
@@ -227,6 +253,7 @@ class DailyAllowanceMeter @Inject constructor(
         if (want != null && session == null) startSessionLocked(want)
         if (session != null && clock.elapsedMs() - lastSaveElapsed >= SAVE_EVERY_MS) saveLocked()
         scheduleLocked()
+        scheduleRefillLocked()
         val notify = onAccessEnded
         val target = scope
         return if (ended != null && notify != null && target != null) AccessEnded(ended, target, notify) else null
@@ -234,63 +261,74 @@ class DailyAllowanceMeter @Inject constructor(
 
     private fun accessLocked(pkg: String): DailyAccess {
         val rule = rules[pkg] ?: return DailyAccess.None
-        val today = dayClock.today(rule.zone) ?: return DailyAccess.Paused(rule.minutesPerDay, rule.lastDay)
-        if (!rule.covers(today)) return DailyAccess.None
-        val usedToday = (used[pkg to today.toEpochDay()] ?: 0L) + countingMs(pkg, today)
-        val left = rule.dailyMs - usedToday
+        val now = dayClock.nowMs() ?: return DailyAccess.Paused(rule.minutes, rule.lastDay, rule.periodMinutes)
+        val minute = LocalMinutes.of(now, rule.zone)
+        if (!rule.covers(LocalMinutes.day(minute))) return DailyAccess.None
+        val period = rule.periodOf(minute)
+        val usedInPeriod = (used[pkg]?.subMap(period.first, true, period.last, true)?.values?.sum() ?: 0L) +
+            countingMs(pkg, sinceMs = rule.periodStartMs(now), nowMs = now)
+        val left = rule.allowedMs - usedInPeriod
         return if (left > 0) {
-            DailyAccess.Available(left, rule.minutesPerDay, rule.lastDay)
+            DailyAccess.Available(left, rule.minutes, rule.lastDay, rule.periodMinutes)
         } else {
-            DailyAccess.UsedUp(rule.minutesPerDay, rule.lastDay)
+            DailyAccess.UsedUp(rule.minutes, rule.lastDay, rule.periodMinutes, nextPeriodAt(rule, now))
         }
     }
 
-    /** Time the running session has counted for [pkg] today but not yet added to [used]. */
-    private fun countingMs(pkg: String, today: LocalDate): Long {
+    /** When the next period starts, for a rule counted in periods shorter than a day that still covers it then. */
+    private fun nextPeriodAt(rule: DailyAllowance, nowMs: Long): Long? {
+        if (rule.periodMinutes == DailyAllowance.DAY_MINUTES) return null
+        val next = rule.periodEndMs(nowMs)
+        return next.takeIf { rule.covers(Instant.ofEpochMilli(it).atZone(rule.zone).toLocalDate()) }
+    }
+
+    /** Time the running session has counted for [pkg] since [sinceMs] but not yet added to [used]. */
+    private fun countingMs(pkg: String, sinceMs: Long, nowMs: Long): Long {
         val s = session ?: return 0L
-        if (s.pkg != pkg || s.day != today) return 0L
-        return (clock.elapsedMs() - s.sinceElapsed).coerceAtLeast(0L)
+        if (s.pkg != pkg) return 0L
+        val counting = (clock.elapsedMs() - s.sinceElapsed).coerceAtLeast(0L)
+        return minOf(counting, (nowMs - sinceMs).coerceAtLeast(0L))
     }
 
     private fun startSessionLocked(pkg: String) {
         val rule = rules[pkg] ?: return
-        val today = dayClock.today(rule.zone) ?: return
-        session = Session(pkg, rule.zone, today, clock.elapsedMs())
+        val now = dayClock.nowMs() ?: return
+        session = Session(pkg, rule.zone, LocalMinutes.of(now, rule.zone), clock.elapsedMs())
     }
 
-    /** Move the running session's time into [used], splitting it at midnight if it crossed one. */
+    /** Move the running session's time into [used], split at the minutes of the clock it crossed. */
     private fun accrueLocked() {
         val s = session ?: return
         val nowElapsed = clock.elapsedMs()
         val delta = nowElapsed - s.sinceElapsed
         if (delta <= 0L) return
-        val today = dayClock.today(s.zone)
-        if (today == null || today == s.day) {
-            // With the day no longer known (automatic time just went off), the time
-            // was still used on the day that was.
-            add(s.pkg, s.day, delta)
+        val now = dayClock.nowMs()
+        if (now == null) {
+            // With the time no longer known (automatic time just went off), the time
+            // was still used in the minute that was.
+            add(s.pkg, s.minute, delta)
         } else {
-            val trustedNow = dayClock.nowMs() ?: 0L
-            val startOfToday = today.atStartOfDay(s.zone).toInstant().toEpochMilli()
-            val intoToday = (trustedNow - startOfToday).coerceIn(0L, delta)
-            add(s.pkg, s.day, delta - intoToday)
-            add(s.pkg, today, intoToday)
+            var from = now - delta
+            while (from < now) {
+                val until = minOf(now, LocalMinutes.nextStartMs(from, s.zone))
+                add(s.pkg, LocalMinutes.of(from, s.zone), until - from)
+                from = until
+            }
         }
-        session = s.copy(day = today ?: s.day, sinceElapsed = nowElapsed)
+        session = s.copy(minute = now?.let { LocalMinutes.of(it, s.zone) } ?: s.minute, sinceElapsed = nowElapsed)
     }
 
-    private fun add(pkg: String, day: LocalDate, ms: Long) {
+    private fun add(pkg: String, minute: Long, ms: Long) {
         if (ms <= 0L) return
-        val key = pkg to day.toEpochDay()
-        used[key] = (used[key] ?: 0L) + ms
-        unsaved += key
+        used.getOrPut(pkg) { TreeMap() }.merge(minute, ms, Long::plus)
+        unsaved += pkg to minute
     }
 
     private fun saveLocked() {
         lastSaveElapsed = clock.elapsedMs()
         dayClock.checkpoint()
         if (unsaved.isEmpty()) return
-        val batch = unsaved.map { it to used.getValue(it) }
+        val batch = unsaved.map { it to used.getValue(it.first).getValue(it.second) }
         unsaved.clear()
         appScope.launch {
             for ((key, ms) in batch) {
@@ -305,18 +343,47 @@ class DailyAllowanceMeter @Inject constructor(
         }
     }
 
-    /** Wake up when today's time runs out, at midnight, or when it's time to save. */
+    /** Wake up when the period's time runs out, when the period ends, or when it's time to save. */
     private fun scheduleLocked() {
         timer?.cancel()
         timer = null
         val s = session ?: return
         val target = scope ?: return
+        val rule = rules[s.pkg] ?: return
         val left = (accessLocked(s.pkg) as? DailyAccess.Available)?.remainingMs ?: return
-        val untilMidnight = dayClock.msUntilNextDay(s.zone) ?: return
+        val now = dayClock.nowMs() ?: return
+        val untilPeriodEnds = rule.periodEndMs(now) - now
         val untilSave = SAVE_EVERY_MS - (clock.elapsedMs() - lastSaveElapsed)
-        val wait = minOf(left, untilMidnight, untilSave).coerceAtLeast(1L)
+        val wait = minOf(left, untilPeriodEnds, untilSave).coerceAtLeast(1L)
         timer = target.launch {
             delay(wait)
+            reevaluate()
+        }
+    }
+
+    /**
+     * Wake when the first used-up period ends, so what shows it - the lock
+     * screen, Home - hears through [changes] that the time is back. Not tied
+     * to the service, since no app need be in front then.
+     */
+    private fun scheduleRefillLocked() {
+        val now = dayClock.nowMs()
+        val next = if (now == null) {
+            null
+        } else {
+            rules.values
+                .filter { accessLocked(it.packageName) is DailyAccess.UsedUp }
+                .minOfOrNull { it.periodEndMs(now) }
+        }
+        if (next == refillAtMs) return
+        refillTimer?.cancel()
+        refillTimer = null
+        refillAtMs = next
+        if (now == null || next == null) return
+        refillTimer = appScope.launch {
+            delay((next - now).coerceAtLeast(1L))
+            // Woken a little early (the trusted clock was corrected): this schedules it again.
+            synchronized(lock) { refillAtMs = null }
             reevaluate()
         }
     }
@@ -324,7 +391,8 @@ class DailyAllowanceMeter @Inject constructor(
     private data class Session(
         val pkg: String,
         val zone: ZoneId,
-        val day: LocalDate,
+        /** The [LocalMinutes] minute that counting had reached. */
+        val minute: Long,
         /** Counted up to here, on [Clock.elapsedMs]. */
         val sinceElapsed: Long,
     )
@@ -332,5 +400,9 @@ class DailyAllowanceMeter @Inject constructor(
     companion object {
         const val SAVE_EVERY_MS = 30_000L
         private const val TAG = "KryptDaily"
+        private const val DAY_MS = 24 * 60 * 60_000L
+
+        /** Days of saved use read at start besides today: slack for time zones and clock corrections. */
+        private const val DAYS_OF_USE_LOADED = 2
     }
 }

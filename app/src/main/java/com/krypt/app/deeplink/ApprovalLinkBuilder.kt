@@ -81,6 +81,7 @@ class ApprovalLinkBuilder @Inject constructor(
                 iat = clock.nowSeconds(),
                 days = (access as? AccessChoice.EveryDay)?.days,
                 forGood = access == AccessChoice.ForGood,
+                periodMinutes = (access as? AccessChoice.EveryDay)?.periodMinutes ?: AccessChoice.DAY_MINUTES,
             )
             val plaintext = ApprovalPayloadCodec.encode(payload)
             val aesNonce = rng.nextBytes(AesGcmCipher.NONCE_BYTES)

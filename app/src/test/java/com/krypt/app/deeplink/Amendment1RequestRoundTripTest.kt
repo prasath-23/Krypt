@@ -61,12 +61,31 @@ class Amendment1RequestRoundTripTest {
     }
 
     @Test
+    fun requestsSayThisPhoneTakesPeriodsShorterThanADay() {
+        val (url, original) = builder.build(setupSalt, pinProof, "com.whatsapp")
+
+        assertTrue(url, url.contains("caps=daily%2Cforgood%2Cperiods") || url.contains("caps=daily,forgood,periods"))
+        assertTrue(original.supportsPeriods)
+        assertTrue((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsPeriods)
+    }
+
+    @Test
+    fun aRequestFromAPhoneBeforePeriods_isOfferedADayOnly() {
+        val parsed = (parser.parse(withCaps("daily,forgood"), clock.nowSeconds()) as Outcome.Ok).value
+
+        assertTrue(parsed.supportsDaily)
+        assertTrue(parsed.supportsForGood)
+        assertFalse(parsed.supportsPeriods)
+    }
+
+    @Test
     fun aRequestWithoutCaps_fromAnOlderPhone_takesOneTimeApprovalsOnly() {
         val url = withCaps(null)
 
         val parsed = (parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value
         assertFalse(parsed.supportsDaily)
         assertFalse(parsed.supportsForGood)
+        assertFalse(parsed.supportsPeriods)
     }
 
     @Test

@@ -30,6 +30,12 @@ object DeepLinkScheme {
     /** In `caps`: the phone accepts "for good" approvals, which remove the app's lock. */
     const val CAP_FOR_GOOD = "forgood"
 
+    /**
+     * In `caps`: the phone accepts every-day approvals counted in periods
+     * shorter than a day, e.g. 30 minutes every 2 hours.
+     */
+    const val CAP_PERIODS = "periods"
+
     /** Canonical query-parameter names (shared across WP03 + WP04). */
     object Params {
         const val VERSION = "v"

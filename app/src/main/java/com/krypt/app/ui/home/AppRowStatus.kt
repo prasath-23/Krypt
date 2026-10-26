@@ -1,6 +1,7 @@
 package com.krypt.app.ui.home
 
 import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.DailyAllowance
 import java.time.LocalDate
 
 /**
@@ -28,14 +29,38 @@ sealed interface AppRowStatus {
 val AppRowStatus.isOpenNow: Boolean
     get() = this is AppRowStatus.Unlocked || (this is AppRowStatus.Daily && line is DailyLine.Left)
 
-/** How an app's every-day time stands; its rule runs until [lastDay]. */
+/**
+ * How an app's every-day time stands: [minutes] in each [periodMinutes]-minute
+ * period (1440: a day), under a rule that runs until [lastDay].
+ */
 sealed interface DailyLine {
-    val minutesPerDay: Int
+    val minutes: Int
     val lastDay: LocalDate
+    val periodMinutes: Int
 
-    data class Left(val minutesLeft: Int, override val minutesPerDay: Int, override val lastDay: LocalDate) : DailyLine
-    data class UsedUp(override val minutesPerDay: Int, override val lastDay: LocalDate) : DailyLine
-    data class Paused(override val minutesPerDay: Int, override val lastDay: LocalDate) : DailyLine
+    data class Left(
+        val minutesLeft: Int,
+        override val minutes: Int,
+        override val lastDay: LocalDate,
+        override val periodMinutes: Int = DailyAllowance.DAY_MINUTES,
+    ) : DailyLine
+
+    /**
+     * Used up for this period; [backAtMs] is when the next one starts, in
+     * milliseconds since the epoch (null for a day, or when the rule ends first).
+     */
+    data class UsedUp(
+        override val minutes: Int,
+        override val lastDay: LocalDate,
+        override val periodMinutes: Int = DailyAllowance.DAY_MINUTES,
+        val backAtMs: Long? = null,
+    ) : DailyLine
+
+    data class Paused(
+        override val minutes: Int,
+        override val lastDay: LocalDate,
+        override val periodMinutes: Int = DailyAllowance.DAY_MINUTES,
+    ) : DailyLine
 }
 
 /**
@@ -50,10 +75,12 @@ fun appRowStatus(
 ): AppRowStatus = when {
     !isLocked -> AppRowStatus.NotLocked
     grantRemainingMs > 0 -> AppRowStatus.Unlocked(minutesLeft = wholeMinutes(grantRemainingMs))
-    daily is DailyAccess.Available ->
-        AppRowStatus.Daily(DailyLine.Left(wholeMinutes(daily.remainingMs), daily.minutesPerDay, daily.lastDay))
-    daily is DailyAccess.UsedUp -> AppRowStatus.Daily(DailyLine.UsedUp(daily.minutesPerDay, daily.lastDay))
-    daily is DailyAccess.Paused -> AppRowStatus.Daily(DailyLine.Paused(daily.minutesPerDay, daily.lastDay))
+    daily is DailyAccess.Available -> AppRowStatus.Daily(
+        DailyLine.Left(wholeMinutes(daily.remainingMs), daily.minutes, daily.lastDay, daily.periodMinutes),
+    )
+    daily is DailyAccess.UsedUp ->
+        AppRowStatus.Daily(DailyLine.UsedUp(daily.minutes, daily.lastDay, daily.periodMinutes, daily.backAtMs))
+    daily is DailyAccess.Paused -> AppRowStatus.Daily(DailyLine.Paused(daily.minutes, daily.lastDay, daily.periodMinutes))
     else -> AppRowStatus.Locked
 }
 

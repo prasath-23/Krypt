@@ -63,8 +63,8 @@ class LockScreenViewModel @Inject constructor(
                 _closeRequests.trySend(Unit)
                 return
             }
-            is DailyAccess.UsedUp -> LockReason.DailyUsedUp(daily.minutesPerDay, daily.lastDay)
-            is DailyAccess.Paused -> LockReason.DailyPaused(daily.minutesPerDay, daily.lastDay)
+            is DailyAccess.UsedUp -> LockReason.DailyUsedUp(daily.minutes, daily.lastDay, daily.periodMinutes, daily.backAtMs)
+            is DailyAccess.Paused -> LockReason.DailyPaused(daily.minutes, daily.lastDay, daily.periodMinutes)
             DailyAccess.None -> LockReason.Locked
         }
         if (_state.value.reason != reason) _state.value = _state.value.copy(reason = reason)

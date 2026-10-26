@@ -10,6 +10,7 @@ import com.krypt.app.data.KryptDatabase
 import com.krypt.app.data.LockedAppDao
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.MIGRATION_1_2
+import com.krypt.app.data.MIGRATION_2_3
 import com.krypt.app.data.OutstandingRequestDao
 import com.krypt.app.data.OutstandingRequestRepository
 import com.krypt.app.data.RoomGuardianRepository
@@ -22,7 +23,7 @@ import com.krypt.app.data.daily.DailyAllowanceDao
 import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.data.daily.DailyAllowanceRepository
 import com.krypt.app.data.daily.DailyAllowances
-import com.krypt.app.data.daily.DailyUsageDao
+import com.krypt.app.data.daily.MinuteUsageDao
 import com.krypt.app.data.daily.RoomDailyAllowanceRepository
 import dagger.Binds
 import dagger.Module
@@ -70,7 +71,7 @@ object DataProvidersModule {
     fun provideDatabase(@ApplicationContext context: Context): KryptDatabase =
         Room.databaseBuilder(context, KryptDatabase::class.java, KryptDatabase.DATABASE_NAME)
             // Never a destructive fallback: wiping locked_apps would unlock every app.
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides fun provideLockedAppDao(db: KryptDatabase): LockedAppDao = db.lockedAppDao()
@@ -78,5 +79,5 @@ object DataProvidersModule {
     @Provides fun provideOutstandingDao(db: KryptDatabase): OutstandingRequestDao = db.outstandingRequestDao()
     @Provides fun provideGrantDao(db: KryptDatabase): UnlockGrantDao = db.unlockGrantDao()
     @Provides fun provideDailyAllowanceDao(db: KryptDatabase): DailyAllowanceDao = db.dailyAllowanceDao()
-    @Provides fun provideDailyUsageDao(db: KryptDatabase): DailyUsageDao = db.dailyUsageDao()
+    @Provides fun provideMinuteUsageDao(db: KryptDatabase): MinuteUsageDao = db.minuteUsageDao()
 }

@@ -227,6 +227,64 @@ class ApprovalPayloadCodecTest {
         assertEquals(AccessChoice.OneTime(15), samplePayload().access)
     }
 
+    @Test
+    fun aPeriodPayload_roundTrips_asASevenEntryMapEndingInKey8() {
+        val payload = samplePayload().copy(durMin = 30, days = 7, periodMinutes = 120)
+
+        val bytes = ApprovalPayloadCodec.encode(payload)
+
+        assertEquals(0xA7, bytes[0].toInt() and 0xFF)
+        assertEquals(listOf(0x06, 0x07, 0x08, 0x18, 0x78), bytes.takeLast(5).map { it.toInt() and 0xFF })
+        assertEquals(payload, ApprovalPayloadCodec.decode(bytes))
+        assertEquals(AccessChoice.EveryDay(30, 7, periodMinutes = 120), payload.access)
+    }
+
+    @Test
+    fun anyPeriodLength_roundTrips() {
+        for (period in listOf(5, 30, 45, 90, 300, 1439)) {
+            val payload = samplePayload().copy(durMin = 5, days = 7, periodMinutes = period)
+            assertEquals("every $period minutes", payload, ApprovalPayloadCodec.decode(ApprovalPayloadCodec.encode(payload)))
+        }
+    }
+
+    @Test
+    fun aDayPeriod_keepsTheSixEntryShape_thatPhonesBeforePeriodsRead() {
+        val bytes = ApprovalPayloadCodec.encode(samplePayload().copy(durMin = 60, days = 7, periodMinutes = 24 * 60))
+
+        assertEquals(0xA6, bytes[0].toInt() and 0xFF)
+        assertEquals(24 * 60, ApprovalPayloadCodec.decode(bytes).periodMinutes)
+    }
+
+    @Test
+    fun decodeRejectsBrokenPeriodShapes() {
+        val req = "11111111-1111-4111-8111-111111111111"
+        val thirty = cbor(durMin = byteArrayOf(0x18, 0x1E), req = req)
+        val sevenHeader = byteArrayOf(0xA7.toByte()) + thirty.copyOfRange(1, thirty.size)
+        val sevenDays = byteArrayOf(0x06, 0x07)
+
+        for (bad in listOf(
+            sevenHeader + sevenDays,                                                    // no period
+            sevenHeader + sevenDays + byteArrayOf(0x08, 0x19, 0x05, 0xA0.toByte()),     // a day travels in 6 entries
+            sevenHeader + sevenDays + byteArrayOf(0x08, 0x04),                          // 4 minutes: too short
+            sevenHeader + sevenDays + byteArrayOf(0x08, 0x00),                          // 0 minutes
+            sevenHeader + byteArrayOf(0x08, 0x18, 0x5A) + sevenDays,                    // keys out of order
+            sevenHeader + sevenDays + byteArrayOf(0x07, 0x01),                          // for good, not a period
+        )) {
+            assertThrows(IllegalArgumentException::class.java) { ApprovalPayloadCodec.decode(bad) }
+        }
+        assertEquals(90, ApprovalPayloadCodec.decode(sevenHeader + sevenDays + byteArrayOf(0x08, 0x18, 0x5A)).periodMinutes)
+
+        val moreThanThePeriod = sevenHeader + sevenDays + byteArrayOf(0x08, 0x18, 0x1D) // 30 minutes every 29
+        assertThrows(IllegalArgumentException::class.java) { ApprovalPayloadCodec.decode(moreThanThePeriod) }
+    }
+
+    @Test
+    fun payloadRejectsAPeriodWithoutDays_longerThanItself_orShorterThanFiveMinutes() {
+        assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(durMin = 30, periodMinutes = 120) }
+        assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(durMin = 121, days = 7, periodMinutes = 120) }
+        assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(durMin = 3, days = 7, periodMinutes = 4) }
+    }
+
     /** The canonical 5-entry map, built by hand from contracts/approve.md. */
     private fun cbor(durMin: ByteArray, req: String): ByteArray {
         val app = "com.example.target"

@@ -26,7 +26,7 @@ Eyebrow "KRYPT ADMIN" and the title "Guardian only". PinEntry with the line "Ent
 
 ## Home: your apps
 
-See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sections Open now / Locked / Not locked. Every row is the same height with no buttons inside; tapping an Open now row opens a sheet with Relock now / Stop daily time. Removing a lock asks in a sheet. A `contrast` icon at the top right opens the Appearance sheet (System default / Light / Dark).
+See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sections Open now / Locked / Not locked. Every row is the same height with no buttons inside; tapping a row with an unlock or repeating time opens a sheet with Relock now, Stop daily time or Stop repeating time. Removing a lock asks in a sheet. A `contrast` icon at the top right opens the Appearance sheet (System default / Light / Dark).
 
 ## Lock screen
 

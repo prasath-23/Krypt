@@ -95,7 +95,7 @@ class KryptApplication : Application(), Configuration.Provider {
         appScope.launch {
             try {
                 val today = now / DAY_MS
-                dailyRepo.prune(rulesEndedBefore = today - 1, usageBefore = today - 35)
+                dailyRepo.prune(rulesEndedBefore = today - 1, usageBeforeMinute = (today - 35) * 1440)
             } catch (e: Exception) {
                 Log.e(TAG, "could not prune every-day data", e)
             }

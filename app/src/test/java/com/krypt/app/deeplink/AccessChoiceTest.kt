@@ -27,6 +27,27 @@ class AccessChoiceTest {
     }
 
     @Test
+    fun everyDay_inPeriods_takesAnyPeriodFromFiveMinutesToADay_andUpToTheWholePeriod() {
+        assertEquals(120, AccessChoice.EveryDay(30, 7, periodMinutes = 120).periodMinutes)
+        assertEquals(30, AccessChoice.EveryDay(30, 7, periodMinutes = 30).minutes)
+        assertEquals(90, AccessChoice.EveryDay(20, 7, periodMinutes = 90).periodMinutes)
+        assertEquals(5, AccessChoice.EveryDay(1, 7, periodMinutes = 5).periodMinutes)
+        assertEquals(300, AccessChoice.EveryDay(60, 7, periodMinutes = 300).periodMinutes)
+        assertEquals("a day unless said", 24 * 60, AccessChoice.EveryDay(30, 7).periodMinutes)
+    }
+
+    @Test
+    fun everyDay_inPeriods_rejectsMoreThanThePeriod_andPeriodsOutsideFiveMinutesToADay() {
+        assertThrows(IllegalArgumentException::class.java) { AccessChoice.EveryDay(31, 7, periodMinutes = 30) }
+        assertThrows(IllegalArgumentException::class.java) { AccessChoice.EveryDay(91, 7, periodMinutes = 90) }
+        for (minutes in listOf(-30, 0, 4, 24 * 60 + 1, 48 * 60)) {
+            assertThrows("$minutes minutes", IllegalArgumentException::class.java) {
+                AccessChoice.EveryDay(1, 7, periodMinutes = minutes)
+            }
+        }
+    }
+
+    @Test
     fun oneTime_rejectsAnythingElse() {
         assertThrows(IllegalArgumentException::class.java) { AccessChoice.OneTime(0) }
         assertThrows(IllegalArgumentException::class.java) { AccessChoice.OneTime(-5) }

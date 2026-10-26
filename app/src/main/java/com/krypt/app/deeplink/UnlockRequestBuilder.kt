@@ -77,6 +77,7 @@ class UnlockRequestBuilder @Inject constructor(
             kdfIterations = kdfIterations,
             supportsDaily = true,
             supportsForGood = true,
+            supportsPeriods = true,
         )
 
         val url = UrlCodec.build(
@@ -90,7 +91,11 @@ class UnlockRequestBuilder @Inject constructor(
                 Params.KDF_ITER    to kdfIterations.toString(),
                 Params.ISSUED_AT   to issuedAt.toString(),
                 Params.TTL         to ttlSeconds.toString(),
-                Params.CAPS        to "${DeepLinkScheme.CAP_DAILY},${DeepLinkScheme.CAP_FOR_GOOD}",
+                Params.CAPS        to listOf(
+                    DeepLinkScheme.CAP_DAILY,
+                    DeepLinkScheme.CAP_FOR_GOOD,
+                    DeepLinkScheme.CAP_PERIODS,
+                ).joinToString(","),
             ),
         )
         return url to request

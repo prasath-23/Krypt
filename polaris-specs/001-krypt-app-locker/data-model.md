@@ -8,7 +8,7 @@ Concrete shape of every entity in the app. Persistence choices are noted per ent
 
 | Layer | Backing store | Purpose |
 |-------|---------------|---------|
-| Room DB (`KryptDatabase`) | SQLite file `krypt.db` under app's private storage | LockedApp, GuardianPairing, OutstandingRequest, UnlockGrant |
+| Room DB (`KryptDatabase`) | SQLite file `krypt.db` under app's private storage | LockedApp, GuardianPairing, OutstandingRequest, UnlockGrant, DailyAllowance, MinuteUsage |
 | DataStore (`krypt.preferences_pb`) | Proto-DataStore (scalar settings) | KDF iteration count (calibrated), onboarding-complete flag, default grant-duration minutes |
 | EncryptedSharedPreferences (Guardian device only) | Android Keystore-backed | Guardian's persistent `pub_salt` + `priv_salt_for_proof` at rest |
 | In-memory | Process heap | Active `LockerSession`s (rebuilt on process start from `UnlockGrant` table filtered by `expiresAt > now`) |
@@ -146,35 +146,39 @@ expiresAt       INTEGER NOT NULL  -- typically grantedAt + defaultGrantDurationM
 
 ---
 
-## Entities: `DailyAllowance` and `DailyUsage` (Amendment 3)
+## Entities: `DailyAllowance` and `MinuteUsage` (Amendments 3 and 6)
 
-**Purpose.** A Guardian's every-day rule for an app, and the time the app was used under it on each day.
+**Purpose.** A Guardian's every-day rule for an app, and the time the app was used under it in each minute of the clock. A rule gives its minutes per period: the day, or (Amendment 6) any length from 5 minutes to 24 hours, following the clock from midnight. When the period doesn't divide a day, the day's last period is shorter and ends at midnight. A period adds up the minutes in it.
 
-**Persistence.** Room schema 2 (`MIGRATION_1_2` only adds these two tables).
+**Persistence.** Room schema 3.
+- `MIGRATION_1_2` (Amendment 3) only adds the two tables.
+- `MIGRATION_2_3` (Amendment 6) adds `periodMinutes`, which is 1440 for rules already saved. It replaces `daily_usage` (one row per app per day) with `minute_usage`. Each day's saved time moves to that day's first minute (`epochDay * 1440`), so it still counts in full against that day.
 
 ```
 daily_allowances                      -- one rule per app; a new approval replaces it
 packageName     TEXT    PRIMARY KEY
-minutesPerDay   INTEGER NOT NULL      -- 1..1440
+minutesPerDay   INTEGER NOT NULL      -- minutes in each period (named from when every period was a day): 1..periodMinutes
 firstEpochDay   INTEGER NOT NULL      -- the day the approval was used
 lastEpochDay    INTEGER NOT NULL      -- inclusive: firstEpochDay + days - 1
-zoneId          TEXT    NOT NULL      -- days are counted in this zone (the device's, at approval)
+zoneId          TEXT    NOT NULL      -- days and minutes are counted in this zone (the device's, at approval)
 requestId       TEXT    NOT NULL      -- the request whose approval made the rule
 createdAt       INTEGER NOT NULL
+periodMinutes   INTEGER NOT NULL DEFAULT 1440  -- 5..1440; 1440 is a day
 
-daily_usage
+minute_usage                          -- replaces daily_usage (Amendment 6)
 packageName     TEXT    NOT NULL
-epochDay        INTEGER NOT NULL
+minute          INTEGER NOT NULL      -- epochDay * 1440 + minute of the day, in the rule's zone
 usedMs          INTEGER NOT NULL      -- only ever raised
-PRIMARY KEY (packageName, epochDay)
+PRIMARY KEY (packageName, minute)
 ```
 
 **Invariants.**
 - Written only by consuming an every-day approval, in the same transaction that marks its request consumed.
-- Usage is measured on the monotonic clock while the app is in front, the screen is on and no one-time grant runs. It is saved every 30 s and whenever counting stops (`DailyAllowanceMeter`).
-- The calendar day comes from `TrustedDayClock`: nothing while automatic date & time is off; within a boot, a monotonic anchor; after a reboot, never earlier than the latest trusted time.
-- Rules that ended more than a day ago, and usage older than 35 days, are pruned at startup, by the trusted day (not at all while automatic time is off). Usage on a day an app's current rule covers is never pruned, so moving the date forward can't erase a used-up day.
-- Locking the app again (reinstall, Home toggle) or "End daily time" deletes its rule.
+- Usage is measured on the monotonic clock while the app is in front, the screen is on and no one-time grant runs. It is split at the clock minutes it crosses, and saved every 30 s and whenever counting stops (`DailyAllowanceMeter`).
+- A clock minute that happens twice, when summer time ends, is one `minute`. A minute that is skipped has no row.
+- The calendar day and time come from `TrustedDayClock`: nothing while automatic date & time is off; within a boot, a monotonic anchor; after a reboot, never earlier than the latest trusted time.
+- Rules that ended more than a day ago, and usage older than 35 days (a `minute` before `(today - 35) * 1440`), are pruned at startup, by the trusted day (not at all while automatic time is off). Usage on a day an app's current rule covers is never pruned, so moving the date forward can't erase used-up time.
+- Locking the app again (reinstall, Home toggle), "Stop daily time" or "Stop repeating time" deletes its rule.
 
 `LockerSessionStore` also exposes its grants as a `StateFlow` for the Home Screen, which shows each app's current access.
 

@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -42,10 +43,20 @@ class DailyAllowanceMeterTest {
         return Env(meter, sessionStore, clock)
     }
 
-    private fun rule(minutes: Int = 60, days: Int = 2, first: LocalDate = TODAY, pkg: String = APP) =
-        DailyAllowance(pkg, minutes, first, first.plusDays(days - 1L), UTC, UUID.randomUUID(), 0L)
+    private fun rule(
+        minutes: Int = 60,
+        days: Int = 2,
+        first: LocalDate = TODAY,
+        pkg: String = APP,
+        periodMinutes: Int = DailyAllowance.DAY_MINUTES,
+        zone: ZoneId = UTC,
+    ) = DailyAllowance(pkg, minutes, first, first.plusDays(days - 1L), zone, UUID.randomUUID(), 0L, periodMinutes)
 
     private fun Env.left(): Long = (meter.access(APP) as DailyAccess.Available).remainingMs
+
+    /** What [repo] has saved for [APP] in the minutes [from] until [until]. */
+    private fun savedBetween(from: Long, until: Long): Long =
+        repo.usage.filterKeys { (pkg, minute) -> pkg == APP && minute in from until until }.values.sum()
 
     private fun TestScope.pass(ms: Long) {
         advanceTimeBy(ms)
@@ -128,20 +139,41 @@ class DailyAllowanceMeterTest {
 
         e.meter.onForeground(APP, locked = true)
         pass(30_000)
-        assertEquals(30_000L, repo.usage[APP to TODAY.toEpochDay()])
+        assertEquals(30_000L, repo.usage[APP to minute(TODAY, 8)])
 
         pass(10_000)
         e.meter.onForeground(LAUNCHER, locked = false)
         runCurrent()
-        assertEquals(40_000L, repo.usage[APP to TODAY.toEpochDay()])
+        assertEquals(40_000L, repo.usage[APP to minute(TODAY, 8)])
     }
 
     @Test
     fun aRestart_keepsTodaysUsage() = runTest {
         repo.rules += rule(minutes = 60)
-        repo.usage[APP to TODAY.toEpochDay()] = 25 * MIN
+        repo.usage[APP to minute(TODAY, 7)] = 25 * MIN
 
         assertEquals(35 * MIN, env().left())
+    }
+
+    @Test
+    fun atStart_onlyTheLastDaysOfUseAreRead() = runTest {
+        repo.rules += rule(minutes = 60)
+        repo.usage[APP to minute(TODAY.minusDays(10), 9)] = 60 * MIN // long ago: it can't count
+        repo.usage[APP to minute(TODAY, 7)] = 25 * MIN
+
+        val e = env()
+
+        assertEquals(minute(TODAY.minusDays(2), 0), repo.readFrom)
+        assertEquals(35 * MIN, e.left())
+    }
+
+    @Test
+    fun aDaysUseSavedBeforePeriods_stillCountsInFullForThatDay() = runTest {
+        repo.rules += rule(minutes = 60)
+        // MIGRATION_2_3 moves a day's saved use to that day's first minute.
+        repo.usage[APP to minute(TODAY, 0)] = 50 * MIN
+
+        assertEquals(10 * MIN, env().left())
     }
 
     @Test
@@ -154,8 +186,8 @@ class DailyAllowanceMeterTest {
         e.meter.onForeground(LAUNCHER, locked = false)
         runCurrent()
 
-        assertEquals(10 * MIN, repo.usage[APP to TODAY.toEpochDay()])
-        assertEquals(10 * MIN, repo.usage[APP to TODAY.plusDays(1).toEpochDay()])
+        assertEquals(10 * MIN, savedBetween(minute(TODAY, 0), minute(TODAY.plusDays(1), 0)))
+        assertEquals(10 * MIN, savedBetween(minute(TODAY.plusDays(1), 0), minute(TODAY.plusDays(2), 0)))
         assertEquals(50 * MIN, e.left())
     }
 
@@ -197,7 +229,7 @@ class DailyAllowanceMeterTest {
         e.meter.reevaluate()
         runCurrent()
 
-        assertEquals(10_000L, repo.usage[APP to TODAY.toEpochDay()])
+        assertEquals(10_000L, repo.usage[APP to minute(TODAY, 8)])
     }
 
     @Test
@@ -220,7 +252,7 @@ class DailyAllowanceMeterTest {
     @Test
     fun daysAreCountedInTheRulesZone_soAZoneChangeMakesNoExtraDay() = runTest {
         repo.rules += rule(minutes = 60)
-        repo.usage[APP to TODAY.toEpochDay()] = 60 * MIN
+        repo.usage[APP to minute(TODAY, 10)] = 60 * MIN
         // 20:00 UTC is already tomorrow in Kolkata, but the rule counts days in UTC.
         val e = env(startWall = MIDNIGHT - 4 * 60 * MIN)
 
@@ -298,11 +330,200 @@ class DailyAllowanceMeterTest {
         assertEquals(DailyAccess.None, env().meter.access(APP))
     }
 
+    // ---- Periods shorter than a day (Amendment 6) ----
+
+    @Test
+    fun anHourlyRule_runsOut_andIsBlocked_untilTheNextHour() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env() // 08:00
+
+        e.meter.onForeground(APP, locked = true)
+        pass(15 * MIN)
+
+        assertEquals(listOf(APP), ended)
+        assertEquals(
+            DailyAccess.UsedUp(15, TODAY.plusDays(1), periodMinutes = 60, backAtMs = MORNING + 60 * MIN),
+            e.meter.access(APP),
+        )
+    }
+
+    @Test
+    fun aPeriodsTime_canBeUsedAnyTimeInsideIt() = runTest {
+        repo.rules += rule(minutes = 30, periodMinutes = 120)
+        val e = env() // 08:00, in the 08:00-10:00 period
+
+        e.meter.onForeground(APP, locked = true)
+        pass(10 * MIN)
+        e.meter.onForeground(LAUNCHER, locked = false)
+        pass(80 * MIN) // 09:30
+        e.meter.onForeground(APP, locked = true)
+        pass(15 * MIN)
+
+        assertEquals(5 * MIN, e.left())
+        assertEquals(emptyList<String>(), ended)
+    }
+
+    @Test
+    fun useAcrossAPeriodsEnd_isSplit_andTheNextPeriodStartsFull() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env(startWall = MORNING + 50 * MIN) // 08:50
+
+        e.meter.onForeground(APP, locked = true)
+        pass(20 * MIN) // 09:10: 10 minutes in each hour
+        e.meter.onForeground(LAUNCHER, locked = false)
+        runCurrent()
+
+        assertEquals("never blocked: 5 minutes were still left at 09:00", emptyList<String>(), ended)
+        assertEquals(10 * MIN, savedBetween(minute(TODAY, 8), minute(TODAY, 9)))
+        assertEquals(10 * MIN, savedBetween(minute(TODAY, 9), minute(TODAY, 10)))
+        assertEquals(5 * MIN, e.left())
+    }
+
+    @Test
+    fun whenAUsedUpPeriodEnds_changesTicks_soTheLockScreenCanClose() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env() // 08:00
+        e.meter.onForeground(APP, locked = true)
+        pass(15 * MIN)
+        e.meter.onForeground(KRYPT, locked = false) // the lock screen is in front now
+        runCurrent()
+        val before = e.meter.changes.value
+
+        pass(44 * MIN) // 08:59
+        assertTrue(e.meter.access(APP) is DailyAccess.UsedUp)
+        pass(MIN) // 09:00
+
+        assertTrue("changes ticked when the hour turned", e.meter.changes.value > before)
+        assertEquals(DailyAccess.Available(15 * MIN, 15, TODAY.plusDays(1), periodMinutes = 60), e.meter.access(APP))
+    }
+
+    @Test
+    fun theRulesLastPeriod_hasNoTimeToComeBackAt() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 120, days = 1)
+        val e = env(startWall = MIDNIGHT - 90 * MIN) // 22:30 on the rule's only day
+
+        e.meter.onForeground(APP, locked = true)
+        pass(15 * MIN)
+
+        assertEquals(DailyAccess.UsedUp(15, TODAY, periodMinutes = 120, backAtMs = null), e.meter.access(APP))
+    }
+
+    @Test
+    fun periodsFollowTheRulesZone() = runTest {
+        // 08:00 UTC is 13:30 in Kolkata, so its hour ends at 08:30 UTC.
+        repo.rules += rule(minutes = 15, periodMinutes = 60, zone = KOLKATA)
+        val e = env()
+
+        e.meter.onForeground(APP, locked = true)
+        pass(15 * MIN)
+
+        assertEquals(
+            DailyAccess.UsedUp(15, TODAY.plusDays(1), periodMinutes = 60, backAtMs = MORNING + 30 * MIN),
+            e.meter.access(APP),
+        )
+        e.meter.onForeground(KRYPT, locked = false)
+        pass(15 * MIN) // 08:30 UTC, 14:00 in Kolkata
+        assertEquals(DailyAccess.Available(15 * MIN, 15, TODAY.plusDays(1), periodMinutes = 60), e.meter.access(APP))
+    }
+
+    @Test
+    fun aDailyRuleReplacedByAnHourlyOne_keepsThisHoursUse() = runTest {
+        repo.rules += rule(minutes = 60)
+        val e = env() // 08:00
+        e.meter.onForeground(APP, locked = true)
+        pass(20 * MIN)
+
+        e.meter.onRuleSaved(rule(minutes = 15, periodMinutes = 60))
+        runCurrent()
+
+        assertTrue(e.meter.access(APP) is DailyAccess.UsedUp)
+        assertEquals(listOf(APP), ended)
+    }
+
+    @Test(timeout = 10_000)
+    fun theNightLordHowesClocksGoBackHalfAnHour_useIsCountedOnce() = runTest {
+        // 02:00 (+11:00) becomes 01:30 (+10:30), so 01:30-02:00 happens twice.
+        val back = LORD_HOWE.rules.nextTransition(Instant.parse("2026-03-01T00:00:00Z")).instant.toEpochMilli()
+        repo.rules += rule(minutes = 60, first = LocalDate.of(2026, 4, 4), days = 3, zone = LORD_HOWE)
+        val e = env(startWall = back - 20 * MIN)
+
+        e.meter.onForeground(APP, locked = true)
+        pass(40 * MIN)
+        e.meter.onForeground(LAUNCHER, locked = false)
+        runCurrent()
+
+        assertEquals(40 * MIN, repo.usage.values.sum())
+        assertEquals(20 * MIN, e.left())
+    }
+
+    @Test
+    fun aHalfHourRule_comesBackEveryHalfHour() = runTest {
+        repo.rules += rule(minutes = 10, periodMinutes = 30)
+        val e = env() // 08:00
+
+        e.meter.onForeground(APP, locked = true)
+        pass(10 * MIN)
+        assertEquals(
+            DailyAccess.UsedUp(10, TODAY.plusDays(1), periodMinutes = 30, backAtMs = MORNING + 30 * MIN),
+            e.meter.access(APP),
+        )
+        e.meter.onForeground(KRYPT, locked = false)
+        pass(20 * MIN) // 08:30
+
+        assertEquals(DailyAccess.Available(10 * MIN, 10, TODAY.plusDays(1), periodMinutes = 30), e.meter.access(APP))
+    }
+
+    @Test
+    fun aPeriodOfAnyLength_startsFromMidnight() = runTest {
+        // Every 45 minutes: ..., 07:30-08:15, 08:15-09:00, ...
+        repo.rules += rule(minutes = 10, periodMinutes = 45)
+        val e = env() // 08:00
+
+        e.meter.onForeground(APP, locked = true)
+        pass(10 * MIN)
+
+        assertEquals(
+            DailyAccess.UsedUp(10, TODAY.plusDays(1), periodMinutes = 45, backAtMs = MORNING + 15 * MIN),
+            e.meter.access(APP),
+        )
+    }
+
+    @Test
+    fun whenThePeriodDoesntDivideADay_theDaysLastOneEndsAtMidnight() = runTest {
+        // Every 5 hours: 20:00-24:00 is the day's last, shorter period.
+        repo.rules += rule(minutes = 30, periodMinutes = 300)
+        val e = env(startWall = MIDNIGHT - 3 * 60 * MIN) // 21:00
+
+        e.meter.onForeground(APP, locked = true)
+        pass(30 * MIN)
+
+        assertEquals(
+            DailyAccess.UsedUp(30, TODAY.plusDays(1), periodMinutes = 300, backAtMs = MIDNIGHT),
+            e.meter.access(APP),
+        )
+    }
+
+    @Test
+    fun automaticTimeOff_pausesAnHourlyRule() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env()
+        autoTime = false
+
+        assertEquals(DailyAccess.Paused(15, TODAY.plusDays(1), periodMinutes = 60), e.meter.access(APP))
+    }
+
     private companion object {
         const val APP = "com.example.app"
         const val LAUNCHER = "com.example.launcher"
+        const val KRYPT = "com.krypt.app"
         const val MIN = 60_000L
         val UTC: ZoneId = ZoneId.of("UTC")
+        val KOLKATA: ZoneId = ZoneId.of("Asia/Kolkata")
+        val LORD_HOWE: ZoneId = ZoneId.of("Australia/Lord_Howe")
+
+        /** The [LocalMinutes] minute that [hourOfDay]:[minuteOfHour] on [day] is. */
+        fun minute(day: LocalDate, hourOfDay: Int, minuteOfHour: Int = 0): Long =
+            day.toEpochDay() * 1440 + hourOfDay * 60 + minuteOfHour
         val TODAY: LocalDate = LocalDate.of(2026, 3, 1)
         val MORNING = ZonedDateTime.of(2026, 3, 1, 8, 0, 0, 0, UTC).toInstant().toEpochMilli()
         val MIDNIGHT = ZonedDateTime.of(2026, 3, 2, 0, 0, 0, 0, UTC).toInstant().toEpochMilli()
@@ -325,10 +546,16 @@ class FakeDailyAllowanceRepository : DailyAllowanceRepository {
         return read
     }
 
-    override suspend fun usage(): Map<Pair<String, Long>, Long> = HashMap(usage)
+    /** Where the last [usage] read started. */
+    var readFrom: Long? = null
 
-    override suspend fun saveUsage(pkg: String, epochDay: Long, usedMs: Long) {
-        val key = pkg to epochDay
+    override suspend fun usage(fromMinute: Long): Map<Pair<String, Long>, Long> {
+        readFrom = fromMinute
+        return HashMap(usage.filterKeys { it.second >= fromMinute })
+    }
+
+    override suspend fun saveUsage(pkg: String, minute: Long, usedMs: Long) {
+        val key = pkg to minute
         if (usedMs > (usage[key] ?: 0L)) usage[key] = usedMs
     }
 
@@ -337,5 +564,5 @@ class FakeDailyAllowanceRepository : DailyAllowanceRepository {
         rules.removeAll { it.packageName == pkg }
     }
 
-    override suspend fun prune(rulesEndedBefore: Long, usageBefore: Long) = Unit
+    override suspend fun prune(rulesEndedBefore: Long, usageBeforeMinute: Long) = Unit
 }

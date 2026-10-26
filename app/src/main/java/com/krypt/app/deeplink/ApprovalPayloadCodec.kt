@@ -32,6 +32,13 @@ import java.nio.charset.StandardCharsets
  *   07 <uint 1>          ; forGood (durMin is then 0)
  * Installs from before for-good approvals expect key 6 there, so they
  * refuse one outright rather than read it as a timed unlock.
+ *
+ * Every-day approvals counted in periods shorter than a day use a 7-entry
+ * map (0xa7): key 6 as above, then
+ *   08 <uint minutes>    ; periodMinutes, 5..1439 (durMin is then minutes per period)
+ * A day is never sent this way: it keeps the 6-entry shape, which installs
+ * from before periods still read. They refuse the 7-entry one outright
+ * rather than read it as minutes a day.
  */
 internal object ApprovalPayloadCodec {
 
@@ -42,15 +49,24 @@ internal object ApprovalPayloadCodec {
 
     private const val MAP_HEADER_5: Byte = (MT_MAP or 5).toByte()   // 0xa5
     private const val MAP_HEADER_6: Byte = (MT_MAP or 6).toByte()   // 0xa6: every day, or for good
+    private const val MAP_HEADER_7: Byte = (MT_MAP or 7).toByte()   // 0xa7: every day, in shorter periods
 
     /** The sixth pair's key: days for an every-day approval, the flag for a for-good one. */
     private const val KEY_DAYS = 6
     private const val KEY_FOR_GOOD = 7
 
+    /** The seventh pair's key: the period of an every-day approval, when shorter than a day. */
+    private const val KEY_PERIOD = 8
+
     fun encode(payload: ApprovalPayload): ByteArray {
         val out = ByteArrayOutputStream(96)
-        val sixEntries = payload.days != null || payload.forGood
-        out.write((if (sixEntries) MAP_HEADER_6 else MAP_HEADER_5).toInt() and 0xFF)
+        val inPeriods = payload.periodMinutes != AccessChoice.DAY_MINUTES
+        val header = when {
+            inPeriods -> MAP_HEADER_7
+            payload.days != null || payload.forGood -> MAP_HEADER_6
+            else -> MAP_HEADER_5
+        }
+        out.write(header.toInt() and 0xFF)
         writeKeyAndText(out, key = 1, value = payload.v)
         writeKeyAndText(out, key = 2, value = payload.req)
         writeKeyAndText(out, key = 3, value = payload.app)
@@ -58,6 +74,7 @@ internal object ApprovalPayloadCodec {
         writeKeyAndUnsigned(out, key = 5, value = payload.iat)
         payload.days?.let { writeKeyAndUnsigned(out, key = KEY_DAYS, value = it.toLong()) }
         if (payload.forGood) writeKeyAndUnsigned(out, key = KEY_FOR_GOOD, value = 1)
+        if (inPeriods) writeKeyAndUnsigned(out, key = KEY_PERIOD, value = payload.periodMinutes.toLong())
         return out.toByteArray()
     }
 
@@ -70,8 +87,8 @@ internal object ApprovalPayloadCodec {
     fun decode(bytes: ByteArray): ApprovalPayload {
         val reader = Reader(bytes)
         val header = reader.readByte()
-        require(header == MAP_HEADER_5 || header == MAP_HEADER_6) {
-            "expected CBOR map of 5 or 6 entries (0xa5/0xa6); got 0x%02x".format(header.toInt() and 0xFF)
+        require(header == MAP_HEADER_5 || header == MAP_HEADER_6 || header == MAP_HEADER_7) {
+            "expected CBOR map of 5, 6 or 7 entries (0xa5/0xa6/0xa7); got 0x%02x".format(header.toInt() and 0xFF)
         }
         val v      = readKeyAndText(reader, expectedKey = 1)
         val req    = readKeyAndText(reader, expectedKey = 2)
@@ -80,6 +97,7 @@ internal object ApprovalPayloadCodec {
         val iat    = readKeyAndUnsigned(reader, expectedKey = 5)
         var days: Long? = null
         var forGood = false
+        var periodMinutes = AccessChoice.DAY_MINUTES.toLong()
         if (header == MAP_HEADER_6) {
             when (val key = readUnsigned(reader, MT_UNSIGNED_INT)) {
                 KEY_DAYS.toLong() -> days = readUnsigned(reader, MT_UNSIGNED_INT)
@@ -90,6 +108,14 @@ internal object ApprovalPayloadCodec {
                 else -> throw IllegalArgumentException("expected CBOR key $KEY_DAYS or $KEY_FOR_GOOD, got $key")
             }
         }
+        if (header == MAP_HEADER_7) {
+            days = readKeyAndUnsigned(reader, expectedKey = KEY_DAYS)
+            periodMinutes = readKeyAndUnsigned(reader, expectedKey = KEY_PERIOD)
+            // A day travels in the 6-entry shape, so it is never spelled out here.
+            require(periodMinutes in AccessChoice.MIN_PERIOD_MINUTES until AccessChoice.DAY_MINUTES) {
+                "periodMinutes out of range: $periodMinutes"
+            }
+        }
         reader.requireExhausted()
 
         // Bounded here too, so the child's phone never trusts a longer unlock than any Guardian can grant.
@@ -97,6 +123,7 @@ internal object ApprovalPayloadCodec {
             require(durMin == 0L) { "a for-good approval has no duration: $durMin" }
         } else {
             require(durMin in 1..AccessChoice.MAX_MINUTES) { "durMin out of range: $durMin" }
+            require(durMin <= periodMinutes) { "durMin ($durMin) is more than a $periodMinutes-minute period" }
         }
         require(iat > 0) { "iat must be positive" }
         require(days == null || days in 1..AccessChoice.MAX_DAYS) { "days out of range: $days" }
@@ -109,6 +136,7 @@ internal object ApprovalPayloadCodec {
             iat = iat,
             days = days?.toInt(),
             forGood = forGood,
+            periodMinutes = periodMinutes.toInt(),
         )
     }
 

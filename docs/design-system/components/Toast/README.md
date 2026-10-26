@@ -1,7 +1,11 @@
 System toasts from Krypt's windowless moments, such as applying an approval and the link receiver. Each is one short sentence with the app's name when it is known.
 
 **Messages**
-- **Successes:** "Instagram is open until 14:35"; "Instagram: 1 hour a day until Sep 28"; "Instagram: daily time is set, but today's is used up".
+- **Successes:**
+  - "Instagram is open until 14:35"
+  - "Instagram: 1 hour a day until Sep 28"; "Instagram: 15 minutes an hour until Sep 28"; "Instagram: 30 minutes every 2 hours until Sep 28"; "Instagram: 15 minutes every 90 minutes until Sep 28"
+  - "Instagram: daily time is set, but today's is used up"; "Instagram: repeating time is set, but it's used up for now"
+  - "Instagram is unlocked for good"
 - **Approval errors:**
   - "Couldn't read this reply"
   - "This reply doesn't match a waiting request"

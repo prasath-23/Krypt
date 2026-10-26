@@ -6,9 +6,9 @@ Material Icons, **Rounded** (`Icons.Rounded.*`, from `material-icons-extended`),
 |---|---|---|
 | `lock` | Locked; the lock-screen reason | `locked`, `on-surface` |
 | `lock_open` | Open now | `open` |
-| `lock_clock` | Daily time left | `open` |
-| `hourglass_bottom` | Done for today | `caution` |
-| `schedule` | Daily time paused | `caution` |
+| `lock_clock` | Repeating time left (daily, or in a shorter period) | `open` |
+| `hourglass_bottom` | Done for today; done for now | `caution` |
+| `schedule` | Repeating time paused | `caution` |
 | `timer` | Request expiry | `on-surface-variant` |
 | `check_circle` | Allowed; the approval check | `granted`, `on-flash` |
 | `cancel` | Not allowed yet | `on-surface-variant` |

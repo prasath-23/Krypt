@@ -61,7 +61,10 @@ them.**
 - **Time-limited access.**
   - **One time:** 15 min, 30 min, 1 hour, 2 hours, or 1-1440 minutes typed.
   - **Every day:** up to N minutes a day for D days (3, 7, 14, 30, or
-    1-365 typed).
+    1-365 typed). Since Amendment 6 the minutes can instead come back in
+    a period of any length from 5 minutes to 24 hours, by the clock from
+    midnight: for example 30 minutes every 2 hours, or 5 minutes every 30
+    minutes.
 - **Fully offline.** Krypt has no internet permission at all. Nothing leaves
   the phone except the links people choose to share.
 
@@ -108,12 +111,15 @@ lock.
   - It is the screen seen most often, and it replaces the locked app.
   - The very first frame is drawn from the window background before any UI
     code runs, so the design must look complete with only that background.
-  - It has three variants: locked; today's time used up; daily time paused.
+  - It has three variants: locked; today's time used up (or, with a
+    shorter period, this period's, until the next one starts); daily time
+    paused.
 - **The Guardian approval screen.** It runs on the Guardian's own phone, and
   the Guardian opens it from a chat. It must answer three questions at a
   glance:
   - which app is being asked for;
-  - what will this allow (one time or every day, how long);
+  - what will this allow (one time, or every day or in a shorter period,
+    how long);
   - "type your PIN to send".
 - **The Home list.**
   - Every installed app has a lock switch and a status line: "Locked";
@@ -434,6 +440,11 @@ right now.
 | Daily: UsedUp | "Daily: time's up today, until Sep 28" | **End daily time** |
 | Daily: Paused | "Daily time paused: needs automatic date & time, until Sep 28" | **End daily time** |
 
+Since Amendment 6 a daily line also carries `periodMinutes` (1440 for a
+day), and a used-up one carries `backAtMs`, when the next period starts
+(none for a day, or when the rule ends first). A rule counted in a shorter
+period can then say when its time is back.
+
 **Actions**
 
 - **Switch off -> on:** lock the app (`onToggle`).
@@ -493,6 +504,10 @@ the first frame is `res/drawable/lock_screen_background.xml` in the
 | DailyUsedUp | "Time's up for today" | "Today's N minutes are used up. Ask your Guardian if you need more time now." |
 | DailyPaused | "Daily time is paused" | "This app's daily time needs Set time automatically. Turn it on in Settings, or ask your Guardian." |
 
+Since Amendment 6 both daily reasons also carry `periodMinutes`, and
+`DailyUsedUp` carries `backAtMs`: for a rule counted in a shorter period,
+when the next period starts.
+
 - **Ask Guardian**: the primary action, a full-width 56 dp button in amber;
 - the request status under it (`RequestStatus`), below;
 - **Paste approval link** (text button), with a hint when the clipboard has
@@ -525,7 +540,8 @@ request to Guardian", with this message:
 - **No PIN field, ever.**
 - When an approval arrives, the screen closes by itself and the app opens.
   If daily time becomes available while the screen is up, the screen
-  closes.
+  closes. Since Amendment 6 that includes the moment the next period (or
+  day) starts.
 - If the reason changes while the screen is up, update it in place.
 - **The first frame** is the window-background gradient alone. A redesign
   that changes the background must change the drawable to match, so the
@@ -566,6 +582,15 @@ allow, prove the PIN, and send the approval back.
   days reveals a field, "Days (1-365)", with the error "Enter a number of
   days from 1 to 365.", plus the hint: "Day 1 is today, and time already used
   today counts. For extra time today, choose One time."
+- **Every** (Amendment 6; Every day only, and only when the request has
+  `caps=periods`): 30 min, 1, 2, 4, 6 or 12 hours, a day (the default), or
+  any period typed in hours, from 5 minutes to 24 hours ("1.5", "1:30").
+  The minutes then come back every period, by the clock from midnight; a
+  period that doesn't divide the day leaves a shorter last one, ending at
+  midnight. Minute chips that aren't shorter than the period are hidden (a
+  period of an hour or less gets 5, 10, 15 and 30 min), typed minutes are
+  limited to the period's length, and the summary says "15 minutes an
+  hour", "30 minutes every 2 hours" or "15 minutes every 90 minutes".
 - **The summary:** "Allows: 30 minutes, one time", or "Allows: 1 hour a day
   for 7 days".
 - **Enter PIN:** masked, numeric.
@@ -594,7 +619,8 @@ allow, prove the PIN, and send the approval back.
 
 - Defaults: **One time, 15 minutes**. Every day defaults to 7 days.
 - "Every day" is offered only when the request says the Subject's phone
-  supports it.
+  supports it, and periods shorter than a day only when it says so too
+  (`caps=periods`).
 - The choice is kept across wrong PINs and lockouts.
 - Screenshots are blocked on this screen.
 - A request expires 5 minutes after it was made, so speed matters.
@@ -622,6 +648,11 @@ fields**. The approval is checked, then:
 | Every day, time left today | The same flash and vibration, the toast "{app}: 1 hour a day until Sep 28", then the app opens |
 | Every day, today used up | The toast "{app}: daily time is set, but today's is already used up." (no flash) |
 | Error | One toast (section 10.3), then close |
+
+Since Amendment 6, a rule counted in a shorter period names it in the
+toast ("{app}: 30 minutes every 2 hours until Sep 28", "{app}: 15 minutes
+an hour until Sep 28"), and one already used up says "{app}: repeating time
+is set, but it's used up for now".
 
 **Ideas.** The flash colour (`#35C759`) and its shape can change: a
 full-screen tint, a ring, or a check mark animation. It must stay at least
@@ -714,6 +745,9 @@ These are part of the experience too.
    2. The Subject uses the app until the hour is gone.
    3. The lock screen says "Time's up for today"; Ask Guardian still works
       for extra one-time time.
+   4. With a shorter period (Amendment 6), for example 15 minutes every
+      hour, the lock screen says when more time comes, and closes by itself
+      when the next period starts.
 7. **The link isn't tappable in the messenger.** Copy the whole message,
    then:
    - on the Guardian's phone: open Krypt -> Paste link;
@@ -740,7 +774,7 @@ These are part of the experience too.
 | Approval / unlock request | token, URL | The links that travel through chats |
 | One time / Every day | session, allowance | The two kinds of access |
 | Unlocked, N min left | grant | A one-time unlock in progress |
-| Daily time | quota | Every-day minutes |
+| Daily time | quota | Every-day minutes (per day, or since Amendment 6 per period of 5 minutes to 24 hours) |
 
 The Subject is never called "Subject" in the UI; it is the spec's word.
 Speak to them as "you".
@@ -780,7 +814,7 @@ Speak to them as "you".
 | Guardian PIN at setup | 4-6 digits |
 | PIN typed on the Guardian screen | Up to 8 digits (4 minimum) |
 | One-time access | 1-1440 minutes; presets 15, 30, 60, 120; default 15 |
-| Every-day access | 1-1440 minutes a day for 1-365 days; day presets 3, 7, 14, 30; default 7 |
+| Every-day access | 1-1440 minutes a day for 1-365 days; day presets 3, 7, 14, 30; default 7. Since Amendment 6, or 1 minute up to the period, for a period of 5 minutes to 24 hours |
 | Request lifetime | 5 minutes from Ask Guardian |
 | Unlock flash | At least 500 ms |
 | Permission indicator animation | 200-500 ms |
@@ -790,10 +824,11 @@ Speak to them as "you".
 - One-time access ends on time, even with the app open. It survives Krypt
   restarting, but not a reboot.
 - Daily time counts only while the app is in front with the screen on, and
-  it is saved every 30 s.
+  it is saved every 30 s. Since Amendment 6 it is kept per minute of the
+  clock, and a period adds up its minutes.
 - Daily time **pauses** while "Set time automatically" is off.
-- A new every-day approval replaces the old rule. Time already used today
-  still counts.
+- A new every-day approval replaces the old rule. Time already used today,
+  or in the current period, still counts.
 - One-time time never uses up daily time.
 
 ### 11.3 PIN lockout schedule
@@ -867,7 +902,7 @@ classes as they are.
 | PIN gate | `ui/main/AppEntryViewModel` | `state: AppEntryState` (Idle, Validating, Success, WrongPin(n), LockedOut(ms), NotConfigured) | `submitPin(pin)`, `onSuccessHandled()`, `acknowledgeError()` |
 | Home | `ui/home/HomeViewModel` | `state: HomeUiState` (rows: packageName, displayName, isLocked, status: AppRowStatus; query); `iconCache` | `setQuery(q)`, `refresh()`, `onToggle(row)`, `onLockNow(row)`, `onEndDailyTime(row)` |
 | Lock screen | `ui/lock/LockScreenViewModel` | `state: LockScreenState` (lockedPackage, request: RequestStatus, reason: LockReason); `shareRequests` (URLs to share); `closeRequests` | `show(pkg)`, `askGuardian()` |
-| Guardian approval | `guardian/GuardianPinViewModel` | `state: GuardianPinState` (Loading, Ready(request, attemptsLeft, lockoutRetryInMs, errorMessage, form: AccessForm), Validating, Approved(request, approvalUrl, access), FatalError(key)) | `parseIncoming(url)`, `setKind()`, `pickMinutes()`, `editMinutes()`, `pickDays()`, `editDays()`, `approve(pin)`, `acknowledgeError()`, `lockoutElapsed()` |
+| Guardian approval | `guardian/GuardianPinViewModel` | `state: GuardianPinState` (Loading, Ready(request, attemptsLeft, lockoutRetryInMs, errorMessage, form: AccessForm), Validating, Approved(request, approvalUrl, access), FatalError(key)) | `parseIncoming(url)`, `setKind()`, `pickPeriod()`, `editPeriod()`, `pickMinutes()`, `editMinutes()`, `pickDays()`, `editDays()`, `approve(pin)`, `acknowledgeError()`, `lockoutElapsed()` |
 | Approval confirmation | (Activity with `ApprovalConsumer`, `UnlockSuccessEffect`) | `ApprovalOutcome` (OneTime / EveryDay) or `ApprovalError` | - |
 | Paste / Open in Krypt | `ui/link/LinkRouting.kt` | - | `pasteKryptLinkAction(approvalsOnly, onNoLink)`, `openKryptLinkIn(text)`, `shareTextChooser(context, text, title)` |
 
@@ -875,7 +910,7 @@ classes as they are.
 `polaris-specs/001-krypt-app-locker/contracts/`):
 
 ```
-krypt://request?v=1&req=<uuid>&app=<package>&salt=<b64url>&pinProof=<b64url>&kdfIter=<n>&iat=<s>&ttl=300&caps=daily
+krypt://request?v=1&req=<uuid>&app=<package>&salt=<b64url>&pinProof=<b64url>&kdfIter=<n>&iat=<s>&ttl=300&caps=daily,forgood,periods
 krypt://approve?v=1&req=<uuid>&data=<b64url AES-GCM payload>&iat=<s>
 ```
 

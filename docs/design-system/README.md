@@ -13,7 +13,7 @@ The person behind a lock may be a child, someone in recovery or someone who chos
 ## Voice
 
 - Short, warm and adult. Speak to the person as "you", and to the PIN holder as "your Guardian".
-- **Serif statements end with a full stop:** "Locked.", "Done for today.", "Paused.", "Approved." They are the only full stops in titles.
+- **Serif statements end with a full stop:** "Locked.", "Done for today.", "Done for now.", "Paused.", "Approved." They are the only full stops in titles.
 - Buttons are sentence-case verbs of at most three words: "Request access", "Paste reply", "Approve and send".
 - Use " · " as the only separator in status lines: "Open · 12 min left".
 - No exclamation marks, no emoji, no blame. Errors say what to do: "That PIN isn't right. 2 tries left."
@@ -26,10 +26,11 @@ The person behind a lock may be a child, someone in recovery or someone who chos
 | Guardian | The person who holds the PIN |
 | Request access | Sending an unlock request |
 | Reply | The approval message the Guardian sends back |
-| Once / Daily | The two kinds of access |
+| Once / Repeating / For good | The three kinds of access; Repeating comes back every day, or in a shorter period |
 | Open · N min left | A one-time unlock in progress |
 | Daily · N of M min left | Daily time in progress |
-| Relock now / Stop daily time | Ending access early (in the sheet opened from an Open now row) |
+| Hourly, Every 30 min, Every 2 h, Every 1 h 30 min · N of M min left | Time in a period shorter than a day, in progress |
+| Relock now / Stop daily time / Stop repeating time | Ending access early (in the sheet opened from the app's row) |
 
 ## Colour: Soft neutral
 
@@ -42,8 +43,8 @@ Backgrounds are `#ffffff` in light and `#121212` in dark (Android's own dark sur
 | Meaning | Colour | Badge | Icon |
 |---|---|---|---|
 | Locked | `locked` (the ink itself) | `locked-container` | `lock` |
-| Open now / daily time left | `open` | `open-container` | `lock_open`, `lock_clock` |
-| Done for today / paused | `caution` | `caution-container` | `hourglass_bottom`, `schedule` |
+| Open now / repeating time left | `open` | `open-container` | `lock_open`, `lock_clock` |
+| Done for today or for now / paused | `caution` | `caution-container` | `hourglass_bottom`, `schedule` |
 | Error | `error` | `error-container` | `error` |
 | Allowed (onboarding) | `granted` | — | `check_circle` |
 
@@ -91,7 +92,7 @@ These stay true whatever the design does.
 - **Lockouts:** the 3rd wrong PIN locks for 30s, then 2 min, 10 min, 1 hour. A live countdown shows meanwhile, and input is disabled.
 - **Approval confirmation:** the flash (at least 500ms), a vibration and a toast naming the app. No buttons, no fields.
 - **Onboarding:** permission states appear only there. Progress counts only the 2 required permissions, and Start protecting stays disabled until both are allowed.
-- **The Home switch shows the lock setting:** on = locked. It stays on while an unlock or daily time is running.
+- **The Home switch shows the lock setting:** on = locked. It stays on while an unlock or repeating time is running.
 - **The Guardian screen blocks screenshots** (`FLAG_SECURE`).
 - **The lock screen's first frame** is its window background, which must equal `background` in the current theme so nothing flashes.
 
@@ -111,6 +112,7 @@ The instrumented tests in `app/src/androidTest/.../e2e/` find elements by these 
 | Lock now | Relock now (in the row's sheet) |
 | End daily time | Stop daily time (in the row's sheet) |
 | One time / Every day | Once / Daily |
+| Daily (How often, Amendment 6) | Repeating, with the Every row (Day by default) |
 | Set minutes / Set days | Custom |
 | Next / Skip / Finish | (removed: checklist) / (removed) / Start protecting |
 | Required permissions: 2 of 3 | 1 of 2 required / 2 of 2 required · ready |

@@ -5,7 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.data.daily.DailyAllowance
 import com.krypt.app.data.daily.DailyAllowanceEntity
-import com.krypt.app.data.daily.DailyUsageEntity
+import com.krypt.app.data.daily.MinuteUsageEntity
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
@@ -158,28 +158,46 @@ class KryptDatabaseTest {
     }
 
     @Test
-    fun dailyUsage_isKeptPerAppPerDay() = runBlocking {
-        val usage = db.dailyUsageDao()
-        usage.upsert(DailyUsageEntity("com.a", 100, 1_000))
-        usage.upsert(DailyUsageEntity("com.a", 101, 2_000))
-        usage.upsert(DailyUsageEntity("com.a", 100, 3_000))
+    fun usage_isKeptPerAppPerMinute() = runBlocking {
+        val usage = db.minuteUsageDao()
+        usage.upsert(MinuteUsageEntity("com.a", 144_000, 1_000))
+        usage.upsert(MinuteUsageEntity("com.a", 144_001, 2_000))
+        usage.upsert(MinuteUsageEntity("com.a", 144_000, 3_000))
 
-        assertEquals(3_000L, usage.usedMs("com.a", 100))
-        assertEquals(2_000L, usage.usedMs("com.a", 101))
-        assertNull(usage.usedMs("com.b", 100))
-        assertEquals(1, usage.pruneBefore(101))
+        assertEquals(3_000L, usage.usedMs("com.a", 144_000))
+        assertEquals(2_000L, usage.usedMs("com.a", 144_001))
+        assertNull(usage.usedMs("com.b", 144_000))
+        assertEquals(1, usage.pruneBefore(144_001))
     }
 
     @Test
-    fun dailyUsage_pruneKeepsDaysAnAppsRuleCovers() = runBlocking {
-        db.dailyAllowanceDao().upsert(rule("com.a")) // covers day 100 onwards
-        val usage = db.dailyUsageDao()
-        usage.upsert(DailyUsageEntity("com.a", 99, 1_000)) // before the rule
-        usage.upsert(DailyUsageEntity("com.a", 100, 2_000))
-        usage.upsert(DailyUsageEntity("com.b", 100, 3_000)) // no rule
+    fun usage_isReadFromAMinuteOn() = runBlocking {
+        val usage = db.minuteUsageDao()
+        usage.upsert(MinuteUsageEntity("com.a", 100, 1_000))
+        usage.upsert(MinuteUsageEntity("com.a", 200, 2_000))
 
-        assertEquals(2, usage.pruneBefore(150))
-        assertEquals(listOf("com.a" to 100L), usage.all().map { it.packageName to it.epochDay })
+        assertEquals(listOf(200L), usage.from(150).map { it.minute })
+    }
+
+    @Test
+    fun usage_pruneKeepsDaysAnAppsRuleCovers() = runBlocking {
+        db.dailyAllowanceDao().upsert(rule("com.a")) // covers day 100 onwards: minute 144000 on
+        val usage = db.minuteUsageDao()
+        usage.upsert(MinuteUsageEntity("com.a", 143_999, 1_000)) // before the rule
+        usage.upsert(MinuteUsageEntity("com.a", 144_000, 2_000))
+        usage.upsert(MinuteUsageEntity("com.b", 144_000, 3_000)) // no rule
+
+        assertEquals(2, usage.pruneBefore(150L * 1440))
+        assertEquals(listOf("com.a" to 144_000L), usage.all().map { it.packageName to it.minute })
+    }
+
+    @Test
+    fun aRulesPeriod_isSaved_andADayUnlessSaid() = runBlocking {
+        val daily = db.dailyAllowanceDao()
+        daily.upsert(rule("com.a"))
+        daily.upsert(rule("com.b").copy(periodMinutes = 90))
+
+        assertEquals(mapOf("com.a" to 1440, "com.b" to 90), daily.all().associate { it.packageName to it.periodMinutes })
     }
 
     @Test

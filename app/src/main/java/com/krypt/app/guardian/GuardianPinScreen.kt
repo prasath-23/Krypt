@@ -82,6 +82,7 @@ import com.krypt.app.ui.components.SegmentedChoice
 import com.krypt.app.ui.components.Statement
 import com.krypt.app.ui.components.StyledArg
 import com.krypt.app.ui.components.TertiaryButton
+import com.krypt.app.ui.common.clockText
 import com.krypt.app.ui.components.styledFormat
 import com.krypt.app.ui.link.shareTextChooser
 import com.krypt.app.ui.theme.GeistMono
@@ -90,6 +91,7 @@ import com.krypt.app.ui.theme.KryptShape
 import com.krypt.app.ui.theme.KryptSpace
 import com.krypt.app.ui.theme.KryptTheme
 import kotlinx.coroutines.delay
+import java.time.LocalTime
 
 /**
  * The Guardian's approval screen (docs/design-system/components/GuardianApproval),
@@ -244,6 +246,8 @@ fun GuardianPinScreen(
                     form = shown.form,
                     enabled = !validating,
                     onKind = viewModel::setKind,
+                    onPickPeriod = viewModel::pickPeriod,
+                    onEditPeriod = viewModel::editPeriod,
                     onPickMinutes = viewModel::pickMinutes,
                     onEditMinutes = viewModel::editMinutes,
                     onPickDays = viewModel::pickDays,
@@ -361,6 +365,7 @@ private fun PinSheet(
 const val PIN_FIELD_TAG = "guardian_pin"
 const val MINUTES_FIELD_TAG = "guardian_minutes"
 const val DAYS_FIELD_TAG = "guardian_days"
+const val PERIOD_FIELD_TAG = "guardian_period"
 
 /**
  * The app the request is for, the "Why only a package name?" sheet when it
@@ -449,14 +454,18 @@ private fun RequestAge(request: UnlockRequest) {
 
 /**
  * DurationChips: how often (only when the request says the phone supports
- * daily time), for how long, and for how many days. While the PIN is
- * checked ([enabled] false) taps and typing are ignored.
+ * repeating time), how often it comes back (only when the phone supports
+ * periods shorter than a day: a chip, or any period typed in hours), for how
+ * long, and for how many days. While the PIN is checked ([enabled] false)
+ * taps and typing are ignored.
  */
 @Composable
 private fun DurationChips(
     form: AccessForm,
     enabled: Boolean,
     onKind: (AccessForm.Kind) -> Unit,
+    onPickPeriod: (Int) -> Unit,
+    onEditPeriod: (String) -> Unit,
     onPickMinutes: (Int) -> Unit,
     onEditMinutes: (String) -> Unit,
     onPickDays: (Int) -> Unit,
@@ -477,6 +486,52 @@ private fun DurationChips(
             )
         }
 
+        // Repeating time comes back every day, or as often as the Guardian sets, on phones that take that.
+        AnimatedVisibility(
+            visible = form.kind == AccessForm.Kind.EVERY_DAY && form.periodsAllowed,
+            enter = Reveal,
+            exit = Conceal,
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(Modifier.height(KryptSpace.s6))
+                FieldLabel(text = stringResource(R.string.guardian_every))
+                Spacer(Modifier.height(KryptSpace.s2))
+                ChipRow {
+                    AccessForm.PERIOD_PRESETS.forEach { minutes ->
+                        ChoiceChip(
+                            text = periodChipLabel(minutes),
+                            selected = form.every == AccessForm.Amount.Preset(minutes),
+                            onClick = { if (enabled) onPickPeriod(minutes) },
+                        )
+                    }
+                    ChoiceChip(
+                        text = stringResource(R.string.guardian_custom),
+                        selected = form.every is AccessForm.Amount.Custom,
+                        onClick = { if (enabled && form.every !is AccessForm.Amount.Custom) onEditPeriod("") },
+                    )
+                }
+                AnimatedVisibility(
+                    visible = form.every is AccessForm.Amount.Custom,
+                    enter = Reveal,
+                    exit = Conceal,
+                ) {
+                    CustomAmountField(
+                        text = (form.every as? AccessForm.Amount.Custom)?.text.orEmpty(),
+                        onTextChange = { typed ->
+                            onEditPeriod(typed.filter { it.isDigit() || it in PERIOD_SEPARATORS }.take(PERIOD_MAX_CHARS))
+                        },
+                        label = stringResource(R.string.guardian_period_label),
+                        suffix = stringResource(R.string.guardian_period_suffix),
+                        error = stringResource(R.string.guardian_period_error),
+                        isError = form.periodInvalid,
+                        readOnly = !enabled,
+                        tag = PERIOD_FIELD_TAG,
+                        keyboardType = KeyboardType.Decimal,
+                    )
+                }
+            }
+        }
+
         // For good has no duration: no minutes to choose.
         AnimatedVisibility(
             visible = form.kind != AccessForm.Kind.FOR_GOOD,
@@ -488,7 +543,7 @@ private fun DurationChips(
                 FieldLabel(text = stringResource(R.string.guardian_how_long))
                 Spacer(Modifier.height(KryptSpace.s2))
                 ChipRow {
-                    AccessForm.MINUTE_PRESETS.forEach { minutes ->
+                    form.minutePresets.forEach { minutes ->
                         ChoiceChip(
                             text = minutesChipLabel(minutes),
                             selected = form.minutes == AccessForm.Amount.Preset(minutes),
@@ -511,7 +566,7 @@ private fun DurationChips(
                         onTextChange = { typed -> onEditMinutes(typed.filter(Char::isDigit).take(MINUTES_MAX_DIGITS)) },
                         label = stringResource(R.string.guardian_minutes_label),
                         suffix = stringResource(R.string.guardian_minutes_suffix),
-                        error = stringResource(R.string.guardian_minutes_error),
+                        error = pluralStringResource(R.plurals.guardian_minutes_error, form.maxMinutes, form.maxMinutes),
                         isError = form.minutesInvalid,
                         readOnly = !enabled,
                         tag = MINUTES_FIELD_TAG,
@@ -560,7 +615,15 @@ private fun DurationChips(
                     )
                 }
                 Spacer(Modifier.height(KryptSpace.s3))
-                NotePanel(text = stringResource(R.string.guardian_daily_note))
+                val period = form.period ?: AccessChoice.DAY_MINUTES
+                NotePanel(
+                    text = when {
+                        period == AccessChoice.DAY_MINUTES -> stringResource(R.string.guardian_daily_note)
+                        AccessChoice.DAY_MINUTES % period == 0 ->
+                            stringResource(R.string.guardian_period_note, periodStarts(period))
+                        else -> stringResource(R.string.guardian_period_note_uneven, periodStarts(period))
+                    },
+                )
             }
         }
     }
@@ -592,7 +655,7 @@ private fun ChipRow(content: @Composable () -> Unit) {
     }
 }
 
-/** The field a Custom chip reveals: digits only, with its unit after the number. */
+/** The field a Custom chip reveals: a number, with its unit after it. */
 @Composable
 private fun CustomAmountField(
     text: String,
@@ -603,6 +666,7 @@ private fun CustomAmountField(
     isError: Boolean,
     readOnly: Boolean,
     tag: String,
+    keyboardType: KeyboardType = KeyboardType.Number,
 ) {
     val focusManager = LocalFocusManager.current
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -622,7 +686,7 @@ private fun CustomAmountField(
                 null
             },
             isError = isError,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             singleLine = true,
             shape = KryptShape.md,
@@ -649,12 +713,27 @@ private fun SummarySentence(choice: AccessChoice, appLabel: String?, packageName
             app,
             StyledArg(durationWords(choice.minutes), italic),
         )
-        is AccessChoice.EveryDay -> styledFormat(
-            stringResource(R.string.guardian_summary_daily),
-            app,
-            StyledArg(durationWords(choice.minutes), italic),
-            StyledArg(daysWords(choice.days)),
-        )
+        is AccessChoice.EveryDay -> when (choice.periodMinutes) {
+            AccessChoice.DAY_MINUTES -> styledFormat(
+                stringResource(R.string.guardian_summary_daily),
+                app,
+                StyledArg(durationWords(choice.minutes), italic),
+                StyledArg(daysWords(choice.days)),
+            )
+            60 -> styledFormat(
+                stringResource(R.string.guardian_summary_hourly),
+                app,
+                StyledArg(durationWords(choice.minutes), italic),
+                StyledArg(daysWords(choice.days)),
+            )
+            else -> styledFormat(
+                stringResource(R.string.guardian_summary_period),
+                app,
+                StyledArg(durationWords(choice.minutes), italic),
+                StyledArg(durationWords(choice.periodMinutes)),
+                StyledArg(daysWords(choice.days)),
+            )
+        }
         AccessChoice.ForGood -> styledFormat(
             stringResource(R.string.guardian_summary_for_good),
             app,
@@ -708,7 +787,11 @@ private fun GuardianPinState.Validating.placeholderForm() = GuardianPinState.Rea
     attemptsLeft = 0,
     lockoutRetryInMs = null,
     errorMessage = null,
-    form = AccessForm(everyDayAllowed = request.supportsDaily, forGoodAllowed = request.supportsForGood),
+    form = AccessForm(
+        everyDayAllowed = request.supportsDaily,
+        forGoodAllowed = request.supportsForGood,
+        periodsAllowed = request.supportsPeriods,
+    ),
 )
 
 @Composable
@@ -721,8 +804,26 @@ private fun fatalMessage(key: String): String = when (key) {
 @Composable
 private fun kindLabel(kind: AccessForm.Kind): String = when (kind) {
     AccessForm.Kind.ONE_TIME -> stringResource(R.string.guardian_once)
-    AccessForm.Kind.EVERY_DAY -> stringResource(R.string.guardian_daily)
+    AccessForm.Kind.EVERY_DAY -> stringResource(R.string.guardian_repeating)
     AccessForm.Kind.FOR_GOOD -> stringResource(R.string.guardian_for_good)
+}
+
+/** A period chip: "30 min", "1 hour", "2 hours" ... "12 hours", "Day". */
+@Composable
+private fun periodChipLabel(minutes: Int): String =
+    if (minutes == AccessChoice.DAY_MINUTES) stringResource(R.string.guardian_period_day) else minutesChipLabel(minutes)
+
+/** When the day's periods start, as the note lists them: "00:00, 01:30, 03:00 and so on", "00:00 and 12:00". */
+@Composable
+private fun periodStarts(periodMinutes: Int): String {
+    val context = LocalContext.current
+    val starts = (0 until AccessChoice.DAY_MINUTES step periodMinutes)
+        .map { clockText(context, LocalTime.of(it / 60, it % 60)) }
+    return if (starts.size > PERIOD_STARTS_SHOWN) {
+        stringResource(R.string.guardian_period_starts_more, starts.take(PERIOD_STARTS_SHOWN).joinToString(", "))
+    } else {
+        stringResource(R.string.guardian_period_starts_all, starts.dropLast(1).joinToString(", "), starts.last())
+    }
 }
 
 /** A duration chip: "15 min", "30 min", "1 hour", "2 hours". */
@@ -747,15 +848,28 @@ private fun durationWords(minutes: Int): String =
 @Composable
 private fun daysWords(days: Int): String = pluralStringResource(R.plurals.duration_days, days, days)
 
-/** What an approval allows, in the reply: "30 minutes, once" or "1 hour a day for 7 days". */
+/**
+ * What an approval allows, in the reply: "30 minutes, once", "1 hour a day
+ * for 7 days", "15 minutes an hour for 7 days" or "30 minutes every 2 hours
+ * for 7 days".
+ */
 @Composable
 private fun accessText(access: AccessChoice): String = when (access) {
     is AccessChoice.OneTime -> stringResource(R.string.access_once, durationWords(access.minutes))
-    is AccessChoice.EveryDay -> stringResource(
-        R.string.access_daily,
-        durationWords(access.minutes),
-        daysWords(access.days),
-    )
+    is AccessChoice.EveryDay -> when (access.periodMinutes) {
+        AccessChoice.DAY_MINUTES -> stringResource(
+            R.string.access_daily,
+            durationWords(access.minutes),
+            daysWords(access.days),
+        )
+        60 -> stringResource(R.string.access_hourly, durationWords(access.minutes), daysWords(access.days))
+        else -> stringResource(
+            R.string.access_period,
+            durationWords(access.minutes),
+            durationWords(access.periodMinutes),
+            daysWords(access.days),
+        )
+    }
     AccessChoice.ForGood -> stringResource(R.string.access_for_good)
 }
 
@@ -767,6 +881,13 @@ private const val PIN_MAX_LENGTH = 8
 private const val MINUTES_MAX_DIGITS = 4
 private const val DAYS_MAX_DIGITS = 3
 private const val TICK_MS = 1_000L
+
+/** How many period starts the note lists before "and so on". */
+private const val PERIOD_STARTS_SHOWN = 3
+
+/** A typed period is hours, e.g. "1.5", "1,5" or "1:30". */
+private const val PERIOD_SEPARATORS = ".,:"
+private const val PERIOD_MAX_CHARS = 5
 
 /** Stands in for each digit while it is checked; PinEntry draws only dots, never characters. */
 private const val CHECKING_DOT = "\u2022"

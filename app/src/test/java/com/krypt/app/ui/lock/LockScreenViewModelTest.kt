@@ -53,6 +53,16 @@ class LockScreenViewModelTest {
     }
 
     @Test
+    fun timeUsedUpForAPeriod_isTheReason_withWhenItComesBack() = runTest {
+        val backAt = 1_790_000_000_000L
+        dailyAllowances.set("com.example.target", DailyAccess.UsedUp(15, lastDay, periodMinutes = 60, backAtMs = backAt))
+        val vm = LockScreenViewModel(issuer, dailyAllowances)
+        vm.show("com.example.target")
+
+        assertEquals(LockReason.DailyUsedUp(15, lastDay, periodMinutes = 60, backAtMs = backAt), vm.state.value.reason)
+    }
+
+    @Test
     fun pausedDailyTime_isTheReason() = runTest {
         dailyAllowances.set("com.example.target", DailyAccess.Paused(60, lastDay))
         val vm = LockScreenViewModel(issuer, dailyAllowances)

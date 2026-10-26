@@ -156,12 +156,13 @@ class ApprovalConsumer @Inject constructor(
                         ?: return@withContext Outcome.err(ApprovalError.ClockNotTrusted)
                     val allowance = DailyAllowance(
                         packageName = request.targetPackage,
-                        minutesPerDay = access.minutes,
+                        minutes = access.minutes,
                         firstDay = today,
                         lastDay = today.plusDays(access.days - 1L),
                         zone = zone,
                         requestId = request.requestId,
                         createdAtMs = nowMs,
+                        periodMinutes = access.periodMinutes,
                     )
                     val saved = outstandingRepo.consumeAndUpsertDailyAllowance(
                         requestId = request.requestId,

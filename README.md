@@ -21,7 +21,7 @@ What the Guardian can allow:
 | | |
 |---|---|
 | **Once** | 15 min, 30 min, 1 hour, 2 hours, or any 1 to 1440 minutes |
-| **Every day** | N minutes a day for 3, 7, 14 or 30 days, or any 1 to 365 days. This needs automatic date and time to be on. |
+| **Repeating** | N minutes in each period, for 3, 7, 14 or 30 days, or any 1 to 365 days. The period is a day, or any length from 5 minutes up: every 30 minutes, every hour, every 90 minutes, every 2 hours, and so on. Periods follow the clock from midnight: every 2 hours means 00:00-02:00, 02:00-04:00, and so on. When a period doesn't divide the day, the day's last one is shorter and ends at midnight. The minutes can be used any time in a period, and each period starts with the full amount. This needs automatic date and time to be on. |
 | **For good** | The app's lock is removed, as if the Guardian had turned it off in Krypt's Home list. The app stays open until someone locks it again. |
 
 The same app runs on both phones. On the locked phone it is the locker. On the Guardian's phone it only opens approval links.

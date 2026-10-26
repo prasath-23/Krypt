@@ -11,6 +11,7 @@ import com.krypt.app.R
 import com.krypt.app.common.Outcome
 import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.data.daily.DailyAccess
+import com.krypt.app.data.daily.DailyAllowance
 import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.deeplink.ApprovalConsumer
 import com.krypt.app.deeplink.ApprovalError
@@ -102,11 +103,27 @@ class ApprovalTrampolineActivity : ComponentActivity() {
                 dailyMeter.onRuleSaved(rule)
                 if (dailyMeter.access(rule.packageName) is DailyAccess.Available) {
                     val until = dayText(this, rule.lastDay, rule.zone)
-                    val perDay = durationText(this, rule.minutesPerDay)
-                    successEffect.play(this, getString(R.string.approval_toast_daily, label, perDay, until))
+                    val amount = durationText(this, rule.minutes)
+                    val message = when (rule.periodMinutes) {
+                        DailyAllowance.DAY_MINUTES -> getString(R.string.approval_toast_daily, label, amount, until)
+                        60 -> getString(R.string.approval_toast_hourly, label, amount, until)
+                        else -> getString(
+                            R.string.approval_toast_period,
+                            label,
+                            amount,
+                            durationText(this, rule.periodMinutes),
+                            until,
+                        )
+                    }
+                    successEffect.play(this, message)
                     openUnlockedApp(outcome.targetPackage)
                 } else {
-                    Toast.makeText(this, getString(R.string.approval_toast_daily_used_up, label), Toast.LENGTH_LONG).show()
+                    val usedUp = if (rule.periodMinutes == DailyAllowance.DAY_MINUTES) {
+                        R.string.approval_toast_daily_used_up
+                    } else {
+                        R.string.approval_toast_period_used_up
+                    }
+                    Toast.makeText(this, getString(usedUp, label), Toast.LENGTH_LONG).show()
                 }
             }
             is ApprovalOutcome.ForGood -> {

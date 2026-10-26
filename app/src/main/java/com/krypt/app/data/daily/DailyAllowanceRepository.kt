@@ -14,38 +14,39 @@ import javax.inject.Singleton
 interface DailyAllowanceRepository {
     suspend fun rules(): List<DailyAllowance>
 
-    /** (package name, epoch day) -> milliseconds used. */
-    suspend fun usage(): Map<Pair<String, Long>, Long>
+    /** (package name, [LocalMinutes] minute) -> milliseconds used, for the minutes from [fromMinute] on. */
+    suspend fun usage(fromMinute: Long): Map<Pair<String, Long>, Long>
 
-    /** Save [usedMs] for [pkg] on [epochDay]. Never lowers a saved value. */
-    suspend fun saveUsage(pkg: String, epochDay: Long, usedMs: Long)
+    /** Save [usedMs] for [pkg] in [minute]. Never lowers a saved value. */
+    suspend fun saveUsage(pkg: String, minute: Long, usedMs: Long)
 
     suspend fun end(pkg: String)
 
     /**
-     * Drop rules that ended before [rulesEndedBefore], and usage from before
-     * [usageBefore] on days no rule covers (epoch days).
+     * Drop rules that ended before [rulesEndedBefore] (an epoch day), and
+     * usage from before [usageBeforeMinute] (a [LocalMinutes] minute) on days
+     * no rule covers.
      */
-    suspend fun prune(rulesEndedBefore: Long, usageBefore: Long)
+    suspend fun prune(rulesEndedBefore: Long, usageBeforeMinute: Long)
 }
 
 @Singleton
 class RoomDailyAllowanceRepository @Inject constructor(
     private val rulesDao: DailyAllowanceDao,
-    private val usageDao: DailyUsageDao,
+    private val usageDao: MinuteUsageDao,
 ) : DailyAllowanceRepository {
 
     private val usageWrites = Mutex()
 
     override suspend fun rules(): List<DailyAllowance> = rulesDao.all().map { it.toDomain() }
 
-    override suspend fun usage(): Map<Pair<String, Long>, Long> =
-        usageDao.all().associate { (it.packageName to it.epochDay) to it.usedMs }
+    override suspend fun usage(fromMinute: Long): Map<Pair<String, Long>, Long> =
+        usageDao.from(fromMinute).associate { (it.packageName to it.minute) to it.usedMs }
 
-    override suspend fun saveUsage(pkg: String, epochDay: Long, usedMs: Long) {
+    override suspend fun saveUsage(pkg: String, minute: Long, usedMs: Long) {
         usageWrites.withLock {
-            val saved = usageDao.usedMs(pkg, epochDay) ?: 0L
-            if (usedMs > saved) usageDao.upsert(DailyUsageEntity(pkg, epochDay, usedMs))
+            val saved = usageDao.usedMs(pkg, minute) ?: 0L
+            if (usedMs > saved) usageDao.upsert(MinuteUsageEntity(pkg, minute, usedMs))
         }
     }
 
@@ -53,8 +54,8 @@ class RoomDailyAllowanceRepository @Inject constructor(
         rulesDao.delete(pkg)
     }
 
-    override suspend fun prune(rulesEndedBefore: Long, usageBefore: Long) {
+    override suspend fun prune(rulesEndedBefore: Long, usageBeforeMinute: Long) {
         rulesDao.pruneEndedBefore(rulesEndedBefore)
-        usageDao.pruneBefore(usageBefore)
+        usageDao.pruneBefore(usageBeforeMinute)
     }
 }

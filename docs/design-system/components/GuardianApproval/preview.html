@@ -1,4 +1,4 @@
-<!-- @dsCard group="Guardian" height=780 width=860 -->
+<!-- @dsCard group="Guardian" height=940 width=860 -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>GuardianApproval — preview</title></head>
@@ -6,12 +6,14 @@
 <div class="kx-stage">
   <div style="display:flex;flex-direction:column;gap:var(--space-3)">
     <span class="kx-note">Step 1 · Choose (try it)</span>
-    <div class="kx-phone gx-p1" style="height:700px">
+    <div class="kx-phone gx-p1" style="height:860px">
     <div class="kx-pad-x gx-s1" style="padding-top:var(--space-8);display:flex;flex-direction:column;gap:var(--space-5);flex:1;overflow:hidden">
       <div class="kx-head"><span class="kx-eyebrow"><svg class="kx-ic" viewBox="36 22 36 66" aria-hidden="true" style="width:9px;height:16px"><path fill="currentColor" d="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 32.4 C52 32.2 53 32.1 54 32.1 C55 32.1 56 32.2 57 32.4 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z"/></svg>ACCESS REQUEST</span><h1 class="kx-title">Instagram</h1><span class="kx-status kx-status--none"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><g><path d="M10,3h4c0.55,0,1-0.45,1-1c0-0.55-0.45-1-1-1h-4C9.45,1,9,1.45,9,2C9,2.55,9.45,3,10,3z"/><path d="M19.03,7.39l0.75-0.75c0.38-0.38,0.39-1.01,0-1.4c0,0-0.01-0.01-0.01-0.01c-0.39-0.39-1.01-0.38-1.4,0l-0.75,0.75 C16.07,4.74,14.12,4,12,4c-4.8,0-8.88,3.96-9,8.76C2.87,17.84,6.94,22,12,22c4.98,0,9-4.03,9-9C21,10.88,20.26,8.93,19.03,7.39z M13,13c0,0.55-0.45,1-1,1s-1-0.45-1-1V9c0-0.55,0.45-1,1-1s1,0.45,1,1V13z"/></g></g></svg><span>Sent 1 min ago · expires in <span class="kx-mono">4:00</span></span></span></div>
-      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="daily" aria-checked="false">Daily</button></div></div>
-      <div class="kx-field"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
-        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 1 to 1440 minutes.</span></div></div>
+      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="repeat" aria-checked="false">Repeating</button><button role="radio" data-g="kind" data-v="good" aria-checked="false">For good</button></div></div>
+      <div class="kx-field gx-every" hidden><span class="kx-field__label">Every</span><div class="kx-chips" role="radiogroup" aria-label="Every"><button class="kx-chip" role="radio" data-g="period" data-v="30" aria-checked="false">30 min</button><button class="kx-chip" role="radio" data-g="period" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="period" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="240" aria-checked="false">4 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="360" aria-checked="false">6 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="720" aria-checked="false">12 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="1440" aria-checked="true">Day</button><button class="kx-chip" role="radio" data-g="period" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-pcustom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-pcustom-box" style="cursor:text"><input class="gx-pinput" type="text" inputmode="decimal" value="1.5" aria-label="Hours, 5 minutes to 24 hours" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">hours</span></label><span class="kx-field__msg kx-field__msg--error gx-perr" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 5 minutes to 24 hours, like 1.5 or 1:30.</span></div></div>
+      <div class="kx-field gx-long"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="5" aria-checked="false">5 min</button><button class="kx-chip" role="radio" data-g="min" data-v="10" aria-checked="false">10 min</button><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg><span class="gx-max">Choose 1 to 1440 minutes.</span></span></div></div>
       <div class="kx-field gx-days" hidden><span class="kx-field__label">For how many days</span><div class="kx-chips" role="radiogroup" aria-label="For how many days"><button class="kx-chip" role="radio" data-g="days" data-v="3" aria-checked="false">3 days</button><button class="kx-chip" role="radio" data-g="days" data-v="7" aria-checked="true">7 days</button><button class="kx-chip" role="radio" data-g="days" data-v="14" aria-checked="false">14 days</button><button class="kx-chip" role="radio" data-g="days" data-v="30" aria-checked="false">30 days</button></div></div>
       <p class="kx-sentence" data-sentence role="status" style="margin-top:var(--space-2)">Instagram, <em>30 minutes</em>, once.</p>
     </div>
@@ -20,12 +22,14 @@
   </div>
   <div style="display:flex;flex-direction:column;gap:var(--space-3)">
     <span class="kx-note">Step 2 · Confirm with PIN (sheet)</span>
-    <div class="kx-phone gx-p2" style="height:700px" aria-hidden="false">
+    <div class="kx-phone gx-p2" style="height:860px" aria-hidden="false">
       <div class="gx-behind" aria-hidden="true" inert style="display:flex;flex-direction:column;height:100%"><div class="kx-pad-x gx-s1" style="padding-top:var(--space-8);display:flex;flex-direction:column;gap:var(--space-5);flex:1;overflow:hidden">
       <div class="kx-head"><span class="kx-eyebrow"><svg class="kx-ic" viewBox="36 22 36 66" aria-hidden="true" style="width:9px;height:16px"><path fill="currentColor" d="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 32.4 C52 32.2 53 32.1 54 32.1 C55 32.1 56 32.2 57 32.4 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z"/></svg>ACCESS REQUEST</span><h1 class="kx-title">Instagram</h1><span class="kx-status kx-status--none"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><g><path d="M10,3h4c0.55,0,1-0.45,1-1c0-0.55-0.45-1-1-1h-4C9.45,1,9,1.45,9,2C9,2.55,9.45,3,10,3z"/><path d="M19.03,7.39l0.75-0.75c0.38-0.38,0.39-1.01,0-1.4c0,0-0.01-0.01-0.01-0.01c-0.39-0.39-1.01-0.38-1.4,0l-0.75,0.75 C16.07,4.74,14.12,4,12,4c-4.8,0-8.88,3.96-9,8.76C2.87,17.84,6.94,22,12,22c4.98,0,9-4.03,9-9C21,10.88,20.26,8.93,19.03,7.39z M13,13c0,0.55-0.45,1-1,1s-1-0.45-1-1V9c0-0.55,0.45-1,1-1s1,0.45,1,1V13z"/></g></g></svg><span>Sent 1 min ago · expires in <span class="kx-mono">4:00</span></span></span></div>
-      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="daily" aria-checked="false">Daily</button></div></div>
-      <div class="kx-field"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
-        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 1 to 1440 minutes.</span></div></div>
+      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="repeat" aria-checked="false">Repeating</button><button role="radio" data-g="kind" data-v="good" aria-checked="false">For good</button></div></div>
+      <div class="kx-field gx-every" hidden><span class="kx-field__label">Every</span><div class="kx-chips" role="radiogroup" aria-label="Every"><button class="kx-chip" role="radio" data-g="period" data-v="30" aria-checked="false">30 min</button><button class="kx-chip" role="radio" data-g="period" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="period" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="240" aria-checked="false">4 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="360" aria-checked="false">6 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="720" aria-checked="false">12 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="1440" aria-checked="true">Day</button><button class="kx-chip" role="radio" data-g="period" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-pcustom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-pcustom-box" style="cursor:text"><input class="gx-pinput" type="text" inputmode="decimal" value="1.5" aria-label="Hours, 5 minutes to 24 hours" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">hours</span></label><span class="kx-field__msg kx-field__msg--error gx-perr" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 5 minutes to 24 hours, like 1.5 or 1:30.</span></div></div>
+      <div class="kx-field gx-long"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="5" aria-checked="false">5 min</button><button class="kx-chip" role="radio" data-g="min" data-v="10" aria-checked="false">10 min</button><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg><span class="gx-max">Choose 1 to 1440 minutes.</span></span></div></div>
       <div class="kx-field gx-days" hidden><span class="kx-field__label">For how many days</span><div class="kx-chips" role="radiogroup" aria-label="For how many days"><button class="kx-chip" role="radio" data-g="days" data-v="3" aria-checked="false">3 days</button><button class="kx-chip" role="radio" data-g="days" data-v="7" aria-checked="true">7 days</button><button class="kx-chip" role="radio" data-g="days" data-v="14" aria-checked="false">14 days</button><button class="kx-chip" role="radio" data-g="days" data-v="30" aria-checked="false">30 days</button></div></div>
       <p class="kx-sentence" data-sentence role="status" style="margin-top:var(--space-2)">Instagram, <em>30 minutes</em>, once.</p>
     </div>
@@ -44,25 +48,69 @@
 </div>
 <script>
 (function(){
-  var st={kind:'once',min:'30',days:'7',custom:45};
+  var st={kind:'once',period:'1440',hours:'1.5',min:'30',days:'7',custom:45};
   var p1=document.querySelector('.gx-p1'), behind=document.querySelector('.gx-behind');
   function minutes(){return st.min==='custom'?st.custom:parseInt(st.min,10);}
   function dur(m){if(m%60===0){var h=m/60;return h+(h===1?' hour':' hours');}return m+(m===1?' minute':' minutes');}
-  function valid(){var m=minutes();return m>=1&&m<=1440&&Math.floor(m)===m;}
-  function sentence(){var d=dur(minutes());return st.kind==='once'?'Instagram, <em>'+d+'</em>, once.':'Instagram, <em>'+d+' a day</em> for '+st.days+' days.';}
+  // A typed period, in hours, as minutes: "1.5", "1,5" and "1:30" are 90, "0.5" is 30, "5" is 300.
+  // Null unless it comes to 5 minutes to 24 hours.
+  function typed(t){
+    var m;
+    if(t.indexOf(':')>=0){
+      var p=t.split(':');
+      if(p.length!==2||!/^\d+$/.test(p[0])||!/^\d+$/.test(p[1])||+p[0]>24||+p[1]>59)return null;
+      m=(+p[0])*60+(+p[1]);
+    }else{
+      var h=Number(t.replace(',','.'));
+      if(t===''||!isFinite(h)||h<=0||h>24)return null;
+      m=Math.round(h*60);
+    }
+    return m>=5&&m<=1440?m:null;
+  }
+  // Repeating time comes back every period, in minutes: a chip, or typed; a day is 1440. Null while a typed one can't be used.
+  function period(){if(st.kind!=='repeat')return 1440;return st.period==='custom'?typed(st.hours):parseInt(st.period,10);}
+  function maxMin(){var p=period();return st.kind==='repeat'&&p!==null?p:1440;}
+  // When repeating, only chips shorter than the period are shown; an hour or less gets 5, 10, 15 and 30 min.
+  function shown(){var p=period();if(st.kind!=='repeat'||p===null)return [15,30,60,120];return (p<=60?[5,10,15,30]:[15,30,60,120]).filter(function(m){return m<p;});}
+  // A chip no longer shown becomes the largest one that is (with none shown, it stays as it was).
+  function fit(){if(st.min==='custom')return;var m=parseInt(st.min,10),s=shown();if(s.indexOf(m)>=0||!s.length)return;var f=s.filter(function(x){return x<=m;});st.min=String(f.length?f[f.length-1]:s[0]);}
+  function minutesOk(){var m=minutes();return m>=1&&m<=maxMin()&&Math.floor(m)===m;}
+  function periodBad(){return st.kind==='repeat'&&st.period==='custom'&&st.hours!==''&&period()===null;}
+  function valid(){if(st.kind==='good')return true;return minutesOk()&&period()!==null;}
+  function sentence(){
+    if(st.kind==='good')return 'Instagram, <em>unlocked for good</em>.';
+    var d=dur(minutes());
+    if(st.kind==='once')return 'Instagram, <em>'+d+'</em>, once.';
+    var p=period();
+    return 'Instagram, <em>'+d+'</em>'+(p===1440?' a day':p===60?' an hour':' every '+dur(p))+' for '+st.days+' days.';
+  }
+  // .kx-field sets display:flex, so hidden alone would not hide it.
+  function show(e,on){e.hidden=!on;e.style.display=on?'':'none';}
   function sync(){
+    fit();
     document.querySelectorAll('[data-g]').forEach(function(b){b.setAttribute('aria-checked',st[b.dataset.g]===b.dataset.v?'true':'false');});
-    document.querySelectorAll('.gx-days').forEach(function(e){e.hidden=st.kind!=='daily';});
+    document.querySelectorAll('[data-g="min"]').forEach(function(b){show(b,b.dataset.v==='custom'||shown().indexOf(parseInt(b.dataset.v,10))>=0);});
+    document.querySelectorAll('.gx-every, .gx-days').forEach(function(e){show(e,st.kind==='repeat');});
+    document.querySelectorAll('.gx-long').forEach(function(e){show(e,st.kind!=='good');});
+    document.querySelectorAll('.gx-pcustom').forEach(function(e){e.hidden=st.period!=='custom';e.style.display=e.hidden?'none':'flex';});
+    var pbad=periodBad();
+    document.querySelectorAll('.gx-perr').forEach(function(e){e.hidden=!pbad;e.style.display=pbad?'flex':'none';});
+    document.querySelectorAll('.gx-pcustom-box').forEach(function(e){e.classList.toggle('kx-field__box--error',pbad);});
     document.querySelectorAll('.gx-custom').forEach(function(e){e.hidden=st.min!=='custom';e.style.display=e.hidden?'none':'flex';});
-    var ok=valid();
-    document.querySelectorAll('.gx-err').forEach(function(e){e.hidden=ok;e.style.display=ok?'none':'flex';});
-    document.querySelectorAll('.gx-custom-box').forEach(function(e){e.classList.toggle('kx-field__box--error',!ok);});
+    // The minutes field shows its own error only for a typed number that can't be used.
+    var mbad=st.min==='custom'&&!isNaN(st.custom)&&!minutesOk(),ok=valid(),n=maxMin();
+    document.querySelectorAll('.gx-err').forEach(function(e){e.hidden=!mbad;e.style.display=mbad?'flex':'none';});
+    document.querySelectorAll('.gx-max').forEach(function(e){e.textContent='Choose 1 to '+n+(n===1?' minute.':' minutes.');});
+    document.querySelectorAll('.gx-custom-box').forEach(function(e){e.classList.toggle('kx-field__box--error',mbad);});
     document.querySelectorAll('[data-sentence]').forEach(function(e){e.style.visibility=ok?'visible':'hidden';if(ok)e.innerHTML=sentence();});
     document.querySelectorAll('.gx-continue').forEach(function(b){b.disabled=!ok;});
-    document.querySelectorAll('.gx-input').forEach(function(i){var ae=(typeof root!=='undefined'&&root.activeElement)||document.activeElement;if(ae!==i)i.value=st.custom;});
+    document.querySelectorAll('.gx-input').forEach(function(i){i.max=n;i.setAttribute('aria-label','Minutes, 1 to '+n);var ae=(typeof root!=='undefined'&&root.activeElement)||document.activeElement;if(ae!==i)i.value=st.custom;});
+    document.querySelectorAll('.gx-pinput').forEach(function(i){var ae=(typeof root!=='undefined'&&root.activeElement)||document.activeElement;if(ae!==i)i.value=st.hours;});
   }
   p1.querySelectorAll('[data-g]').forEach(function(b){b.onclick=function(){st[b.dataset.g]=b.dataset.v;sync();};});
   p1.querySelector('.gx-input').oninput=function(e){st.custom=e.target.value===''?NaN:Number(e.target.value);sync();};
+  // Hours, as the app takes them: digits and . , : only, at most 5 characters.
+  p1.querySelector('.gx-pinput').oninput=function(e){var v=e.target.value.replace(/[^0-9.,:]/g,'').slice(0,5);if(v!==e.target.value)e.target.value=v;st.hours=v;sync();};
   var pin=0,max=8,busy=false,dots=document.querySelector('.gx-dots'),msg=document.querySelector('.gx-msg'),ap=document.querySelector('.gx-approve');
   function draw(){var h='';for(var i=0;i<max;i++)h+='<span class="kx-dot'+(i<pin?' kx-dot--on':(i>=4?' kx-dot--opt':''))+'"></span>';dots.innerHTML=h;dots.setAttribute('aria-label','Guardian PIN, '+pin+' digits entered');ap.disabled=pin<4||busy;}
   document.querySelectorAll('.gx-k').forEach(function(k){k.onclick=function(){if(busy)return;pin=k.dataset.k==='del'?Math.max(0,pin-1):Math.min(max,pin+1);msg.textContent='Your PIN never leaves this phone.';draw();};});

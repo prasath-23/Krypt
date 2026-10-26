@@ -23,9 +23,10 @@ import javax.inject.Inject
  * Flow:
  *   1. Activity hands us the incoming URL via [parseIncoming].
  *   2. UI renders the parsed request (app + PIN field).
- *   3. Guardian picks what to allow - one time or every day, how many
- *      minutes, for how many days ([setKind], [pickMinutes], [editMinutes],
- *      [pickDays], [editDays]; 15 minutes one time unless changed) - and
+ *   3. Guardian picks what to allow - one time or repeating, how often it
+ *      comes back, how many minutes, for how many days ([setKind],
+ *      [pickPeriod], [editPeriod], [pickMinutes], [editMinutes], [pickDays],
+ *      [editDays]; 15 minutes one time unless changed) - and
  *      taps Approve -> [approve] calls the validator with the request's own
  *      PBKDF2 iteration count (the Subject's setup value, not this device's
  *      settings). On success, builds the approval URL for that choice via
@@ -68,6 +69,7 @@ class GuardianPinViewModel @Inject constructor(
                     form = AccessForm(
                         everyDayAllowed = parsed.value.supportsDaily,
                         forGoodAllowed = parsed.value.supportsForGood,
+                        periodsAllowed = parsed.value.supportsPeriods,
                     ),
                 )
             )
@@ -83,8 +85,14 @@ class GuardianPinViewModel @Inject constructor(
     /** The Guardian is typing their own number of minutes. */
     fun editMinutes(text: String) = updateForm { it.copy(minutes = AccessForm.Amount.Custom(text)) }
 
-    /** One time, or every day (only when the child's phone understands it). */
-    fun setKind(kind: AccessForm.Kind) = updateForm { it.copy(kind = kind) }
+    /** One time, repeating, or for good (the last two only when the child's phone understands them). */
+    fun setKind(kind: AccessForm.Kind) = updateForm { it.copy(kind = kind).fitted() }
+
+    /** The Guardian tapped a period chip: repeating time comes back every [minutes]. */
+    fun pickPeriod(minutes: Int) = updateForm { it.copy(every = AccessForm.Amount.Preset(minutes)).fitted() }
+
+    /** The Guardian is typing their own period, in hours, e.g. "1.5". */
+    fun editPeriod(text: String) = updateForm { it.copy(every = AccessForm.Amount.Custom(text)).fitted() }
 
     /** The Guardian tapped a number-of-days chip. */
     fun pickDays(days: Int) = updateForm { it.copy(days = AccessForm.Amount.Preset(days)) }
