@@ -249,18 +249,6 @@ def enable_krypt_service():
     return False
 
 
-def allow_in_background():
-    """Put Krypt on the battery whitelist (onboarding's "Keep running in the background") and
-    check that it stays there. Like the accessibility setting, the system's cleanup for the
-    uninstall can take Krypt off it again a moment after Krypt is reinstalled."""
-    for _ in range(5):
-        sh(f"dumpsys deviceidle whitelist +{KRYPT}")
-        time.sleep(2)
-        if f",{KRYPT}," in sh("dumpsys deviceidle whitelist"):
-            return True
-    return False
-
-
 def wait_for_krypt_service():
     """Every uiautomator dump unbinds Krypt's accessibility service for a moment (a real device runs no
     uiautomator), so wait for it before doing what it has to react to."""
@@ -312,6 +300,18 @@ def db(sql):
 
 def krypt_notification_text():
     return sh("dumpsys notification --noredact")
+
+
+PROTECTION_OFF_ID = 0x4B504F  # NotificationHelper.PROTECTION_OFF_ID
+
+
+def protection_off_alert_showing():
+    """Whether the "Krypt is off" alert is posted now. Only the live list's NotificationRecord lines
+    count: the dump also lists notifications removed a moment ago."""
+    dump = krypt_notification_text()
+    expect("Current Notification Manager state" in dump, f"no notification dump: {dump[:200]!r}")
+    return re.search(rf"NotificationRecord\(0x[0-9a-f]+: pkg={re.escape(KRYPT)} user=\S+ id={PROTECTION_OFF_ID} ",
+                     dump) is not None
 
 
 # The Guardian's PIN check runs PBKDF2 at the Subject's calibrated cost before the approval is shared.
@@ -576,7 +576,7 @@ def install_fresh():
     adb("logcat", "-c")
     expect("Success" in adb("install", "-r", "-g", APP_APK), "Krypt did not install")
     sh(f"appops set {KRYPT} SYSTEM_ALERT_WINDOW allow")
-    expect(allow_in_background(), "Krypt could not be put on the battery whitelist")
+    # Not on the battery whitelist: "Keep running in the background" is optional (Amendment 5).
     expect(enable_krypt_service(), "Krypt's accessibility service could not be turned on")
     connected = wait_for(lambda: "connected" in adb("logcat", "-d", "-s", "KryptA11y:*"), timeout=30)
     expect(connected, "Krypt's accessibility service did not connect")
@@ -616,13 +616,12 @@ def back_to_home_from_lock():
 
 @case("06 onboarding with the mandatory permissions granted")
 def onboarding():
-    # On a slow emulator the uninstall's cleanup can still be running here; make sure it left the whitelist alone.
-    expect(allow_in_background(), "Krypt could not be put on the battery whitelist")
     launch(KRYPT)
     # First run asks who the phone is for; protecting it leads to the permission checklist.
     if wait_text(r"^I'm protecting this phone$", 30):
         tap_text(r"^I'm protecting this phone$")
-    expect(wait_text(r"3 of 3 required", 30), "mandatory progress is not 3 of 3")
+    # Accessibility and the overlay; the battery exemption is optional and not granted here.
+    expect(wait_text(r"2 of 2 required", 30), "mandatory progress is not 2 of 2")
     tap_text(r"^Start protecting$")
     expect(wait_text(r"^Give this phone to your Guardian\.$", 20), "PIN setup screen did not appear")
 
@@ -917,7 +916,11 @@ def paste_approval_path():
 
 @case("28 catch-up: an app installed while Krypt was off is locked when it comes back")
 def catch_up_after_protection_off():
+    # Every uiautomator dump so far unbound Krypt's service for a moment; none of them is a switch-off.
+    expect(not protection_off_alert_showing(), "'Krypt is off' was shown though Krypt was never switched off")
     sh("settings put secure enabled_accessibility_services ''")
+    # Switching Krypt off is reported at once, not at the next health check (Amendment 5).
+    expect(wait_for(protection_off_alert_showing, 30), "no 'Krypt is off' alert when Krypt was switched off")
     time.sleep(3)
     adb("uninstall", TARGET)
     expect("Success" in adb("install", "-r", TARGET_APK), "target app did not reinstall")
@@ -927,6 +930,8 @@ def catch_up_after_protection_off():
     rows = wait_for(lambda: db(f"select lockState from locked_apps where packageName='{TARGET}'")
                     == [("LOCKED",)] and krypt_logcat(r"locked new install pkg=com\.krypt\.e2e\.target"), 30)
     expect(rows, "reinstalled app was not re-locked on catch-up")
+    expect(wait_for(lambda: not protection_off_alert_showing(), 30),
+           "the 'Krypt is off' alert stayed after Krypt came back")
     launch(TARGET)
     expect(re.search(re.escape(LOCK_SCREEN), wait_top(re.escape(LOCK_SCREEN))), f"top is {top_activity()}")
     home()
@@ -988,13 +993,16 @@ def daily_time_runs_out():
     home()
 
 
-@case("29 the accessibility health check is scheduled")
+@case("29 the health check is scheduled, and nothing of Krypt runs in the foreground")
 def health_check_scheduled():
     # WorkManager skips a periodic job that is forced early, so the alert
     # itself is covered by the instrumented AccessibilityHealthWorkerTest.
     jobs = sh("dumpsys jobscheduler")
     expect(re.search(r"com\.krypt\.app/androidx\.work\.impl\.background\.systemjob\.SystemJobService", jobs),
            "health-check job not scheduled")
+    # Amendment 5: no foreground service, and so no notification that never goes away.
+    expect("isForeground=true" not in sh(f"dumpsys activity services {KRYPT}"),
+           "a Krypt service runs in the foreground")
 
 
 @case("29b a reboot ends every grant (negative)")

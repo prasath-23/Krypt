@@ -29,8 +29,9 @@ import org.junit.runner.RunWith
 import javax.inject.Inject
 
 /**
- * The 15-minute health check (FR-010). Instrumented tests run with Krypt's
- * accessibility service switched off, which is exactly the case it alerts on.
+ * The 6-hour health check (FR-010, Amendment 5). Instrumented tests run with
+ * Krypt's accessibility service switched off, which is exactly the case it
+ * alerts on.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)

@@ -4,6 +4,7 @@
 **Status:** Draft
 **Target branch:** main
 **Mission:** software-dev
+**Amended by:** feature 001's Amendment 5 (2026-10-25) --- Battery Optimization is now Optional, so two Mandatory permissions remain (FR-022, FR-026, FR-027, US-3, SC-009).
 
 ## Problem Statement
 
@@ -33,10 +34,10 @@ The Subject experience must remain Zero-Trust --- at no point can the Subject un
 **when** they tap "Skip",
 **then** onboarding advances to the next step without granting Notifications, the mandatory-progress bar is unaffected, and the app continues to function --- the only behavioural difference is that auto-lock notifications are silently suppressed when the permission is missing.
 
-### US-3 --- Subject cannot complete setup without the three Mandatory permissions
-**Given** the Subject has granted only Accessibility and Overlay (2 of 3 Mandatory),
+### US-3 --- Subject cannot complete setup without the two Mandatory permissions
+**Given** the Subject has granted only Accessibility (1 of 2 Mandatory),
 **when** they reach the end of onboarding,
-**then** the "Finish" button is disabled, the mandatory-progress bar shows 2/3, and the Battery-Optimisation step displays a ✗ red indicator and a "Open battery settings" CTA. They cannot navigate past until 3/3 is reached.
+**then** the "Finish" button is disabled, the mandatory-progress bar shows 1/2, and the Overlay step displays a ✗ red indicator and an "Allow in settings" button. They cannot navigate past until 2/2 is reached.
 
 ### US-4 --- Subject manually locks an existing installed app
 **Given** the Subject is on the Home Screen, which lists every installed non-system app with a toggle, and Instagram is currently unlocked,
@@ -62,8 +63,8 @@ The Subject experience must remain Zero-Trust --- at no point can the Subject un
 
 ### FR-022 --- Permission step classification
 Onboarding steps MUST be classified as either Mandatory or Optional:
-- **Mandatory:** Accessibility, Overlay (`SYSTEM_ALERT_WINDOW`), Battery Optimization (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`).
-- **Optional:** Device Admin, Notifications (`POST_NOTIFICATIONS`).
+- **Mandatory:** Accessibility, Overlay (`SYSTEM_ALERT_WINDOW`).
+- **Optional:** Battery Optimization (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`; Optional since feature 001's Amendment 5), Device Admin, Notifications (`POST_NOTIFICATIONS`).
 
 ### FR-023 --- Live permission indicator
 Every permission onboarding step MUST display a live indicator reflecting the current OS-level grant state:
@@ -75,13 +76,13 @@ Every permission onboarding step MUST display a live indicator reflecting the cu
 When the indicator switches state, the swap MUST be animated (cross-fade or scale-up) and complete in 200--500 ms. Instant cuts are NOT acceptable.
 
 ### FR-025 --- Indicator scoping
-The live permission indicators MUST appear ONLY within the onboarding permission steps. They MUST NOT be displayed on the Home Screen, settings, watchdog notification, or any other surface.
+The live permission indicators MUST appear ONLY within the onboarding permission steps. They MUST NOT be displayed on the Home Screen, settings, or any other surface.
 
 ### FR-026 --- Mandatory progress
-A progress indicator at the top of onboarding MUST show only Mandatory permission progress (e.g., "2 of 3"). Optional permissions MUST NOT contribute to this counter.
+A progress indicator at the top of onboarding MUST show only Mandatory permission progress (e.g., "1 of 2"). Optional permissions MUST NOT contribute to this counter.
 
 ### FR-027 --- Setup completion gate
-The user MUST be unable to mark onboarding complete until all three Mandatory permissions are granted. Optional permissions MUST NOT block completion.
+The user MUST be unable to mark onboarding complete until both Mandatory permissions are granted. Optional permissions MUST NOT block completion.
 
 ### FR-028 --- Skip on optional steps
 Optional permission steps MUST display a visible "Skip" control. Tapping Skip MUST advance onboarding to the next step without granting the permission and without affecting the Mandatory progress counter.
@@ -119,7 +120,7 @@ The Home Screen list MUST exclude system apps (those flagged `FLAG_SYSTEM` or in
 
 ## Success Criteria
 
-- **SC-009** --- A user who has granted all 3 Mandatory permissions sees the mandatory-progress bar reach 3/3 within 500 ms of the third grant being detected, on a representative mid-range device (Pixel 6 / Xiaomi Redmi Note 12).
+- **SC-009** --- A user who has granted both Mandatory permissions sees the mandatory-progress bar reach 2/2 within 500 ms of the second grant being detected, on a representative mid-range device (Pixel 6 / Xiaomi Redmi Note 12).
 - **SC-010** --- A user who declines Optional permissions can still complete onboarding and reach the Home Screen.
 - **SC-011** --- Manually toggling an unlocked app to Locked covers the app's next launch within 200 ms (matches feature 001 SC-002).
 - **SC-012** --- Attempting to unlock a locked app on the Home Screen produces a `krypt://request?...` URL whose body parses cleanly through `UnlockRequestParser` and matches the app's package.
@@ -131,7 +132,7 @@ The Home Screen list MUST exclude system apps (those flagged `FLAG_SYSTEM` or in
 
 - **Permission state snapshot** --- for each permission key (Accessibility, Overlay, Battery, Device Admin, Notifications): {granted: Boolean, classification: Mandatory | Optional, last_observed_at: timestamp}.
 - **Installed app row** --- for each non-system installed package: {package_name, display_name, icon_drawable, is_locked: Boolean}. `is_locked` is reactive over the existing `LockedAppsRepository`.
-- **Mandatory progress** --- derived: count of Mandatory permissions in `granted = true` state, out of total Mandatory count (always 3 in v1).
+- **Mandatory progress** --- derived: count of Mandatory permissions in `granted = true` state, out of total Mandatory count (always 2 in v1; 3 before feature 001's Amendment 5).
 - **Manual lock event** --- telemetry record for analytics if added later: {package, action: lock | attempted_unlock, at: timestamp}. Out of scope for v1 implementation but the data model must support it.
 
 ## Assumptions

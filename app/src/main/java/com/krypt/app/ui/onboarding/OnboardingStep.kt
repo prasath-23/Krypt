@@ -36,7 +36,7 @@ sealed class OnboardingStep(
 
     data object Battery : OnboardingStep(
         key = PermissionKey.BATTERY,
-        classification = PermissionClassification.MANDATORY,
+        classification = PermissionClassification.OPTIONAL,
         titleRes = R.string.onboarding_battery_title,
         bodyRes = R.string.onboarding_battery_line,
         grantRes = R.string.permission_allow_in_settings,

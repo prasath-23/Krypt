@@ -7,7 +7,7 @@
 
 Two cohesive UX additions to Krypt's Subject app, sharing zero new infrastructure but each touching distinct parts of the existing stack:
 
-1. **Permission Onboarding Redesign** --- split the five-step onboarding into Mandatory (Accessibility, Overlay, Battery) and Optional (Device Admin, Notifications) blocks. Each step shows a live ✓/✗ indicator that re-evaluates on `Activity.onResume` (and via lifecycle observers where the OS supports them). A top progress strip counts only Mandatory progress; Optional steps gain a "Skip" button. Setup can finish only at 3/3 Mandatory.
+1. **Permission Onboarding Redesign** --- split the five-step onboarding into Mandatory (Accessibility, Overlay) and Optional (Battery, Device Admin, Notifications) blocks; Battery became Optional in feature 001's Amendment 5. Each step shows a live ✓/✗ indicator that re-evaluates on `Activity.onResume` (and via lifecycle observers where the OS supports them). A top progress strip counts only Mandatory progress; Optional steps gain a "Skip" button. Setup can finish only at 2/2 Mandatory.
 2. **Home Screen as Manual App Lock Manager** --- the post-onboarding home becomes a searchable list of installed (non-system) apps with a one-way Material toggle per row. Toggle ON = instant lock via `LockedAppsRepository`. Toggle OFF attempt = does NOT unlock; instead invokes `UnlockRequestBuilder` (from feature 001) to dispatch a `krypt://request` URL through the system Share sheet.
 
 The two features ship together because they sit on the same screen sequence and reuse the same DI graph; splitting them would force two passes over `MainActivity` navigation.
@@ -61,7 +61,7 @@ app/src/main/java/com/krypt/app/
 │   └── PermissionIndicator.kt      # Compose component: animated ✓/✗
 ├── ui/onboarding/                  # MODIFIED
 │   ├── OnboardingScreen.kt         # rewired: mandatory bar, skip buttons on optional steps
-│   ├── OnboardingViewModel.kt      # NEW --- drives step navigation, gates Finish on 3/3 Mandatory
+│   ├── OnboardingViewModel.kt      # NEW --- drives step navigation, gates Finish on 2/2 Mandatory
 │   └── OnboardingStep.kt           # NEW --- sealed type per step; carries classification + key
 ├── ui/home/                        # NEW --- feature 002
 │   ├── HomeScreen.kt               # searchable list of installed apps with toggles
@@ -149,10 +149,10 @@ No HTTP/RPC contracts. The internal contracts are Kotlin interfaces:
 Reviewer steps:
 
 1. Pull `main`, `./gradlew :app:installDebug`.
-2. Open Krypt on a device fresh-installed (or after Clear Data). Onboarding shows three Mandatory cards each with ✗ red and a Skip-disabled "Open settings" CTA. The two Optional cards (Device Admin, Notifications) show a visible Skip button.
-3. Grant Accessibility from Settings, return --- indicator transitions to ✓ green via cross-fade. Mandatory bar advances 1/3.
-4. Repeat for Overlay and Battery. At 3/3, "Finish" enables.
-5. Skip the two Optional steps. Onboarding ends, app routes to the new Home Screen.
+2. Open Krypt on a device fresh-installed (or after Clear Data). Onboarding shows two Mandatory cards each with ✗ red and a Skip-disabled "Open settings" CTA. The three Optional cards (Battery, Device Admin, Notifications) show a visible Skip button.
+3. Grant Accessibility from Settings, return --- indicator transitions to ✓ green via cross-fade. Mandatory bar advances 1/2.
+4. Repeat for Overlay. At 2/2, "Finish" enables.
+5. Skip the three Optional steps. Onboarding ends, app routes to the new Home Screen.
 6. Home Screen shows every installed non-system app. Auto-locked apps are pre-toggled ON.
 7. Type into the search bar --- filtering is instant.
 8. Tap an unlocked toggle --- it animates to ON; relaunching that app shows the Locker Screen.

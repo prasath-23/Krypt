@@ -49,7 +49,7 @@ Then launch Krypt. You will be guided through a permission wizard:
 2. **Display over other apps.** Settings -> Apps -> Krypt -> Display over other apps -> toggle ON.
 3. **Device-Admin.** Confirm the Device-Admin activation prompt.
 4. **Post notifications.** Allow the runtime prompt on API 33+.
-5. **Battery optimisation.** Grant "Ignore battery optimisations" via the system prompt.
+5. **Battery optimisation (optional).** Grant "Ignore battery optimisations" via the system prompt. Optional since Amendment 5: Doze doesn't stop the accessibility service, so this matters on phones whose maker stops background apps.
 6. **OEM-specific (if applicable).** Krypt will deep-link you into OEM auto-start/protected-apps settings if it detects a known OEM build fingerprint.
 
 ## Install on Guardian device

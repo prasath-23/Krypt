@@ -43,9 +43,11 @@ Pass if p95 ≤ 200. The locked app must never be usable in between.
 ## SC-004 --- OEM battery survival (24 hour)
 
 1. Install Krypt on Pixel, Samsung, Xiaomi.
-2. Grant `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` + any OEM auto-start whitelist.
-3. Screen off, phone on charger, 24 h.
-4. Wake, launch a known-locked app → Krypt's lock screen must appear.
+2. Finish setup. Since Amendment 5 the battery exemption (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) is optional: leave it off on the Pixel. On the Samsung and Xiaomi, allow it and any OEM auto-start whitelist ("Help for Xiaomi, Samsung and others" on the battery row).
+3. Pull down the notification shade: there is no ongoing Krypt notification.
+4. Screen off, phone on charger, 24 h.
+5. Wake, launch a known-locked app → Krypt's lock screen must appear.
+6. Settings → Accessibility → Krypt Locker → off: "Krypt is off" must appear at once. Switch it back on: the alert must go away.
 
 ## SC-005 --- 20 bulk installs all auto-lock
 

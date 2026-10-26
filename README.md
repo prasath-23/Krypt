@@ -39,12 +39,11 @@ The same app runs on both phones. On the locked phone it is the locker. On the G
 
 1. Copy [`apk/krypt-debug.apk`](apk/krypt-debug.apk) to the phone and open it. Allow installs from that source when Android asks. You can also run `adb install -r apk/krypt-debug.apk`.
 2. Open Krypt and choose **I'm protecting this phone**.
-3. Allow the three required items. Each one opens its page in Settings:
+3. Allow the two required items. Each one opens its page in Settings:
    - **See when a locked app opens** (Accessibility)
    - **Show the lock over apps** (display over other apps)
-   - **Keep running in the background** (battery optimisation)
 
-   Two more are optional: **Make Krypt harder to remove** (Device admin) and **Alerts about new apps** (notifications).
+   Three more are optional: **Keep running in the background** (battery optimisation, for phones that stop apps in the background), **Make Krypt harder to remove** (Device admin) and **Alerts about new apps** (notifications).
 4. Tap **Start protecting**, then hand the phone to the Guardian to choose a 4 to 6 digit PIN.
 
 **On the Guardian's phone:** install the same APK. Request links then open Krypt's approval screen. If you open Krypt itself, choose **I'm a Guardian**.

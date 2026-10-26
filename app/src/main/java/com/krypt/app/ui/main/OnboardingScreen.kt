@@ -88,13 +88,13 @@ import kotlinx.coroutines.launch
 
 /**
  * Onboarding as one checklist (docs/design-system/Screens.md, "Onboarding:
- * one checklist"): the three required permissions, then the two optional
- * ones. Each row shows its live state and, until it is allowed, a button to
- * the page that allows it. The states refresh on resume, so a row changes
- * as soon as the person comes back from Settings.
+ * one checklist"): the two required permissions, then the three optional
+ * ones (the battery exemption is optional since Amendment 5). Each row shows
+ * its live state and, until it is allowed, a button to the page that allows
+ * it. The states refresh on resume, so a row changes as soon as the person
+ * comes back from Settings.
  *
- * Start protecting stays disabled until all three required items are
- * allowed. Optional rows never block anything and have no Skip: leaving one
+ * Start protecting stays disabled until both required items are allowed. Optional rows never block anything and have no Skip: leaving one
  * alone is the skip. Paste a link sits in the top bar for a Guardian-only
  * phone that came this way anyway.
  */
@@ -231,8 +231,8 @@ fun OnboardingScreen(
 }
 
 /**
- * Three thin ticks, one per required permission, over the line "2 of 3
- * required" (docs/design-system/components/MandatoryProgress). Optional
+ * Thin ticks, one per required permission (two since Amendment 5), over the
+ * line "1 of 2 required" (docs/design-system/components/MandatoryProgress). Optional
  * permissions never move them. For TalkBack the ticks are one progress bar
  * that reads the same line; the line stays its own text.
  */

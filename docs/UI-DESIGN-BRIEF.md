@@ -121,7 +121,7 @@ lock.
     daily time**.
   - The list can hold 200 apps or more, so search matters.
 - **Onboarding permissions.**
-  - Five system permissions, three of them mandatory.
+  - Five system permissions, two of them mandatory.
   - Each step shows a live granted or not-granted indicator that updates the
     moment the user comes back from system Settings.
 - **Hand-offs to the system.** Many actions leave Krypt: the share sheet, the
@@ -152,7 +152,7 @@ lock.
 | **PIN handling:** digits only; always masked; never kept in saved state; cleared after use; 4-6 digits at setup | FR-017 |
 | **The approval confirmation:** a green flash of at least 500 ms, a short vibration and a toast naming the app; no buttons, no fields | FR-021 |
 | **Permission indicators appear only in onboarding**, and their change is animated in 200-500 ms | FR-024, FR-025 |
-| **The onboarding progress counts only the 3 mandatory permissions**; Finish stays disabled until all 3 are granted; only optional steps can be skipped | FR-026, FR-027, FR-028 |
+| **The onboarding progress counts only the 2 mandatory permissions**; Finish stays disabled until both are granted; only optional steps can be skipped | FR-026, FR-027, FR-028 |
 | **The Home switch reflects the lock setting**: on = locked. It stays on while a Guardian unlock or daily time runs, because the app locks again by itself | Amendment 3 |
 | **The Guardian approval screen blocks screenshots** (`FLAG_SECURE`) | The PIN is typed there |
 | **Leaving Krypt closes the Home list.** Coming back asks for the PIN again | Amendment 2 |
@@ -205,7 +205,7 @@ Leaving Krypt (Home button, Recents, screen off) returns it to step 3.
 | A `krypt://approve` link is tapped | Any messenger | **Approval confirmation** (`subject/ApprovalTrampolineActivity.kt`): translucent, no UI except the flash and a toast |
 | "Open in Krypt" from the share sheet or text selection | Any app | **Link receiver** (`ui/link/LinkReceiverActivity.kt`): no UI, opens the link it finds, or shows a toast |
 | "Paste link" / "Paste approval link" buttons | Krypt itself | Opens the copied link as above |
-| Notifications | Krypt | "New App Protected" opens Krypt; "Krypt protection is off" opens Accessibility settings |
+| Notifications | Krypt | "New App Protected" opens Krypt; "Krypt is off" opens Accessibility settings |
 
 ### 5.3 Two phones, one app
 
@@ -271,7 +271,7 @@ Each screen is described the same way:
 
 - Title "Welcome to Krypt", and a **Paste link** action in the top bar for a
   Guardian-only phone.
-- **Mandatory progress:** a bar and the text "Required permissions: N of 3".
+- **Mandatory progress:** a bar and the text "Required permissions: N of 2".
   It counts only the mandatory permissions.
 - "Step N of 5".
 - The current step: title, explanation, a button that opens the right
@@ -286,7 +286,7 @@ Each screen is described the same way:
 |---|---|---|---|
 | 1 | Accessibility access | Mandatory | Accessibility settings |
 | 2 | Display over other apps | Mandatory | Overlay permission for Krypt |
-| 3 | Battery optimisation | Mandatory | Ignore-battery-optimisation prompt |
+| 3 | Battery optimisation | Optional | Ignore-battery-optimisation prompt |
 | 4 | Device Admin | Optional | Activate Device Admin (with an explanation) |
 | 5 | Notifications | Optional | The notification permission prompt (Android 13+) |
 
@@ -297,8 +297,8 @@ block it. Krypt does not read your app content."*
 **States**
 
 - Each step: granted or not granted.
-- Progress at 0, 1, 2 or 3 of 3.
-- Last step with Finish disabled (fewer than 3 mandatory granted) or enabled.
+- Progress at 0, 1 or 2 of 2.
+- Last step with Finish disabled (fewer than 2 mandatory granted) or enabled.
 - "No Krypt link found..." snackbar after Paste link.
 
 **Rules**
@@ -312,7 +312,7 @@ block it. Krypt does not read your app content."*
 
 **Ideas**
 
-- An overview first ("3 things Krypt needs, 2 optional").
+- An overview first ("2 things Krypt needs, 3 optional").
 - A checklist view that shows all five steps with their indicators. This is
   allowed, because the indicators stay inside onboarding.
 - OEM help on the battery step. `ui/main/OemBatteryLinks.kt` already has
@@ -634,8 +634,7 @@ These are part of the experience too.
 | Surface | Content |
 |---|---|
 | Notification: new app locked (Security Alerts channel, high importance) | "New App Protected" / "{App} ({package}) has been locked by default". Tapping opens Krypt |
-| Notification: protection off | "Krypt protection is off" / "Locked apps can be opened freely. Tap to turn Krypt Locker back on in Accessibility settings." |
-| Ongoing notification: watchdog (low importance) | "Krypt is protecting your device" / "Tap to open Krypt." |
+| Notification: protection off | "Krypt is off" / "Locked apps can be opened freely. Tap to turn Krypt Locker back on in Accessibility settings." Posted the moment Krypt's accessibility service is switched off, and taken down when it is switched back on |
 | Accessibility service description (system Settings) | `accessibility_service_description`: what Krypt watches, and that it sends nothing off the device |
 | Device Admin explanation | "Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first." |
 | Share target label | "Open in Krypt" |
@@ -672,7 +671,7 @@ These are part of the experience too.
 | **PIN entry** | Masked, numeric, a length limit, a spinner while checking, a lockout countdown. Used in 3 places: PIN setup (two fields), the PIN gate, the Guardian screen |
 | **Lockout countdown** | "Try again in N s", switching to minutes past 60 s, ticking every second (`ui/common/PinLockout.kt`) |
 | **Permission step** | Title, explanation, an action that opens Settings, an animated granted indicator |
-| **Mandatory progress** | A bar plus "Required permissions: N of 3" |
+| **Mandatory progress** | A bar plus "Required permissions: N of 2" |
 | **App row** | Icon, name, status line, switch, and an optional inline action (Lock now / End daily time) |
 | **Status line** | Text plus colour plus (suggested) an icon, so state is never colour alone |
 | **Duration chips** | Single-choice chips with a "Set ..." chip that reveals a numeric field with validation |
@@ -694,8 +693,8 @@ These are part of the experience too.
 ## 9. Key user journeys
 
 1. **First setup.** Install Krypt, then:
-   1. Onboarding: grant Accessibility, Overlay and Battery; Device Admin;
-      Notifications or Skip; Finish.
+   1. Onboarding: grant Accessibility and Overlay; Battery, Device Admin
+      and Notifications, or Skip them; Finish.
    2. Hand the phone to the Guardian, who sets the PIN, then hand it back.
    3. The PIN gate, then Home.
 2. **Lock existing apps.** PIN gate -> Home -> search "insta" -> switch on.
@@ -723,8 +722,8 @@ These are part of the experience too.
    screen for 30 s with a countdown.
 9. **The Guardian ends access early.** PIN gate -> Home -> **Lock now** or
    **End daily time**.
-10. **Protection switched off.** The "Krypt protection is off" notification
-    -> Accessibility settings.
+10. **Protection switched off.** The "Krypt is off" notification appears at
+    once -> Accessibility settings. Switching Krypt back on removes it.
 
 ---
 
@@ -903,7 +902,7 @@ krypt://approve?v=1&req=<uuid>&data=<b64url AES-GCM payload>&iat=<s>
 and test tags. These include "Ask Guardian", "Verify & send approval",
 "Paste link", "Paste approval link", "Finish", "Next", "Skip", "Unlock",
 "Go to home screen", "This app is locked", "Lock now", "End daily time",
-"Every day", "Set minutes", "Set days", "30 min", "Required permissions: 2
-of 3", the content description "Permission granted", and the tags
+"Every day", "Set minutes", "Set days", "30 min", "Required permissions: 1
+of 2", the content description "Permission granted", and the tags
 `PIN_FIELD_TAG`, `MINUTES_FIELD_TAG`, `DAYS_FIELD_TAG`. Renaming any of
 these means updating those tests in the same change.

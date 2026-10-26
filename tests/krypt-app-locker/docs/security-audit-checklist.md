@@ -43,9 +43,8 @@ Every `<uses-permission>` in AndroidManifest.xml maps to a documented FR or runt
 - `SYSTEM_ALERT_WINDOW` --- FR-001 (overlay)
 - `POST_NOTIFICATIONS` --- FR-004
 - `QUERY_ALL_PACKAGES` --- locked-app enumeration + PackageReceiver display-name resolution
-- `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_SPECIAL_USE` + `FOREGROUND_SERVICE_DATA_SYNC` --- WP16 watchdog
-- `RECEIVE_BOOT_COMPLETED` --- rebind Accessibility after reboot
-- `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` --- FR-010 (Doze survival)
+- `RECEIVE_BOOT_COMPLETED` --- WorkManager reschedules the accessibility health check after a reboot
+- `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` --- the optional "Keep running in the background" onboarding step (FR-010 on phones whose maker stops background apps)
 
 ## Sign-off
 

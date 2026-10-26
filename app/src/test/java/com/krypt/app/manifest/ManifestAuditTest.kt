@@ -18,6 +18,7 @@ import javax.xml.parsers.DocumentBuilderFactory
  *   2. The permissions Krypt *requires* for its legitimate behaviour ARE present
  *      (SYSTEM_ALERT_WINDOW, POST_NOTIFICATIONS, QUERY_ALL_PACKAGES,
  *      RECEIVE_BOOT_COMPLETED).
+ *   3. No foreground service is declared (Amendment 5).
  *
  * This test runs under `./gradlew :app:testDebugUnitTest` (JVM unit, no Android
  * framework needed) and is wired into `./gradlew check` so every build — local
@@ -64,9 +65,8 @@ class ManifestAuditTest {
             "android.permission.POST_NOTIFICATIONS"        to "FR-004 (Security-Alerts channel)",
             "android.permission.VIBRATE"                   to "FR-021 (unlock haptic)",
             "android.permission.QUERY_ALL_PACKAGES"        to "enumerate apps for lock list (research.md R6)",
-            "android.permission.RECEIVE_BOOT_COMPLETED"    to "rebind Accessibility after reboot",
-            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "FR-010 (Doze survival)",
-            "android.permission.FOREGROUND_SERVICE"        to "FR-010 (watchdog FGS, WP16)"
+            "android.permission.RECEIVE_BOOT_COMPLETED"    to "reschedule the health check after a reboot",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "the optional battery step (Amendment 5)"
         )
 
         for ((perm, reason) in required) {
@@ -76,6 +76,18 @@ class ManifestAuditTest {
                 perm in declared
             )
         }
+    }
+
+    @Test
+    fun manifestDeclaresNoForegroundService() {
+        // Amendment 5: the accessibility service is all Krypt runs in the
+        // background. A foreground service would bring back the always-on
+        // notification, and Android 13+ would list Krypt under active apps
+        // with a Stop button.
+        val permissions = declaredPermissions().filter { it.startsWith("android.permission.FOREGROUND_SERVICE") }
+        assertTrue("Manifest declares $permissions (Amendment 5: no foreground service).", permissions.isEmpty())
+        val types = attributeValues("service", "foregroundServiceType")
+        assertTrue("A service declares foregroundServiceType $types (Amendment 5).", types.isEmpty())
     }
 
     @Test

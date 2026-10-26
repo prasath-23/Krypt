@@ -153,11 +153,12 @@ kapt {
 
 // -------------------------------------------------------------------------
 // verifyManifest — WP18 SC-008 gate. Fails the build if the debug APK's
-// manifest declares android.permission.INTERNET. Wired into ./gradlew check.
+// manifest declares android.permission.INTERNET (or, since Amendment 5, a
+// foreground-service permission). Wired into ./gradlew check.
 // -------------------------------------------------------------------------
 tasks.register("verifyManifest") {
     group = "verification"
-    description = "Fails the build if INTERNET permission appears in the assembled debug APK."
+    description = "Fails the build if a network or foreground-service permission appears in the assembled debug APK."
     dependsOn("assembleDebug")
     // Resolved here, not in doLast: the configuration cache can't carry the project
     // (file(), the android extension) into the task's action.
@@ -184,7 +185,14 @@ tasks.register("verifyManifest") {
                     "See polaris-specs/001-krypt-app-locker/spec.md section 5.\n\nAudit output:\n$output"
             )
         }
-        logger.lifecycle("OK: APK does not declare INTERNET or other network-adjacent permissions.")
+        // Amendment 5: no foreground service, including one a library's manifest brings in.
+        if (output.contains("android.permission.FOREGROUND_SERVICE")) {
+            throw GradleException(
+                "APK declares a foreground-service permission, but Krypt runs no foreground service. " +
+                    "See polaris-specs/001-krypt-app-locker/spec.md, Amendment 5.\n\nAudit output:\n$output"
+            )
+        }
+        logger.lifecycle("OK: APK declares no network-adjacent or foreground-service permission.")
     }
 }
 

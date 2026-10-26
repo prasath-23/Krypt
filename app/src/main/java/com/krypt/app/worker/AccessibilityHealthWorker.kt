@@ -17,10 +17,15 @@ import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 /**
- * Periodic (15 min) check that Krypt's Accessibility Service is enabled.
- * If it has been switched off after setup, posts a "protection is off"
- * alert so the user turns it back on.
- * FR-010 / SC-004 soft-guarantee (WorkManager 15-min minimum).
+ * Checks every 6 hours that Krypt's Accessibility Service is running and,
+ * if it isn't after setup, posts the "Krypt is off" alert so the user turns
+ * it back on.
+ *
+ * Switching the service off is reported at once by the service itself
+ * (AppLockerAccessibilityService.onUnbind). This check is the safety net for
+ * what no event reports: the service switched on but not running, for
+ * example after a reboot it never came back from (FR-010 / SC-004,
+ * Amendment 5).
  */
 @HiltWorker
 class AccessibilityHealthWorker @AssistedInject constructor(
@@ -43,13 +48,24 @@ class AccessibilityHealthWorker @AssistedInject constructor(
 
     companion object {
         const val UNIQUE_NAME: String = "krypt.accessibility_health"
-        const val PERIOD_MIN: Long = 15L
+        const val PERIOD_HOURS: Long = 6L
 
+        /**
+         * KEEP, so that a process start leaves the schedule alone; UPDATE only
+         * when the check scheduled now has another period, as on an install
+         * that had the 15-minute check. Reads WorkManager's database, so call
+         * it off the main thread.
+         */
         fun schedule(workManager: WorkManager) {
-            val req = PeriodicWorkRequestBuilder<AccessibilityHealthWorker>(PERIOD_MIN, TimeUnit.MINUTES).build()
-            workManager.enqueueUniquePeriodicWork(
-                UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, req,
-            )
+            val scheduledPeriod = workManager.getWorkInfosForUniqueWork(UNIQUE_NAME).get()
+                .firstOrNull { !it.state.isFinished }?.periodicityInfo?.repeatIntervalMillis
+            val policy = if (scheduledPeriod == null || scheduledPeriod == TimeUnit.HOURS.toMillis(PERIOD_HOURS)) {
+                ExistingPeriodicWorkPolicy.KEEP
+            } else {
+                ExistingPeriodicWorkPolicy.UPDATE
+            }
+            val req = PeriodicWorkRequestBuilder<AccessibilityHealthWorker>(PERIOD_HOURS, TimeUnit.HOURS).build()
+            workManager.enqueueUniquePeriodicWork(UNIQUE_NAME, policy, req)
         }
     }
 }

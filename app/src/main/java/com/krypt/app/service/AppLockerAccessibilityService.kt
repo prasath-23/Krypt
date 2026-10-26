@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.telecom.TelecomManager
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -18,7 +19,9 @@ import com.krypt.app.data.AccessPolicy
 import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.data.daily.DailyAllowanceMeter
+import com.krypt.app.data.settings.SettingsRepository
 import com.krypt.app.di.ApplicationScope
+import com.krypt.app.notifications.NotificationHelper
 import com.krypt.app.receiver.NewInstallLocker
 import com.krypt.app.ui.lock.LockScreenActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,6 +47,11 @@ import javax.inject.Inject
  * is still open when its grant ends (FR-013, via [GrantExpiryWatcher]), and
  * counting every-day time (Amendment 3, via [DailyAllowanceMeter], fed by
  * window changes and [DeviceStateWatcher]).
+ *
+ * Apart from the 6-hour health check, this service is all Krypt runs in the
+ * background (Amendment 5). Android binds it while it is switched on,
+ * restarts it if the process dies, and calls it when something happens;
+ * between calls it only waits on the timers above.
  */
 @AndroidEntryPoint
 class AppLockerAccessibilityService : AccessibilityService() {
@@ -53,9 +61,14 @@ class AppLockerAccessibilityService : AccessibilityService() {
     @Inject lateinit var newInstallLocker: NewInstallLocker
     @Inject lateinit var dailyMeter: DailyAllowanceMeter
     @Inject lateinit var dayClock: TrustedDayClock
+    @Inject lateinit var notificationHelper: NotificationHelper
+    @Inject lateinit var settings: SettingsRepository
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
     @Volatile private var lockedPackagesCache: Set<String> = emptySet()
+
+    /** Setup is finished, so switching the service off is worth an alert. */
+    @Volatile private var setupFinished = false
 
     /** The app the user is in; keyboard and notification-shade windows don't change it. */
     private var foregroundPackage: String? = null
@@ -77,13 +90,15 @@ class AppLockerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         subscribeToLockedAppsFlow()
+        serviceScope.launch { settings.settings.collect { setupFinished = it.onboardingComplete } }
         GrantExpiryWatcher(serviceScope, sessionStore, ::onGrantExpired).start()
         dailyMeter.attach(serviceScope, ::onDailyAccessEnded)
         deviceState = DeviceStateWatcher(this, dailyMeter, dayClock) {
             foregroundPackage?.let(::blockIfNeeded)
         }.also { it.start() }
         watchNewInstalls()
-        KryptWatchdogService.start(this)
+        // Protection is back, so an earlier "Krypt is off" alert is out of date.
+        notificationHelper.cancelProtectionOff()
         Log.i(TAG, "connected")
     }
 
@@ -125,6 +140,25 @@ class AppLockerAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {
         // no-op; required by AccessibilityService.
+    }
+
+    /**
+     * Android unbinds the service when it is switched off, but also while a
+     * UI test drives the phone or another user is in front. Only switching it
+     * off takes it out of the enabled setting, and that is said at once, not
+     * at the next health check (Amendment 5). Before setup is finished the
+     * service is expected to be off, as in AccessibilityHealthWorker.
+     *
+     * Posted here, on the main thread, so that switching the service straight
+     * back on cancels it afterwards in [onServiceConnected], never before.
+     */
+    override fun onUnbind(intent: Intent?): Boolean {
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        if (!EnabledAccessibilityServices.includes(enabled, packageName, AppLockerAccessibilityService::class.java.name)) {
+            Log.i(TAG, "switched off")
+            if (setupFinished) notificationHelper.notifyProtectionOff()
+        }
+        return super.onUnbind(intent)
     }
 
     override fun onDestroy() {

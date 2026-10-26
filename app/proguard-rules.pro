@@ -33,7 +33,6 @@
 -keep class com.krypt.app.ui.guardian.GuardianActivity { *; }
 -keep class com.krypt.app.service.AppLockerAccessibilityService { *; }
 -keep class com.krypt.app.service.KryptDeviceAdminReceiver { *; }
--keep class com.krypt.app.service.KryptWatchdogService { *; }
 -keep class com.krypt.app.receiver.PackageReceiver { *; }
 -keep class com.krypt.app.worker.AccessibilityHealthWorker { *; }
 

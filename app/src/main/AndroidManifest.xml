@@ -12,8 +12,8 @@
     The ManifestAuditTest.kt unit test in src/test/ parses this file and fails
     the build if an INTERNET-adjacent permission appears. Do not add these.
 
-    WP-by-WP note: only MainActivity is active in WP01. Receivers, services,
-    Guardian activity, and watchdog are declared in WP07-WP16 as those WPs land.
+    WP-by-WP note: only MainActivity is active in WP01. Receivers, services and
+    the Guardian activity are declared in WP07-WP16 as those WPs land.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -39,17 +39,21 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
                      tools:ignore="QueryAllPackagesPermission" />
 
-    <!-- FR-010: foreground service that supervises the Accessibility Service (WP16). -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- API 34+: specialUse subtype required; see research.md R8. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- API 29-33: dataSync fallback for the same FGS. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Amendment 5: no foreground service. The accessibility service is all Krypt
+         runs in the background; Android binds it and restarts it by itself.
+         WorkManager's manifest asks for this permission (and declares its
+         SystemForegroundService, below) for long-running workers, which Krypt
+         doesn't have, so the merged manifest drops both. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
+                     tools:node="remove" />
 
-    <!-- Re-start the Accessibility Service after device reboot. -->
+    <!-- WorkManager reschedules the 6-hour health check after a reboot. (Android binds
+         the accessibility service again by itself.) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- FR-010: surviving Doze requires user-granted battery-optimisation ignore. -->
+    <!-- Optional onboarding step (Amendment 5): leave Krypt out of battery optimisation,
+         for phones whose maker stops background apps. Doze doesn't stop the
+         accessibility service, so stock Android doesn't need it. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- FR-005: WorkManager's own manifest asks for ACCESS_NETWORK_STATE, which it uses
@@ -90,16 +94,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- WP16: Watchdog foreground service (FR-010 battery survival). -->
-        <service
-            android:name=".service.KryptWatchdogService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse|dataSync">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="accessibilityServiceSupervisor" />
-        </service>
 
         <!-- WP14 + WP21: Guardian Activity (krypt://request deep-link host).
              krypt://approve is handled by ApprovalTrampolineActivity below
@@ -203,6 +197,11 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <!-- Amendment 5: no foreground service (see FOREGROUND_SERVICE above). -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            tools:node="remove" />
 
         <!-- Disable WorkManager's auto-init so KryptApplication.workManagerConfiguration
              (HiltWorkerFactory) is used instead of the default factory. Without this,

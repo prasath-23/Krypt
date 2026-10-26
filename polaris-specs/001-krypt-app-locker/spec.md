@@ -2,8 +2,33 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3 and 4 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4 and 5 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 5 (2026-10-25) - Nothing Runs All Day but the Accessibility Service
+
+**Why:** Krypt kept a foreground service running all day, with a notification that never went away, and woke the phone every 15 minutes to check on itself. Neither was needed to keep protection on. Android binds Krypt's accessibility service whenever it is switched on, restarts it when its process dies, and calls it when a window opens; between calls it only waits on its own timers, such as the end of a grant.
+
+**Why Krypt can't start only when a locked app opens:** Android has no broadcast or callback that starts an app when another app opens. The accessibility service is that callback. It can't be started per launch, and if it were stopped after an unlock, the next launch would not be seen.
+
+1. **The watchdog foreground service is removed** (`KryptWatchdogService`), with its "Krypt is protecting this phone" notification and the `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` and `FOREGROUND_SERVICE_DATA_SYNC` permissions. Its "Krypt Watchdog" channel is deleted on phones updated from an older version.
+   - It kept nothing alive, as its own code said, and it didn't bring protection back after the overloaded reboot of 2026-10-15.
+   - It made Krypt look like an app running all day. Android 13 and later can list such apps under active apps, with a Stop button.
+2. **"Krypt is off" is said at once.** When Krypt's accessibility service is switched off after setup, the service posts the alert as Android unbinds it. Android also unbinds the service while a UI test drives the phone or another user is in front. Those leave it switched on in Settings, so they don't alert. The alert is taken down when the service connects again.
+   - A force stop kills Krypt before it can say anything, and also cancels its scheduled check. As before, nothing alerts until Krypt is opened again.
+3. **The health check runs every 6 hours, not every 15 minutes:** 4 wake-ups a day instead of 96. It is the safety net for what no event reports: the service switched on but not running, for example after a reboot it never came back from. Installs that had the 15-minute check move to the new period; later starts leave the schedule alone.
+4. **"Keep running in the background" is optional.** Setup needs two permissions: Accessibility and Display over other apps.
+   - Stock Android no longer needs the battery-optimisation exemption, because Doze and App Standby don't stop an accessibility service.
+   - Its row stays, under Optional, with the help link for Xiaomi, Samsung and others, whose own battery managers can stop background apps.
+5. **Lighter start-up.** Starting Krypt's process no longer starts a foreground service, and it schedules the health check off the main thread. This start-up runs when Android binds the accessibility service after a reboot; on 2026-10-15 an emulator under heavy load killed it for starting too slowly.
+6. **Unchanged:** how a locked app is blocked, grant expiry while an app is open, every-day time, and the new-install lock. They all run inside the accessibility service, only when Android calls it.
+
+**FRs touched:**
+- FR-010: still required. The accessibility service meets it on its own. On phones whose maker stops background apps, the maker's own setting (behind the help link) is also needed, as before. The watchdog service and the 15-minute check are gone.
+- FR-022 (feature 002): the battery-optimisation exemption moves from Mandatory to Optional.
+- SC-004: unchanged. On Xiaomi, Huawei, Oppo and Vivo phones it assumes Krypt is allowed in the maker's autostart or background setting.
 
 ---
 

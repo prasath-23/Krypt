@@ -80,7 +80,7 @@
     <string name="permission_allow">Allow</string>
     <string name="onboarding_battery_help">Help for Xiaomi, Samsung and others</string>
     <string name="onboarding_settings_missing">This phone didn\'t open that page. Look for it in the Settings app.</string>
-    <!-- Mandatory progress; counts only the required items, of which there are always 3. -->
+    <!-- Mandatory progress; counts only the required items, of which there are always 2. -->
     <string name="onboarding_progress" tools:ignore="PluralsCandidate">%1$d of %2$d required</string>
     <string name="onboarding_progress_ready" tools:ignore="PluralsCandidate">%1$d of %2$d required · ready</string>
     <string name="onboarding_start">Start protecting</string>
@@ -289,10 +289,6 @@
     <string name="notif_protection_off_title">Krypt is off</string>
     <string name="notif_protection_off_body">Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings.</string>
 
-    <!-- Watchdog (WP16) -->
-    <string name="watchdog_channel">Krypt Watchdog</string>
-    <string name="watchdog_title">Krypt is protecting this phone</string>
-    <string name="watchdog_body">Tap to open Krypt.</string>
 
     <!-- Accessibility service (WP10) -->
     <string name="accessibility_service_label">Krypt Locker</string>

@@ -91,7 +91,8 @@ class OnboardingViewModelTest {
     @Test
     fun canFinish_isFalse_whenMandatoryNotAllGranted() = runTest {
         fakeProbe.grant(PermissionKey.ACCESSIBILITY)
-        fakeProbe.grant(PermissionKey.OVERLAY)
+        // Optional since Amendment 5, so it doesn't stand in for Overlay.
+        fakeProbe.grant(PermissionKey.BATTERY)
         observer.refresh()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -100,13 +101,21 @@ class OnboardingViewModelTest {
 
     @Test
     fun canFinish_isTrue_whenAllMandatoryGranted() = runTest {
+        // Accessibility and Overlay are enough; the battery exemption is optional (Amendment 5).
         fakeProbe.grant(PermissionKey.ACCESSIBILITY)
         fakeProbe.grant(PermissionKey.OVERLAY)
-        fakeProbe.grant(PermissionKey.BATTERY)
         observer.refresh()
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value.canFinish)
+        assertEquals(2, vm.uiState.value.mandatoryTotal)
+    }
+
+    @Test
+    fun batteryStep_isOptional() = runTest {
+        repeat(2) { vm.next(); testDispatcher.scheduler.advanceUntilIdle() }
+        assertEquals(OnboardingStep.Battery, vm.uiState.value.currentStep)
+        assertTrue(vm.uiState.value.canSkip)
     }
 
     @Test
@@ -123,7 +132,6 @@ class OnboardingViewModelTest {
     fun tryFinish_whenCanFinish_callsSettingsAndCallback() = runTest {
         fakeProbe.grant(PermissionKey.ACCESSIBILITY)
         fakeProbe.grant(PermissionKey.OVERLAY)
-        fakeProbe.grant(PermissionKey.BATTERY)
         observer.refresh()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -137,8 +145,9 @@ class OnboardingViewModelTest {
 
     @Test
     fun mandatoryProgress_onlyCountsMandatoryKeys() = runTest {
-        // Grant Device Admin (Optional) — should NOT advance mandatory progress
+        // Grant Device Admin and the battery exemption (Optional) — should NOT advance mandatory progress
         fakeProbe.grant(PermissionKey.DEVICE_ADMIN)
+        fakeProbe.grant(PermissionKey.BATTERY)
         observer.refresh()
         testDispatcher.scheduler.advanceUntilIdle()
 

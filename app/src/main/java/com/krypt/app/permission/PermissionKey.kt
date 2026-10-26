@@ -17,8 +17,13 @@ enum class PermissionKey {
     NOTIFICATIONS;
 
     companion object {
-        /** The three permissions that MUST be granted before setup is complete (FR-022). */
-        val MANDATORY: Set<PermissionKey> = setOf(ACCESSIBILITY, OVERLAY, BATTERY)
+        /**
+         * The permissions that MUST be granted before setup is complete (FR-022).
+         * BATTERY is optional since Amendment 5: Doze doesn't stop the
+         * accessibility service, so only phones whose maker stops background
+         * apps need it.
+         */
+        val MANDATORY: Set<PermissionKey> = setOf(ACCESSIBILITY, OVERLAY)
     }
 }
 

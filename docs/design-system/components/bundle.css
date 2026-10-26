@@ -122,7 +122,7 @@ p, h1, h2, h3 { margin: 0; }
 .kx-chip[aria-checked="true"] { background: var(--primary); color: var(--on-primary); box-shadow: none; }
 .kx-chip:focus-visible, .kx-seg button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-/* Onboarding progress: three ticks */
+/* Onboarding progress: two ticks */
 .kx-ticks { display: flex; gap: 6px; }
 .kx-tick { flex: 1; height: 3px; border-radius: var(--radius-full); background: var(--outline-variant); transition: background-color var(--motion-base); }
 .kx-tick--on { background: var(--primary); }

@@ -90,7 +90,7 @@ These stay true whatever the design does.
 - **PIN checks take about 0.3s on purpose:** always show the checking state.
 - **Lockouts:** the 3rd wrong PIN locks for 30s, then 2 min, 10 min, 1 hour. A live countdown shows meanwhile, and input is disabled.
 - **Approval confirmation:** the flash (at least 500ms), a vibration and a toast naming the app. No buttons, no fields.
-- **Onboarding:** permission states appear only there. Progress counts only the 3 required permissions, and Start protecting stays disabled until all 3 are allowed.
+- **Onboarding:** permission states appear only there. Progress counts only the 2 required permissions, and Start protecting stays disabled until both are allowed.
 - **The Home switch shows the lock setting:** on = locked. It stays on while an unlock or daily time is running.
 - **The Guardian screen blocks screenshots** (`FLAG_SECURE`).
 - **The lock screen's first frame** is its window background, which must equal `background` in the current theme so nothing flashes.
@@ -113,7 +113,7 @@ The instrumented tests in `app/src/androidTest/.../e2e/` find elements by these 
 | One time / Every day | Once / Daily |
 | Set minutes / Set days | Custom |
 | Next / Skip / Finish | (removed: checklist) / (removed) / Start protecting |
-| Required permissions: 2 of 3 | 2 of 3 required |
+| Required permissions: 2 of 3 | 1 of 2 required / 2 of 2 required · ready |
 | Permission granted (description) | Allowed |
 | 30 min | 30 min (unchanged) |
 
