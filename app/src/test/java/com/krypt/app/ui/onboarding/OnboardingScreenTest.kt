@@ -2,6 +2,7 @@ package com.krypt.app.ui.onboarding
 
 import com.krypt.app.permission.FakePermissionStatusProbe
 import com.krypt.app.permission.PermissionKey
+import com.krypt.app.permission.classification
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -27,8 +28,8 @@ class OnboardingScreenTest {
         totalSteps = OnboardingStep.ORDERED.size,
         permissions = permissions,
         mandatoryGranted = mandatoryGranted,
-        mandatoryTotal = 3,
-        canFinish = mandatoryGranted == 3,
+        mandatoryTotal = PermissionKey.MANDATORY.size,
+        canFinish = mandatoryGranted == PermissionKey.MANDATORY.size,
         canSkip = OnboardingStep.ORDERED[stepIndex].classification ==
             com.krypt.app.permission.PermissionClassification.OPTIONAL,
         isFirstStep = stepIndex == 0,
@@ -61,15 +62,30 @@ class OnboardingScreenTest {
         assertTrue(state.permissions[PermissionKey.ACCESSIBILITY] ?: false)
     }
 
+    /** Mandatory-ness is set in two places: each step's classification and PermissionKey.MANDATORY. */
     @Test
-    fun finishDisabled_at2of3Mandatory() {
-        val state = fakeState(mandatoryGranted = 2)
+    fun everyStep_isClassifiedLikeItsPermission() {
+        OnboardingStep.ORDERED.forEach { step ->
+            assertEquals(step.key.classification(), step.classification)
+        }
+    }
+
+    @Test
+    fun step2_battery_isOptional_hasSkip() {
+        val state = fakeState(stepIndex = 2)
+        assertTrue(state.canSkip)
+        assertEquals(OnboardingStep.Battery, state.currentStep)
+    }
+
+    @Test
+    fun finishDisabled_at1of2Mandatory() {
+        val state = fakeState(mandatoryGranted = 1)
         assertFalse(state.canFinish)
     }
 
     @Test
-    fun finishEnabled_at3of3Mandatory() {
-        val state = fakeState(mandatoryGranted = 3)
+    fun finishEnabled_at2of2Mandatory() {
+        val state = fakeState(mandatoryGranted = 2)
         assertTrue(state.canFinish)
     }
 

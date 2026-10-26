@@ -2,8 +2,89 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2 and 3 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5 and 6 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 6 (2026-10-26) - Time Per Period, Not Only Per Day
+
+**What changed:** before this, repeating time could only be counted per calendar day ("1 hour a day"). A Guardian could not give "15 minutes an hour" or "30 minutes every 2 hours". Now a rule counts its minutes per period: the day, as before, or any length from 5 minutes to 24 hours. An app still has one rule: per day or per period, never both.
+
+1. **Periods follow the clock from midnight, like the day.** Every 2 hours means 00:00-02:00, 02:00-04:00, and so on; every 90 minutes means 00:00-01:30, 01:30-03:00, and so on. When the period doesn't divide a day, the day's last period is shorter and ends at midnight: every 5 hours is 00:00-05:00, 05:00-10:00, 10:00-15:00, 15:00-20:00, then 20:00-24:00. No period spans two days. The minutes can be used any time inside a period, and the next period starts with the full amount; time left over is not carried into it.
+2. **The approval screen: "Daily" becomes "Repeating".** "How often" reads **Once | Repeating | For good**. Repeating is time that comes back every day, or in a shorter period.
+   - Choosing Repeating shows a new **"Every"** row: 30 min, 1 hour, 2 hours, 4 hours, 6 hours, 12 hours and Day, then **Custom**. Day is the default. Custom reveals a field labelled "Hours" (suffix "hours", decimal keypad). It takes "1.5", "1,5", "0.5", "1:30" or "5", rounded to whole minutes, from 5 minutes to 24 hours. Anything else shows "Choose 5 minutes to 24 hours, like 1.5 or 1:30." and Continue stays disabled.
+   - "For how long" shows only chips shorter than the period, so the time is still a limit. A period of an hour or less uses 5, 10, 15 and 30 min: every 30 minutes shows 5, 10 and 15 min, every hour all four. Longer periods use 15 min, 30 min, 1 hour and 2 hours: every 90 minutes shows the first three, a day all four. If the selected chip is no longer shown, the largest one that fits is selected instead. Custom takes 1 minute up to the period, and its error says so: "Choose 1 to 90 minutes." for every 90 minutes, "Choose 1 to 1440 minutes." for a day or for Once.
+   - The note under the form, for periods shorter than a day: "Periods follow the clock from midnight: 00:00, 01:30, 03:00 and so on. Time already used in this one counts. Need more right now? Choose Once." When the period doesn't divide the day, it adds "The last one ends at midnight.": "Periods follow the clock from midnight: 00:00, 05:00, 10:00 and so on. The last one ends at midnight. Time already used in this one counts. Need more right now? Choose Once." It lists the first three start times, in the phone's 12- or 24-hour style, then "and so on". With three starts or fewer it lists them all: "00:00, 08:00 and 16:00". For a day the note is unchanged.
+   - The sentence and the reply say what was chosen: "Instagram, 30 minutes a day for 7 days.", "Instagram, 15 minutes an hour for 7 days.", "Instagram, 30 minutes every 2 hours for 7 days.", "Instagram, 15 minutes every 90 minutes for 7 days."; "Krypt reply for Chrome: 30 minutes every 2 hours for 7 days."
+3. **Older phones are never sent one.** The request says the phone accepts periods (`caps=periods`, `contracts/request.md`), and the screen shows the "Every" row only then. Without it, Repeating means a day. A period shorter than a day travels in its own payload shape (`contracts/approve.md`), which an older install refuses rather than read as minutes a day. A day keeps the old shape, so phones from before this amendment still take per-day approvals.
+4. **On the child's phone, the rule gives N minutes in each period, every day, for D days.** What Amendment 3 says about every-day rules holds for each period:
+   - The app opens without asking while the period's time lasts. When it runs out, the app is blocked at that moment, even if it is open.
+   - Time counts only while the app is in front, the screen is on and unlocked, and no one-time unlock runs. One-time time is still extra.
+   - Repeating time needs automatic date & time; without it the time is paused and the app stays locked. The time of day comes from the trusted clock (`TrustedDayClock`), as the day did, so a clock changed by hand doesn't move it.
+   - **Residual risk,** as in Amendment 3: offline, a clock set forward, automatic time turned back on and a reboot can bring a later period's time early. Each period's minutes still count once.
+   - Days and periods are counted in the time zone the device had when the rule was approved.
+   - Summer time: a clock minute that happens twice counts once, and minutes that are skipped simply aren't there. A period also ends when the clock jumps into another period, forward past its end or back into an earlier one.
+   - Time used is kept per minute of the clock, and a period adds up its minutes. A new approval that changes the period still sees the time already used in the current period.
+5. **When a period's time is used up.**
+   - The lock screen says "Done for now." with "You've used your 30 minutes for now. More time at 16:00. Need it sooner? Ask your Guardian." If the rule ends before another period starts, the line is "You've used your 30 minutes. If you need more, ask your Guardian for extra time." With automatic time off it says "Paused." with "Repeating time needs automatic date and time. Turn it on in Settings, or ask your Guardian."
+   - "More time at" and Home's "back at" show the time on the phone's own clock, even if the phone has moved to another time zone since the rule was approved.
+   - The lock screen closes by itself when the next period starts, and so does a "Done for today." screen at midnight. Krypt ticks once at the end of the used-up period, with a timer inside its own process: no alarm, no wake-up and no new background work, so Amendment 5's "nothing runs all day" still holds.
+   - Home's status line names the period: "Every 30 min", "Hourly", "Every 2 h" or "Every 1 h 30 min", as in "Every 1 h 30 min · 10 of 15 min left · until Oct 28". Used up, it says when the time is back: "Every 2 h · back at 16:00 · until Oct 28", or "Every 2 h · done · until Oct 28" when the rule ends first. Paused: "Every 2 h · paused until automatic time is on". The row's sheet offers "Stop repeating time" and "Keep repeating time".
+   - The approval toast: "Chrome: 30 minutes every 2 hours until Oct 28", "Chrome: 15 minutes an hour until Oct 28" or "Chrome: 15 minutes every 90 minutes until Oct 28". If this period's time is already used: "Chrome: repeating time is set, but it's used up for now".
+   - The accessibility service description now reads: "For apps your Guardian gives repeating time, Krypt counts the minutes they are used, on this device only."
+6. **Storage.** Room schema 3 (`MIGRATION_2_3`):
+   - `daily_allowances` gains `periodMinutes` (default 1440, so saved rules stay per day).
+   - `minute_usage` (time used per app per minute of the clock) replaces `daily_usage`. Each saved day's time moves to that day's first minute, so it still counts in full against that day.
+   - Pruning is the same, counted in minutes: usage older than 35 days is pruned by the trusted day, except on days an app's current rule covers.
+7. **Unchanged:** a rule per day ("1 hour a day") counts and travels exactly as before, and the child's phone shows the same texts for it ("Daily · …", "Done for today.", "Stop daily time"); only its lock screen now closes by itself at midnight. Once and For good are unchanged. The request still expires after 5 minutes, and an approval is single-use and bound to its request and app. Weekday and time-of-day schedules stay out of scope.
+
+**FRs touched:**
+- FR-037: the Guardian chooses one-time, repeating, or for-good access when approving. Repeating time comes back every day, or in a shorter period (FR-042).
+- FR-038: an every-day rule allows up to N minutes in each period for D days: the calendar day, or a shorter period (FR-042). Time counts only while the app is in use, and the app is blocked when the period's time runs out.
+- FR-039: holds for every period: repeating time is paused while automatic date & time is off, and a date or time change can't give extra periods.
+- FR-040: Home's status line names the period ("Every 30 min", "Hourly", "Every 1 h 30 min") and says when its time comes back ("Every 2 h · back at 16:00"). "Stop repeating time" ends such a rule early.
+- FR-042 (new): a repeating rule's period can be any length from 5 minutes to 24 hours. Periods follow the clock from midnight; when one doesn't divide the day, the day's last period is shorter and ends at midnight. The time comes back when each period starts, and a lock screen showing used-up time then closes by itself. Periods are offered only to phones whose request carries `caps=periods`.
+
+---
+
+## Amendment 5 (2026-10-25) - Nothing Runs All Day but the Accessibility Service
+
+**Why:** Krypt kept a foreground service running all day, with a notification that never went away, and woke the phone every 15 minutes to check on itself. Neither was needed to keep protection on. Android binds Krypt's accessibility service whenever it is switched on, restarts it when its process dies, and calls it when a window opens; between calls it only waits on its own timers, such as the end of a grant.
+
+**Why Krypt can't start only when a locked app opens:** Android has no broadcast or callback that starts an app when another app opens. The accessibility service is that callback. It can't be started per launch, and if it were stopped after an unlock, the next launch would not be seen.
+
+1. **The watchdog foreground service is removed** (`KryptWatchdogService`), with its "Krypt is protecting this phone" notification and the `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` and `FOREGROUND_SERVICE_DATA_SYNC` permissions. Its "Krypt Watchdog" channel is deleted on phones updated from an older version.
+   - It kept nothing alive, as its own code said, and it didn't bring protection back after the overloaded reboot of 2026-10-15.
+   - It made Krypt look like an app running all day. Android 13 and later can list such apps under active apps, with a Stop button.
+2. **"Krypt is off" is said at once.** When Krypt's accessibility service is switched off after setup, the service posts the alert as Android unbinds it. Android also unbinds the service while a UI test drives the phone or another user is in front. Those leave it switched on in Settings, so they don't alert. The alert is taken down when the service connects again.
+   - A force stop kills Krypt before it can say anything, and also cancels its scheduled check. As before, nothing alerts until Krypt is opened again.
+3. **The health check runs every 6 hours, not every 15 minutes:** 4 wake-ups a day instead of 96. It is the safety net for what no event reports: the service switched on but not running, for example after a reboot it never came back from. Installs that had the 15-minute check move to the new period; later starts leave the schedule alone.
+4. **"Keep running in the background" is optional.** Setup needs two permissions: Accessibility and Display over other apps.
+   - Stock Android no longer needs the battery-optimisation exemption, because Doze and App Standby don't stop an accessibility service.
+   - Its row stays, under Optional, with the help link for Xiaomi, Samsung and others, whose own battery managers can stop background apps.
+5. **Lighter start-up.** Starting Krypt's process no longer starts a foreground service, and it schedules the health check off the main thread. This start-up runs when Android binds the accessibility service after a reboot; on 2026-10-15 an emulator under heavy load killed it for starting too slowly.
+6. **Unchanged:** how a locked app is blocked, grant expiry while an app is open, every-day time, and the new-install lock. They all run inside the accessibility service, only when Android calls it.
+
+**FRs touched:**
+- FR-010: still required. The accessibility service meets it on its own. On phones whose maker stops background apps, the maker's own setting (behind the help link) is also needed, as before. The watchdog service and the 15-minute check are gone.
+- FR-022 (feature 002): the battery-optimisation exemption moves from Mandatory to Optional.
+- SC-004: unchanged. On Xiaomi, Huawei, Oppo and Vivo phones it assumes Krypt is allowed in the maker's autostart or background setting.
+
+---
+
+## Amendment 4 (2026-10-15) - Unlock For Good from the Guardian's Link
+
+**What changed:** before this, a Guardian could only remove an app's lock in person, on the child's phone (Home, then the app, then "Remove lock"). Approvals sent by link were always time-limited.
+
+1. **The approval screen offers a third choice, "For good",** next to Once and Daily, in "How often". It has no duration, so the duration chips are hidden, and the sentence reads "Instagram, unlocked for good."
+2. **On the child's phone, a for-good approval removes the app's lock,** exactly as Home's "Remove lock" does (`lockState` = `UNLOCKED`), in the same transaction that consumes the request. The app opens, its lock screen closes, and Home lists it under Not locked. It stays open until someone locks it again from Home. There is no grant and no every-day rule.
+3. **Older phones are never sent one.** The request says the phone accepts it (`caps=forgood`, `contracts/request.md`), and the screen offers "For good" only then. The approval payload marks it with its own key (`contracts/approve.md`), so an older install refuses it instead of reading it as a timed unlock.
+4. **Unchanged:** the request still expires after 5 minutes. A for-good approval is single-use and bound to its request and app like any other. The Guardian PIN is still checked on the Guardian's phone only.
+
+**FRs touched:**
+- FR-037: the Guardian chooses one-time, every-day, or for-good access when approving.
+- FR-041 (new): a for-good approval removes the app's lock on the child's phone. It is offered only to phones whose request carries `caps=forgood`.
 
 ---
 
@@ -253,7 +334,7 @@ All criteria are measurable and technology-agnostic.
 - Anti-tamper self-destruct / wipe-on-tamper
 - Multi-Guardian quorum approvals ("2-of-3 Guardians must approve")
 - Device-Owner-tier uninstall lock (regular Device-Admin only)
-- Weekday or time-of-day schedules (e.g., "weekends only", "not after 21:00"). *Amendment 3 brings every-day allowances - N minutes per calendar day for D days - into scope; schedules stay out.*
+- Weekday or time-of-day schedules (e.g., "weekends only", "not after 21:00"). *Amendment 3 brings every-day allowances - N minutes per calendar day for D days - into scope, and Amendment 6 lets them count per period of 5 minutes to 24 hours instead; schedules stay out.*
 - Usage statistics or reporting UI
 - PIN recovery / Guardian replacement flow
 - Play Store compliance work (Krypt's Accessibility Service usage triggers Play Store review; v1 assumes sideload distribution)

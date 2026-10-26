@@ -302,6 +302,18 @@ def krypt_notification_text():
     return sh("dumpsys notification --noredact")
 
 
+PROTECTION_OFF_ID = 0x4B504F  # NotificationHelper.PROTECTION_OFF_ID
+
+
+def protection_off_alert_showing():
+    """Whether the "Krypt is off" alert is posted now. Only the live list's NotificationRecord lines
+    count: the dump also lists notifications removed a moment ago."""
+    dump = krypt_notification_text()
+    expect("Current Notification Manager state" in dump, f"no notification dump: {dump[:200]!r}")
+    return re.search(rf"NotificationRecord\(0x[0-9a-f]+: pkg={re.escape(KRYPT)} user=\S+ id={PROTECTION_OFF_ID} ",
+                     dump) is not None
+
+
 # The Guardian's PIN check runs PBKDF2 at the Subject's calibrated cost before the approval is shared.
 # That takes seconds on a phone, but up to a minute on an emulator (longest right after a reboot).
 APPROVAL_TIMEOUT = 120
@@ -430,8 +442,10 @@ def scroll_down():
 
 
 def daily_used_ms(pkg):
-    rows = db(f"select usedMs from daily_usage where packageName='{pkg}' order by epochDay desc limit 1")
-    return rows[0][0] if rows else 0
+    """Time [pkg] was used on the latest day with any use (minute_usage keeps it per minute of the clock)."""
+    rows = db(f"select sum(usedMs) from minute_usage where packageName='{pkg}' and minute / 1440 = "
+              f"(select max(minute) / 1440 from minute_usage where packageName='{pkg}')")
+    return (rows[0][0] or 0) if rows else 0
 
 
 def set_auto_time(on):
@@ -470,14 +484,20 @@ def guardian_approve(pin):
     tap_text(r"^Approve and send$")
 
 
-def approve_every_day(request_url, minutes, days):
-    """As the Guardian: allow [minutes] a day for [days] days. Returns the shared text and the approval link."""
+def approve_every_day(request_url, minutes, days, period=None):
+    """As the Guardian: allow [minutes] a day for [days] days, or in each [period] (a chip, e.g. r"^1 hour$").
+    Returns the shared text and the approval link."""
     open_link(request_url)
-    tap_text(r"^Daily$", timeout=20)
-    # With Daily there are two Custom chips: minutes first, then days. Tap both before typing, while
-    # both are on screen; neither focuses its field, so tap each field (by its label) to type in it.
-    tap_text(r"^Custom$", index=0)
-    tap_text(r"^Custom$", index=1)
+    tap_text(r"^Repeating$", timeout=20)
+    # On phones that take periods, the Every row comes first, with its own Custom chip.
+    every = 1 if matching(r"^Every$") else 0
+    if period:
+        # "30 min", "1 hour" and "2 hours" are minutes chips too.
+        tap_text(period, index=0)
+    # Then a Custom chip for minutes and one for days. Tap both before typing, while both are
+    # on screen; neither focuses its field, so tap each field (by its label) to type in it.
+    tap_text(r"^Custom$", index=every)
+    tap_text(r"^Custom$", index=every + 1)
     tap_text(r"^Minutes$")
     type_text(str(minutes))
     tap_text(r"^Days$")
@@ -564,7 +584,7 @@ def install_fresh():
     adb("logcat", "-c")
     expect("Success" in adb("install", "-r", "-g", APP_APK), "Krypt did not install")
     sh(f"appops set {KRYPT} SYSTEM_ALERT_WINDOW allow")
-    sh(f"dumpsys deviceidle whitelist +{KRYPT}")
+    # Not on the battery whitelist: "Keep running in the background" is optional (Amendment 5).
     expect(enable_krypt_service(), "Krypt's accessibility service could not be turned on")
     connected = wait_for(lambda: "connected" in adb("logcat", "-d", "-s", "KryptA11y:*"), timeout=30)
     expect(connected, "Krypt's accessibility service did not connect")
@@ -608,7 +628,8 @@ def onboarding():
     # First run asks who the phone is for; protecting it leads to the permission checklist.
     if wait_text(r"^I'm protecting this phone$", 30):
         tap_text(r"^I'm protecting this phone$")
-    expect(wait_text(r"3 of 3 required", 30), "mandatory progress is not 3 of 3")
+    # Accessibility and the overlay; the battery exemption is optional and not granted here.
+    expect(wait_text(r"2 of 2 required", 30), "mandatory progress is not 2 of 2")
     tap_text(r"^Start protecting$")
     expect(wait_text(r"^Give this phone to your Guardian\.$", 20), "PIN setup screen did not appear")
 
@@ -903,7 +924,11 @@ def paste_approval_path():
 
 @case("28 catch-up: an app installed while Krypt was off is locked when it comes back")
 def catch_up_after_protection_off():
+    # Every uiautomator dump so far unbound Krypt's service for a moment; none of them is a switch-off.
+    expect(not protection_off_alert_showing(), "'Krypt is off' was shown though Krypt was never switched off")
     sh("settings put secure enabled_accessibility_services ''")
+    # Switching Krypt off is reported at once, not at the next health check (Amendment 5).
+    expect(wait_for(protection_off_alert_showing, 30), "no 'Krypt is off' alert when Krypt was switched off")
     time.sleep(3)
     adb("uninstall", TARGET)
     expect("Success" in adb("install", "-r", TARGET_APK), "target app did not reinstall")
@@ -913,6 +938,8 @@ def catch_up_after_protection_off():
     rows = wait_for(lambda: db(f"select lockState from locked_apps where packageName='{TARGET}'")
                     == [("LOCKED",)] and krypt_logcat(r"locked new install pkg=com\.krypt\.e2e\.target"), 30)
     expect(rows, "reinstalled app was not re-locked on catch-up")
+    expect(wait_for(lambda: not protection_off_alert_showing(), 30),
+           "the 'Krypt is off' alert stayed after Krypt came back")
     launch(TARGET)
     expect(re.search(re.escape(LOCK_SCREEN), wait_top(re.escape(LOCK_SCREEN))), f"top is {top_activity()}")
     home()
@@ -966,7 +993,8 @@ def daily_time_runs_out():
     launch(TARGET)  # a window change, so counting resumes
     top = wait_top(re.escape(LOCK_SCREEN), timeout=(60_000 - used) // 1000 + 20)
     expect(LOCK_SCREEN in top, f"not blocked when today's minute ran out; top is {top}")
-    expect(wait_text(r"^Done for today\.$", 10), "the lock screen doesn't say today's time is up")
+    # Just after Krypt's restart, a screen dump can take most of 10 s on its own.
+    expect(wait_text(r"^Done for today\.$", 20), "the lock screen doesn't say today's time is up")
     expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
     home()
     launch(TARGET)
@@ -974,13 +1002,16 @@ def daily_time_runs_out():
     home()
 
 
-@case("29 the accessibility health check is scheduled")
+@case("29 the health check is scheduled, and nothing of Krypt runs in the foreground")
 def health_check_scheduled():
     # WorkManager skips a periodic job that is forced early, so the alert
     # itself is covered by the instrumented AccessibilityHealthWorkerTest.
     jobs = sh("dumpsys jobscheduler")
     expect(re.search(r"com\.krypt\.app/androidx\.work\.impl\.background\.systemjob\.SystemJobService", jobs),
            "health-check job not scheduled")
+    # Amendment 5: no foreground service, and so no notification that never goes away.
+    expect("isForeground=true" not in sh(f"dumpsys activity services {KRYPT}"),
+           "a Krypt service runs in the foreground")
 
 
 @case("29b a reboot ends every grant (negative)")
@@ -1106,7 +1137,55 @@ def uninstall_blocked():
     expect("DELETE_FAILED_DEVICE_POLICY_MANAGER" in result, f"uninstall said: {result.strip()}")
 
 
-QUICK_SKIP = {"30", "31"}
+@case("31b every hour: 1 minute an hour runs out, and the lock screen says when it comes back")
+def hourly_time_runs_out():
+    # Chrome has no rule yet, so none of this hour is used. Two days, so the next hour is covered even near midnight.
+    request = request_access_for(CHROME)
+    text, approval = approve_every_day(request, minutes=1, days=2, period=r"^1 hour$")
+    expect("1 minute an hour for 2 days" in text, f"share text: {text!r}")
+    open_link(approval)
+    top = wait_top(re.escape(CHROME) + r"/", 20)
+    expect(CHROME in top, f"Chrome did not open; top is {top}")
+    rule = db(f"select minutesPerDay, periodMinutes from daily_allowances where packageName='{CHROME}'")
+    expect(rule == [(1, 60)], f"rule: {rule}")
+    # A minute of use, two if it starts just before the hour turns. No uiautomator dumps meanwhile:
+    # a dump unbinds Krypt's service.
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"not blocked when the hour's minute ran out; top is {top}")
+    expect(wait_text(r"^Done for now\.$", 10), "the lock screen doesn't say the time is up for now")
+    expect(wait_text(r"More time at \d", 5), "the lock screen doesn't say when the time comes back")
+    expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
+    home()
+
+
+@case("32 For good: the Guardian unlocks Chrome for good, and it opens with no time limit")
+def for_good_removes_the_lock():
+    # Last, so that nothing after it needs Chrome locked.
+    request = request_access_for(CHROME)
+    open_link(request)
+    wait_guardian_form()
+    tap_text(r"^For good$")
+    expect(wait_text(r"^Chrome, unlocked for good\.$", 10), "the summary doesn't say for good")
+    expect(not matching(r"^For how long$"), "a duration is still offered for good")
+    guardian_approve(PIN)
+    text = shared_text(APPROVAL_TIMEOUT)
+    approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", text)
+    expect(approval and "Krypt reply for Chrome: unlocked for good." in text, f"share text: {text!r}")
+    dismiss_share_sheet()
+    home()
+    open_link(approval.group(0))
+    top = wait_top(re.escape(CHROME) + r"/", 20)
+    expect(CHROME in top, f"Chrome did not open; top is {top}")
+    rows = db(f"select lockState from locked_apps where packageName='{CHROME}'")
+    expect(rows == [("UNLOCKED",)], f"Chrome's lock: {rows}")
+    home()
+    launch(CHROME)  # no grant to run out: it just opens
+    top = wait_top(re.escape(CHROME) + r"/", 20)
+    expect(CHROME in top and LOCK_SCREEN not in top, f"Chrome was blocked again; top is {top}")
+    home()
+
+
+QUICK_SKIP = {"30", "30b", "30c", "30d", "31"}
 
 
 def main():
@@ -1123,11 +1202,12 @@ def main():
                  paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
                  daily_time_paused_without_auto_time, daily_time_runs_out,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,
-                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked]
+                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked,
+                 hourly_time_runs_out, for_good_removes_the_lock]
     shutil.rmtree(EVIDENCE, ignore_errors=True)
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)
     for run in all_cases:
-        if args.quick and run.case_name[:2] in QUICK_SKIP:
+        if args.quick and run.case_name.split()[0] in QUICK_SKIP:
             print(f"SKIP  {run.case_name}")
             continue
         run()

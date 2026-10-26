@@ -28,7 +28,7 @@ import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.data.daily.DailyAllowance
 import com.krypt.app.data.daily.DailyAllowanceEntity
 import com.krypt.app.data.daily.DailyAllowanceMeter
-import com.krypt.app.data.daily.DailyUsageEntity
+import com.krypt.app.data.daily.MinuteUsageEntity
 import com.krypt.app.subject.ApprovalTrampolineActivity
 import com.krypt.app.ui.link.LinkReceiverActivity
 import com.krypt.app.ui.lock.LockScreenActivity
@@ -48,6 +48,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.UUID
 import javax.inject.Inject
 
@@ -228,12 +229,32 @@ class LockScreenE2ETest {
             db.dailyAllowanceDao().upsert(
                 DailyAllowanceEntity(lockedPackage, 1, today, today + 1, zone.id, UUID.randomUUID().toString(), 0L)
             )
-            db.dailyUsageDao().upsert(DailyUsageEntity(lockedPackage, today, 60_000))
+            db.minuteUsageDao().upsert(MinuteUsageEntity(lockedPackage, today * 1440, 60_000))
             dailyMeter.reloadForTest()
         }
         launch().use {
             waitForText("Done for today.")
             waitForText("Today's 1 minute is used", substring = true)
+            compose.onNodeWithText("Request access").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun timeUsedUpForTheHour_saysDoneForNow_andWhenItComesBack() {
+        runBlocking {
+            val now = ZonedDateTime.now(zone)
+            val today = now.toLocalDate().toEpochDay()
+            db.dailyAllowanceDao().upsert(
+                DailyAllowanceEntity(
+                    lockedPackage, 1, today, today + 1, zone.id, UUID.randomUUID().toString(), 0L, periodMinutes = 60,
+                )
+            )
+            db.minuteUsageDao().upsert(MinuteUsageEntity(lockedPackage, today * 1440 + now.hour * 60 + now.minute, 60_000))
+            dailyMeter.reloadForTest()
+        }
+        launch().use {
+            waitForText("Done for now.")
+            waitForText("More time at", substring = true)
             compose.onNodeWithText("Request access").assertIsDisplayed()
         }
     }

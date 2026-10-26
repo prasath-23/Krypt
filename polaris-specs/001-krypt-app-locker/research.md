@@ -52,15 +52,20 @@ Resolves unknowns and justifies technical choices before moving to data-model an
 - Accessibility Services are lifecycle-managed by the OS and are **not** subject to the normal Doze process-kill. They persist indefinitely as long as the user has Accessibility toggled on for the service. This is Krypt's single biggest architectural advantage: we get "always-on" for free as long as the user has granted the privilege.
 - The known failure mode: some OEMs (Xiaomi, Huawei, Oppo, Vivo) aggressively kill even Accessibility Services under their "Auto-start manager" / "Protected apps" / "Battery optimisation whitelist". There is no programmatic API to whitelist - we can only deep-link into the relevant Settings screen and guide the user.
 - A supplementary defence: a minimal foreground service (not hosting the overlay - just heartbeat) with `foregroundServiceType="specialUse"` (API 34+) or `"dataSync"` (API 29-33). The notification it must post can be flagged as low-importance. If the OEM kills the accessibility service, the foreground service gets a restart opportunity and can re-prompt the user.
-- `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` should be requested during onboarding on API 23+ devices. The user must grant it manually; there is no auto-grant.
+- `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` should be requested during onboarding on API 23+ devices. The user must grant it manually; there is no auto-grant. Since Amendment 5 it is an optional onboarding step (see the note under the Decision).
 - WorkManager periodic heartbeat (15 min interval, the minimum allowed) as a soft watchdog: the job simply checks `AccessibilityManager.getEnabledAccessibilityServiceList()` and if Krypt is absent, posts a high-priority notification telling the user to re-enable.
 
 **Decision.** Three-layer defence:
 1. Rely on the Accessibility Service's own lifecycle resilience.
-2. Pair it with a low-importance foreground service that shares the service lifecycle.
-3. Add a 15-minute WorkManager heartbeat that nags the user if Accessibility gets disabled.
+2. Pair it with a low-importance foreground service that shares the service lifecycle. (Superseded by Amendment 5: removed. See the note below.)
+3. Add a 15-minute WorkManager heartbeat that nags the user if Accessibility gets disabled. (Superseded by Amendment 5: every 6 hours, as a safety net. See the note below.)
 
 OEM-specific battery-whitelist screens will be surfaced during onboarding via `Intent`s to the best-known Settings activities per OEM (documented in a lookup table in `OverlayManager` / `PermissionWizardScreen`).
+
+**Superseded by Amendment 5 (2026-10-25).** Layers 2 and 3 no longer stand as written; layer 1 and the OEM deep-links remain.
+- Layer 2 is removed. Krypt runs no foreground service and posts no permanent notification. The accessibility service is the only thing Krypt runs in the background: Android binds it while it is switched on, restarts it if the process dies, and calls it only when a window opens.
+- Layer 3 is now a safety net. The "Krypt is off" alert no longer waits for the heartbeat: once setup is finished, the service posts it as Android unbinds it after it is switched off, and takes it down when it connects again. The WorkManager check runs every 6 hours, only for what no event reports: the service switched on but not running (for example, it didn't come back after a reboot).
+- The battery-optimisation exemption is an optional onboarding step. Doze and App Standby don't stop the accessibility service, so FR-010 rests on layer 1, plus the OEM help link on phones whose maker stops background apps.
 
 ---
 
@@ -134,6 +139,8 @@ Both fit comfortably in SMS-friendly territory.
 
 ## R8. API 34+ foreground-service type declarations
 
+**Superseded by Amendment 5 (2026-10-25).** Krypt runs no foreground service, so this no longer applies. The `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` and `FOREGROUND_SERVICE_DATA_SYNC` permissions and the subtype property are gone (see R3). The reasoning below is kept for the record.
+
 **Question.** What `foregroundServiceType` does the supplementary foreground service declare on Android 14+?
 
 **Findings.**
@@ -181,12 +188,12 @@ Both fit comfortably in SMS-friendly territory.
 |---|-------|-----------|
 | R1 | Accessibility event filter | `TYPE_WINDOW_STATE_CHANGED` only, 100 ms debounce, pre-inflated overlay |
 | R2 | Overlay flags | `TYPE_APPLICATION_OVERLAY` + `FLAG_NOT_FOCUSABLE|LAYOUT_IN_SCREEN|SECURE|...` |
-| R3 | Battery survival | Accessibility-Service lifecycle + supplementary FGS + WorkManager heartbeat + OEM-Settings deep-links |
+| R3 | Battery survival | Accessibility-Service lifecycle + OEM-Settings deep-links + a 6-hour WorkManager safety-net check; the "Krypt is off" alert is instant (Amendment 5 removed the supplementary FGS) |
 | R4 | KDF choice | PBKDF2-HMAC-SHA256, calibrated >=300k iterations, per-Guardian + per-request salt |
 | R5 | URL size | URL-safe Base64, <512 chars target |
 | R6 | Package visibility | `QUERY_ALL_PACKAGES` (sideload-distribution accepted) |
 | R7 | Notifications | `POST_NOTIFICATIONS` requested at onboarding; channel IMPORTANCE_HIGH |
-| R8 | Foreground-service type | `specialUse|dataSync` + `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` |
+| R8 | Foreground-service type | Superseded by Amendment 5: no foreground service (was `specialUse|dataSync` + `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`) |
 | R9 | Hilt | `@AndroidEntryPoint` on Activity / Service / Receiver; `@HiltAndroidApp` on Application |
 | R10 | UI for overlay | Plain XML FrameLayout (not Compose), Compose only for Activities |
 

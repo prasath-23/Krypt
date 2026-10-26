@@ -61,6 +61,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.krypt.app.R
 import com.krypt.app.data.LockReason
 import com.krypt.app.data.LockerSessionStore
+import com.krypt.app.data.daily.DailyAllowance
 import com.krypt.app.deeplink.UnlockRequest
 import com.krypt.app.ui.components.AppIcon
 import com.krypt.app.ui.components.BodyText
@@ -74,6 +75,7 @@ import com.krypt.app.ui.components.Statement
 import com.krypt.app.ui.components.StyledArg
 import com.krypt.app.ui.components.TertiaryButton
 import com.krypt.app.ui.components.styledFormat
+import com.krypt.app.ui.common.clockText
 import com.krypt.app.ui.home.AppIconCache
 import com.krypt.app.ui.link.pasteKryptLinkAction
 import com.krypt.app.ui.link.shareTextChooser
@@ -325,14 +327,34 @@ private fun Reason(reason: LockReason, appLabel: String, modifier: Modifier = Mo
     }
     val title = when (reason) {
         LockReason.Locked -> stringResource(R.string.lock_title)
-        is LockReason.DailyUsedUp -> stringResource(R.string.lock_title_daily_used_up)
+        is LockReason.DailyUsedUp -> if (reason.periodMinutes == DailyAllowance.DAY_MINUTES) {
+            stringResource(R.string.lock_title_daily_used_up)
+        } else {
+            stringResource(R.string.lock_title_period_used_up)
+        }
         is LockReason.DailyPaused -> stringResource(R.string.lock_title_daily_paused)
     }
     val body = when (reason) {
         LockReason.Locked -> stringResource(R.string.lock_body, appLabel)
-        is LockReason.DailyUsedUp ->
-            pluralStringResource(R.plurals.lock_body_daily_used_up, reason.minutesPerDay, reason.minutesPerDay)
-        is LockReason.DailyPaused -> stringResource(R.string.lock_body_daily_paused)
+        is LockReason.DailyUsedUp -> {
+            val backAt = reason.backAtMs
+            when {
+                reason.periodMinutes == DailyAllowance.DAY_MINUTES ->
+                    pluralStringResource(R.plurals.lock_body_daily_used_up, reason.minutes, reason.minutes)
+                backAt != null -> pluralStringResource(
+                    R.plurals.lock_body_period_used_up,
+                    reason.minutes,
+                    reason.minutes,
+                    clockText(LocalContext.current, backAt),
+                )
+                else -> pluralStringResource(R.plurals.lock_body_period_used_up_last, reason.minutes, reason.minutes)
+            }
+        }
+        is LockReason.DailyPaused -> if (reason.periodMinutes == DailyAllowance.DAY_MINUTES) {
+            stringResource(R.string.lock_body_daily_paused)
+        } else {
+            stringResource(R.string.lock_body_period_paused)
+        }
     }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(KryptSpace.s2)) {
         // Decorative: the statement under it says the same in words.

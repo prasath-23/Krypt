@@ -63,6 +63,15 @@ class LockerSessionStore internal constructor(
      */
     val grantEvents: SharedFlow<String> = _grantEvents.asSharedFlow()
 
+    /**
+     * [pkg]'s lock was removed (a for-good approval). Nothing to record, but
+     * whatever waits on [grantEvents], such as its lock screen, hears of it
+     * as it would of a grant.
+     */
+    fun announceUnlocked(pkg: String) {
+        _grantEvents.tryEmit(pkg)
+    }
+
     /** O(1) synchronous read. Safe from any thread. */
     fun isUnlockedNow(pkg: String): Boolean = remainingMs(pkg) > 0
 

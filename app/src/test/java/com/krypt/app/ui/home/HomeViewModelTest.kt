@@ -187,7 +187,7 @@ class HomeViewModelTest {
     @Test
     fun everyDayTime_showsWhatIsLeftToday() = runTest {
         lockedSetFlow.value = setOf("com.b")
-        dailyAllowances.set("com.b", DailyAccess.Available(remainingMs = 18 * 60_000L - 1, minutesPerDay = 60, lastDay = LAST_DAY))
+        dailyAllowances.set("com.b", DailyAccess.Available(remainingMs = 18 * 60_000L - 1, minutes = 60, lastDay = LAST_DAY))
         showHome()
 
         assertEquals(AppRowStatus.Daily(DailyLine.Left(18, 60, LAST_DAY)), row("com.b").status)

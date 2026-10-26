@@ -1,5 +1,6 @@
 package com.krypt.app.data.daily
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -14,6 +15,7 @@ import java.util.UUID
 @Entity(tableName = "daily_allowances")
 data class DailyAllowanceEntity(
     @PrimaryKey val packageName: String,
+    /** Minutes in each period; named from when every period was a day. */
     val minutesPerDay: Int,
     val firstEpochDay: Long,
     /** Inclusive. */
@@ -22,13 +24,19 @@ data class DailyAllowanceEntity(
     /** The request whose approval made this rule. */
     val requestId: String,
     val createdAt: Long,
+    /** Minutes in a period; 1440, a day, for rules from before periods. */
+    @ColumnInfo(defaultValue = "1440") val periodMinutes: Int = DailyAllowance.DAY_MINUTES,
 )
 
-/** Time an app was used on one day under an every-day rule. */
-@Entity(tableName = "daily_usage", primaryKeys = ["packageName", "epochDay"])
-data class DailyUsageEntity(
+/**
+ * Time an app was used in one minute of the clock under an every-day rule.
+ * [minute] is a [LocalMinutes] value in the rule's zone. Use saved per day,
+ * before periods, sits in that day's first minute.
+ */
+@Entity(tableName = "minute_usage", primaryKeys = ["packageName", "minute"])
+data class MinuteUsageEntity(
     val packageName: String,
-    val epochDay: Long,
+    val minute: Long,
     val usedMs: Long,
 )
 
@@ -49,46 +57,51 @@ interface DailyAllowanceDao {
 }
 
 @Dao
-interface DailyUsageDao {
+interface MinuteUsageDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(usage: DailyUsageEntity)
+    suspend fun upsert(usage: MinuteUsageEntity)
 
-    @Query("SELECT * FROM daily_usage")
-    suspend fun all(): List<DailyUsageEntity>
+    @Query("SELECT * FROM minute_usage")
+    suspend fun all(): List<MinuteUsageEntity>
 
-    @Query("SELECT usedMs FROM daily_usage WHERE packageName = :pkg AND epochDay = :epochDay")
-    suspend fun usedMs(pkg: String, epochDay: Long): Long?
+    @Query("SELECT * FROM minute_usage WHERE minute >= :fromMinute")
+    suspend fun from(fromMinute: Long): List<MinuteUsageEntity>
+
+    @Query("SELECT usedMs FROM minute_usage WHERE packageName = :pkg AND minute = :minute")
+    suspend fun usedMs(pkg: String, minute: Long): Long?
 
     /**
-     * Usage from before [beforeEpochDay], except on days the app's rule still
-     * covers: however far the date is moved, a day's use is never forgotten
-     * while it could count.
+     * Usage from before [beforeMinute], except on days the app's rule still
+     * covers: however far the date is moved, a minute's use is never
+     * forgotten while it could count.
      */
     @Query(
-        "DELETE FROM daily_usage WHERE epochDay < :beforeEpochDay AND NOT EXISTS " +
-            "(SELECT 1 FROM daily_allowances a WHERE a.packageName = daily_usage.packageName " +
-            "AND daily_usage.epochDay >= a.firstEpochDay)",
+        "DELETE FROM minute_usage WHERE minute < :beforeMinute AND NOT EXISTS " +
+            "(SELECT 1 FROM daily_allowances a WHERE a.packageName = minute_usage.packageName " +
+            "AND minute_usage.minute >= a.firstEpochDay * 1440)",
     )
-    suspend fun pruneBefore(beforeEpochDay: Long): Int
+    suspend fun pruneBefore(beforeMinute: Long): Int
 }
 
 internal fun DailyAllowanceEntity.toDomain() = DailyAllowance(
     packageName = packageName,
-    minutesPerDay = minutesPerDay,
+    minutes = minutesPerDay,
     firstDay = LocalDate.ofEpochDay(firstEpochDay),
     lastDay = LocalDate.ofEpochDay(lastEpochDay),
     zone = ZoneId.of(zoneId),
     requestId = UUID.fromString(requestId),
     createdAtMs = createdAt,
+    periodMinutes = periodMinutes,
 )
 
 internal fun DailyAllowance.toEntity() = DailyAllowanceEntity(
     packageName = packageName,
-    minutesPerDay = minutesPerDay,
+    minutesPerDay = minutes,
     firstEpochDay = firstDay.toEpochDay(),
     lastEpochDay = lastDay.toEpochDay(),
     zoneId = zone.id,
     requestId = requestId.toString(),
     createdAt = createdAtMs,
+    periodMinutes = periodMinutes,
 )

@@ -10,7 +10,7 @@ A new opening step, before any permission (it needs no new logic). Eyebrow "KRYP
 
 ## Onboarding: one checklist
 
-Title "Before Krypt can protect", the three-tick MandatoryProgress, then the PermissionStep checklist in two groups, Required and Optional. Each row opens its Settings page and shows Allowed / Not allowed yet live. **Start protecting** is pinned at the bottom and disabled until 3 of 3, with **Paste a link** as a tertiary in the top bar.
+Title "Before Krypt can protect", the two-tick MandatoryProgress, then the PermissionStep checklist in two groups, Required and Optional. Each row opens its Settings page and shows Allowed / Not allowed yet live (an optional row says Not allowed). **Start protecting** is pinned at the bottom and disabled until 2 of 2, with **Paste a link** as a tertiary in the top bar.
 
 ## Set Guardian PIN: a hand-over in three beats
 
@@ -26,7 +26,7 @@ Eyebrow "KRYPT ADMIN" and the title "Guardian only". PinEntry with the line "Ent
 
 ## Home: your apps
 
-See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sections Open now / Locked / Not locked. Every row is the same height with no buttons inside; tapping an Open now row opens a sheet with Relock now / Stop daily time. Removing a lock asks in a sheet. A `contrast` icon at the top right opens the Appearance sheet (System default / Light / Dark).
+See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sections Open now / Locked / Not locked. Every row is the same height with no buttons inside; tapping a row with an unlock or repeating time opens a sheet with Relock now, Stop daily time or Stop repeating time. Removing a lock asks in a sheet. A `contrast` icon at the top right opens the Appearance sheet (System default / Light / Dark).
 
 ## Lock screen
 
@@ -52,5 +52,5 @@ No layout: UnlockFlash, then the toast.
 
 ## System surfaces
 
-- **Notification small icon:** `krypt-mark-sm.svg`, the small brand mark as a white-on-transparent vector drawable (Android tints it). A generic `shield` would read as antivirus. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off", "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings." and "Krypt is protecting this phone".
+- **Notification small icon:** `krypt-mark-sm.svg`, the small brand mark as a white-on-transparent vector drawable (Android tints it). A generic `shield` would read as antivirus. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off" and "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings."
 - **Share sheet titles:** "Send your request" and "Send your reply".

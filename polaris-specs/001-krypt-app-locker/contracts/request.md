@@ -23,6 +23,16 @@
 > without it comes from an older install, which only takes one-time approvals. Unknown `caps`
 > values are ignored.
 
+> **Amendment 4 (2026-10-15)**: `caps` gains `forgood` (`caps=daily,forgood`): the Subject's phone
+> accepts approvals that remove the app's lock for good, and the Guardian only offers "For good"
+> when it is present. Older Guardian installs still find `daily` in the list.
+
+> **Amendment 6 (2026-10-26)**: `caps` gains `periods` (`caps=daily,forgood,periods`): the Subject's phone
+> accepts every-day approvals counted in periods shorter than a day, from 5 minutes up, such as 30 minutes
+> every 2 hours or 15 minutes every 90 minutes. The
+> Guardian shows the "Every" row only when it is present; without it, Repeating means a day. Older Guardian
+> installs ignore the new word and still find `daily` and `forgood`.
+
 Subject-device-to-Guardian-device unlock request. Emitted when a Subject taps "Ask Guardian" on Krypt's lock screen. Carries enough information for the Guardian device to prompt its user for the PIN and compose an approval.
 
 ## URL format
@@ -36,7 +46,7 @@ krypt://request?v=1
                &kdfIter=<int: PBKDF2 iterations used at setup>
                &iat=<epoch seconds>
                &ttl=<seconds, default 300>
-               &caps=daily
+               &caps=daily,forgood,periods
 ```
 
 ## Size budget
@@ -55,7 +65,7 @@ Typical length: ~230 chars. Must stay under 512 chars.
 | `kdfIter` | int, 300000..10000000 | PBKDF2-HMAC-SHA256 iteration count used at setup. The Guardian MUST derive with this value. |
 | `iat` | epoch seconds | Issued-at. |
 | `ttl` | seconds | Validity window. Default 300 (5 minutes, FR-019). |
-| `caps` | comma-separated words, optional | What the Subject's phone accepts. `daily`: every-day approvals (Amendment 3). |
+| `caps` | comma-separated words, optional | What the Subject's phone accepts. `daily`: every-day approvals (Amendment 3). `forgood`: approvals that remove the app's lock (Amendment 4). `periods`: every-day approvals counted in periods shorter than a day, 5 minutes to 23 h 59 min (Amendment 6). |
 
 ## Generation (Subject device)
 

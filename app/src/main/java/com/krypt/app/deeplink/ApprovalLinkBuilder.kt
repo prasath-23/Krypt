@@ -73,9 +73,15 @@ class ApprovalLinkBuilder @Inject constructor(
                 v = DeepLinkScheme.PROTOCOL_VERSION,
                 req = request.requestId.toString(),
                 app = request.targetPackage,
-                durMin = access.minutes,
+                durMin = when (access) {
+                    is AccessChoice.OneTime -> access.minutes
+                    is AccessChoice.EveryDay -> access.minutes
+                    AccessChoice.ForGood -> 0
+                },
                 iat = clock.nowSeconds(),
                 days = (access as? AccessChoice.EveryDay)?.days,
+                forGood = access == AccessChoice.ForGood,
+                periodMinutes = (access as? AccessChoice.EveryDay)?.periodMinutes ?: AccessChoice.DAY_MINUTES,
             )
             val plaintext = ApprovalPayloadCodec.encode(payload)
             val aesNonce = rng.nextBytes(AesGcmCipher.NONCE_BYTES)

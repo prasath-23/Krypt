@@ -20,5 +20,5 @@
 ## Cross-Flow Notes
 
 - The two flows share **no UI surface**: the onboarding indicators live solely in onboarding (FR-025), and the Home Screen exposes no permission state.
-- The two flows share the **navigation graph**: the new `OnboardingViewModel` decides "onboarding complete" based on Mandatory progress = 3/3 plus PIN setup configured (the existing Amendment-1 gate from feature 001). On completion it routes to the new `HomeScreen` rather than the old placeholder.
+- The two flows share the **navigation graph**: the new `OnboardingViewModel` decides "onboarding complete" based on Mandatory progress = 2/2 plus PIN setup configured (the existing Amendment-1 gate from feature 001). On completion it routes to the new `HomeScreen` rather than the old placeholder.
 - The two flows share the **Hilt graph**: a new `UiModule` (or extension of `CoreModule`) provides bindings for `PermissionStatusProbe`, `PermissionStateObserver`, and `InstalledAppsRepository`. Both flows are reachable in the same `Activity` lifecycle.

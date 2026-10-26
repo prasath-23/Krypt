@@ -43,6 +43,18 @@ data class UnlockRequest(
      * (`caps=daily`). Older installs don't say so, and would refuse one.
      */
     val supportsDaily: Boolean = false,
+    /**
+     * The requesting phone accepts "for good" approvals, which remove the
+     * app's lock (`caps=forgood`). Older installs don't say so, and would
+     * refuse one.
+     */
+    val supportsForGood: Boolean = false,
+    /**
+     * The requesting phone accepts every-day approvals counted in periods
+     * shorter than a day (`caps=periods`). Older installs don't say so, and
+     * would refuse one.
+     */
+    val supportsPeriods: Boolean = false,
 ) {
 
     /** Convenience: absolute expiry in seconds since Unix epoch. */
@@ -58,7 +70,9 @@ data class UnlockRequest(
             issuedAt == other.issuedAt &&
             ttlSeconds == other.ttlSeconds &&
             kdfIterations == other.kdfIterations &&
-            supportsDaily == other.supportsDaily
+            supportsDaily == other.supportsDaily &&
+            supportsForGood == other.supportsForGood &&
+            supportsPeriods == other.supportsPeriods
     }
 
     override fun hashCode(): Int {
@@ -70,6 +84,8 @@ data class UnlockRequest(
         h = 31 * h + ttlSeconds.hashCode()
         h = 31 * h + kdfIterations
         h = 31 * h + supportsDaily.hashCode()
+        h = 31 * h + supportsForGood.hashCode()
+        h = 31 * h + supportsPeriods.hashCode()
         return h
     }
 

@@ -29,4 +29,10 @@ sealed interface ApprovalOutcome {
         override val targetPackage: String,
         val allowance: DailyAllowance,
     ) : ApprovalOutcome
+
+    /** The app's lock is removed: it opens freely until someone locks it again. */
+    data class ForGood(
+        override val requestId: UUID,
+        override val targetPackage: String,
+    ) : ApprovalOutcome
 }

@@ -84,6 +84,7 @@ import com.krypt.app.ui.home.AppIconCache
 import com.krypt.app.ui.home.AppRowStatus
 import com.krypt.app.ui.home.AppearanceSheet
 import com.krypt.app.ui.home.AppearanceViewModel
+import com.krypt.app.data.daily.DailyAllowance
 import com.krypt.app.ui.home.DailyLine
 import com.krypt.app.ui.home.HomeViewModel
 import com.krypt.app.ui.home.InstalledAppRow
@@ -485,14 +486,22 @@ private fun RowOptionsSheet(
                 icon = KryptIcons.Lock,
             )
             is AppRowStatus.Daily -> PrimaryButton(
-                text = stringResource(R.string.home_sheet_stop_daily),
+                text = if (status.line.periodMinutes == DailyAllowance.DAY_MINUTES) {
+                    stringResource(R.string.home_sheet_stop_daily)
+                } else {
+                    stringResource(R.string.home_sheet_stop_period)
+                },
                 onClick = { close { onEndDailyTime(row) } },
                 modifier = Modifier.padding(top = KryptSpace.s3),
             )
             else -> Unit
         }
         val keep = if (status is AppRowStatus.Daily && status.line !is DailyLine.Left) {
-            R.string.home_sheet_keep_daily
+            if (status.line.periodMinutes == DailyAllowance.DAY_MINUTES) {
+                R.string.home_sheet_keep_daily
+            } else {
+                R.string.home_sheet_keep_period
+            }
         } else {
             R.string.home_sheet_keep_open
         }

@@ -51,7 +51,9 @@ class NotificationHelper @Inject constructor(
 
     /**
      * Krypt's accessibility service is switched off, so locked apps open
-     * freely. Tapping the alert opens the Accessibility settings.
+     * freely. Tapping the alert opens the Accessibility settings. Posted by
+     * the service as it is switched off, or by the health check when it
+     * finds the service not running.
      */
     fun notifyProtectionOff() {
         val pending = PendingIntent.getActivity(
@@ -66,6 +68,11 @@ class NotificationHelper @Inject constructor(
             pending,
         )
         post(PROTECTION_OFF_ID, notification)
+    }
+
+    /** The service is running again: take down the "Krypt is off" alert. */
+    fun cancelProtectionOff() {
+        NotificationManagerCompat.from(context).cancel(PROTECTION_OFF_ID)
     }
 
     private fun alert(title: String, body: String, tap: PendingIntent): Notification =

@@ -2,6 +2,7 @@ package com.krypt.app
 
 import android.app.Application
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
@@ -13,8 +14,8 @@ import com.krypt.app.data.daily.DailyAllowanceMeter
 import com.krypt.app.data.daily.DailyAllowanceRepository
 import com.krypt.app.data.settings.AppearanceStore
 import com.krypt.app.di.ApplicationScope
+import com.krypt.app.notifications.NotificationChannels
 import com.krypt.app.notifications.SecurityAlertsChannel
-import com.krypt.app.service.KryptWatchdogService
 import com.krypt.app.worker.AccessibilityHealthWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -28,9 +29,10 @@ import javax.inject.Inject
  *  - HiltAndroidApp DI bootstrap
  *  - Security-Alerts notification channel (WP07)
  *  - Restore the unlock grants this boot had before the process last died
- *  - Watchdog foreground service + 15-min AccessibilityHealthWorker (WP16)
+ *  - The 6-hour AccessibilityHealthWorker (WP16), scheduled off the main thread
  *
- * No network work. Ever.
+ * No foreground service: the accessibility service is all Krypt runs in the
+ * background (Amendment 5). No network work. Ever.
  */
 @HiltAndroidApp
 class KryptApplication : Application(), Configuration.Provider {
@@ -61,8 +63,8 @@ class KryptApplication : Application(), Configuration.Provider {
         appearanceStore.applyStored()
         appScope.launch { appearanceStore.syncSystem() }
         startDailyAllowances()
-        KryptWatchdogService.start(this)
-        AccessibilityHealthWorker.schedule(WorkManager.getInstance(this))
+        scheduleHealthCheck()
+        deleteWatchdogChannel()
     }
 
     /**
@@ -93,9 +95,43 @@ class KryptApplication : Application(), Configuration.Provider {
         appScope.launch {
             try {
                 val today = now / DAY_MS
-                dailyRepo.prune(rulesEndedBefore = today - 1, usageBefore = today - 35)
+                dailyRepo.prune(rulesEndedBefore = today - 1, usageBeforeMinute = (today - 35) * 1440)
             } catch (e: Exception) {
                 Log.e(TAG, "could not prune every-day data", e)
+            }
+        }
+    }
+
+    /**
+     * Off the main thread, together with WorkManager's own setup. This runs at
+     * every process start, including the one Android makes to bind the
+     * accessibility service after a reboot, where a start that takes too long
+     * gets the process killed before the service is up.
+     */
+    private fun scheduleHealthCheck() {
+        appScope.launch {
+            try {
+                AccessibilityHealthWorker.schedule(WorkManager.getInstance(this@KryptApplication))
+            } catch (e: Exception) {
+                Log.e(TAG, "could not schedule the health check", e)
+            }
+        }
+    }
+
+    /**
+     * Phones updated from a version with the watchdog still list its channel
+     * in Settings. A deleted channel no longer reads back, so this deletes it
+     * once, not at every start.
+     */
+    private fun deleteWatchdogChannel() {
+        appScope.launch {
+            try {
+                val notifications = NotificationManagerCompat.from(this@KryptApplication)
+                if (notifications.getNotificationChannel(NotificationChannels.RETIRED_WATCHDOG) != null) {
+                    notifications.deleteNotificationChannel(NotificationChannels.RETIRED_WATCHDOG)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "could not delete the watchdog's channel", e)
             }
         }
     }

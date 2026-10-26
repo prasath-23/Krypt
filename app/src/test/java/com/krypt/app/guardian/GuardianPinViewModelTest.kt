@@ -394,6 +394,34 @@ class GuardianPinViewModelTest {
     }
 
     @Test
+    fun forGood_isNotOffered_toAPhoneThatDoesntTakeIt() = runTest {
+        every { parser.parse(any(), any()) } returns Outcome.ok(sampleRequest.copy(supportsDaily = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        assertEquals(listOf(AccessForm.Kind.ONE_TIME, AccessForm.Kind.EVERY_DAY), readyState(vm).form.kinds)
+        vm.setKind(AccessForm.Kind.FOR_GOOD)
+        assertNull("nothing that phone would refuse", readyState(vm).form.choice)
+    }
+
+    @Test
+    fun forGood_needsNoMinutes_evenWithAnUnusableTypedValue() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsForGood = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        assertEquals(
+            listOf(AccessForm.Kind.ONE_TIME, AccessForm.Kind.EVERY_DAY, AccessForm.Kind.FOR_GOOD),
+            readyState(vm).form.kinds,
+        )
+
+        vm.editMinutes("0") // can't be used
+        vm.setKind(AccessForm.Kind.FOR_GOOD)
+
+        assertEquals(AccessChoice.ForGood, readyState(vm).form.choice)
+    }
+
+    @Test
     fun everyDay_allowsTheChosenMinutesADay_forTheChosenDays() = runTest {
         val daily = sampleRequest.copy(supportsDaily = true)
         every { parser.parse(any(), any()) } returns Outcome.ok(daily)
@@ -426,6 +454,141 @@ class GuardianPinViewModelTest {
             assertEquals("choice for \"$text\" days", null, readyState(vm).form.choice)
         }
         assertTrue(readyState(vm).form.daysInvalid)
+    }
+
+    @Test
+    fun periods_areNotOffered_toAPhoneThatDoesntTakeThem() = runTest {
+        every { parser.parse(any(), any()) } returns Outcome.ok(sampleRequest.copy(supportsDaily = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+        vm.pickPeriod(120)
+
+        assertFalse(readyState(vm).form.periodsAllowed)
+        assertEquals("a day, which that phone takes", AccessChoice.EveryDay(15, 7), readyState(vm).form.choice)
+    }
+
+    @Test
+    fun repeatingEveryTwoHours_allowsTheChosenMinutesInEachPeriod() = runTest {
+        val request = sampleRequest.copy(supportsDaily = true, supportsPeriods = true)
+        every { parser.parse(any(), any()) } returns Outcome.ok(request)
+        coEvery { validator.validate(any(), request, any()) } returns Outcome.ok(ByteArray(32) { 0xAA.toByte() })
+        every { approvalBuilder.build(any<ByteArray>(), request, any<AccessChoice>()) } returns APPROVAL_URL
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        assertEquals("a day until chosen", 24 * 60, readyState(vm).form.period)
+
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+        vm.pickPeriod(120)
+        vm.pickMinutes(30)
+        vm.pickDays(7)
+        vm.approve("1234".toCharArray())
+
+        verify { approvalBuilder.build(any<ByteArray>(), request, AccessChoice.EveryDay(30, 7, periodMinutes = 120)) }
+    }
+
+    @Test
+    fun aMinutesChipLongerThanThePeriod_becomesTheLargestThatFits() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsPeriods = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+        vm.pickMinutes(120)
+
+        vm.pickPeriod(60)
+
+        val form = readyState(vm).form
+        assertEquals(listOf(5, 10, 15, 30), form.minutePresets)
+        assertEquals(AccessForm.Amount.Preset(30), form.minutes)
+        assertEquals(AccessChoice.EveryDay(30, 7, periodMinutes = 60), form.choice)
+    }
+
+    @Test
+    fun typedMinutes_canBeAtMostThePeriod() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsPeriods = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+        vm.pickPeriod(60)
+
+        vm.editMinutes("90")
+        assertNull(readyState(vm).form.choice)
+        assertTrue(readyState(vm).form.minutesInvalid)
+        assertEquals(60, readyState(vm).form.maxMinutes)
+
+        vm.editMinutes("60")
+        assertEquals(AccessChoice.EveryDay(60, 7, periodMinutes = 60), readyState(vm).form.choice)
+    }
+
+    @Test
+    fun aTypedPeriod_isInHours_andCanBeAnyLength() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsPeriods = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+
+        vm.editPeriod("1.5")
+        assertEquals(AccessChoice.EveryDay(15, 7, periodMinutes = 90), readyState(vm).form.choice)
+
+        vm.editPeriod("0.5")
+        assertEquals(listOf(5, 10, 15), readyState(vm).form.minutePresets)
+        assertEquals(AccessChoice.EveryDay(15, 7, periodMinutes = 30), readyState(vm).form.choice)
+
+        vm.editPeriod("5")
+        assertEquals(AccessChoice.EveryDay(15, 7, periodMinutes = 300), readyState(vm).form.choice)
+    }
+
+    @Test
+    fun aTypedPeriodThatCantBeUsed_allowsNothing_andShowsAnError() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsPeriods = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+
+        vm.editPeriod("")
+        assertNull("nothing typed yet", readyState(vm).form.choice)
+        assertFalse(readyState(vm).form.periodInvalid)
+        for (text in listOf("0", "25", "0.05", "1:75", "abc")) {
+            vm.editPeriod(text)
+            assertNull("choice for $text hours", readyState(vm).form.choice)
+            assertTrue("error for $text hours", readyState(vm).form.periodInvalid)
+        }
+    }
+
+    @Test
+    fun whenNoMinutesChipIsShortEnough_theMinutesAreTyped() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsPeriods = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        vm.setKind(AccessForm.Kind.EVERY_DAY)
+
+        vm.editPeriod("0:05")
+
+        assertEquals(emptyList<Int>(), readyState(vm).form.minutePresets)
+        assertEquals(AccessForm.Amount.Custom(""), readyState(vm).form.minutes)
+        assertNull(readyState(vm).form.choice)
+        vm.editMinutes("2")
+        assertEquals(AccessChoice.EveryDay(2, 7, periodMinutes = 5), readyState(vm).form.choice)
+    }
+
+    @Test
+    fun typedHours_becomeMinutes() {
+        assertEquals(90, AccessForm.periodMinutes("1.5"))
+        assertEquals(90, AccessForm.periodMinutes("1,5"))
+        assertEquals(90, AccessForm.periodMinutes("1:30"))
+        assertEquals(30, AccessForm.periodMinutes("0.5"))
+        assertEquals(15, AccessForm.periodMinutes("0.25"))
+        assertEquals(24 * 60, AccessForm.periodMinutes("24"))
+        assertEquals(5, AccessForm.periodMinutes("0:05"))
+        for (text in listOf("", "0", "0:04", "24.01", "24:30", "1:60", "-1", "1.5.2", ":30", "abc")) {
+            assertNull(text, AccessForm.periodMinutes(text))
+        }
     }
 
     @Test

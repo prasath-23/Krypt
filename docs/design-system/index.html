@@ -154,7 +154,7 @@ p, h1, h2, h3 { margin: 0; }
 .kx-chip[aria-checked="true"] { background: var(--primary); color: var(--on-primary); box-shadow: none; }
 .kx-chip:focus-visible, .kx-seg button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-/* Onboarding progress: three ticks */
+/* Onboarding progress: two ticks */
 .kx-ticks { display: flex; gap: 6px; }
 .kx-tick { flex: 1; height: 3px; border-radius: var(--radius-full); background: var(--outline-variant); transition: background-color var(--motion-base); }
 .kx-tick--on { background: var(--primary); }
@@ -318,7 +318,7 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <h3>Voice</h3>
 <ul>
 <li>Short, warm and adult. Speak to the person as "you", and to the PIN holder as "your Guardian".</li>
-<li><strong>Serif statements end with a full stop:</strong> "Locked.", "Done for today.", "Paused.", "Approved." They are the only full stops in titles.</li>
+<li><strong>Serif statements end with a full stop:</strong> "Locked.", "Done for today.", "Done for now.", "Paused.", "Approved." They are the only full stops in titles.</li>
 <li>Buttons are sentence-case verbs of at most three words: "Request access", "Paste reply", "Approve and send".</li>
 <li>Use " · " as the only separator in status lines: "Open · 12 min left".</li>
 <li>No exclamation marks, no emoji, no blame. Errors say what to do: "That PIN isn't right. 2 tries left."</li>
@@ -346,8 +346,8 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <td>The approval message the Guardian sends back</td>
 </tr>
 <tr>
-<td>Once / Daily</td>
-<td>The two kinds of access</td>
+<td>Once / Repeating / For good</td>
+<td>The three kinds of access; Repeating comes back every day, or in a shorter period</td>
 </tr>
 <tr>
 <td>Open · N min left</td>
@@ -358,8 +358,12 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <td>Daily time in progress</td>
 </tr>
 <tr>
-<td>Relock now / Stop daily time</td>
-<td>Ending access early (in the sheet opened from an Open now row)</td>
+<td>Hourly, Every 30 min, Every 2 h, Every 1 h 30 min · N of M min left</td>
+<td>Time in a period shorter than a day, in progress</td>
+</tr>
+<tr>
+<td>Relock now / Stop daily time / Stop repeating time</td>
+<td>Ending access early (in the sheet opened from the app's row)</td>
 </tr>
 </tbody>
 </table>
@@ -387,13 +391,13 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <td><code>lock</code></td>
 </tr>
 <tr>
-<td>Open now / daily time left</td>
+<td>Open now / repeating time left</td>
 <td><code>open</code></td>
 <td><code>open-container</code></td>
 <td><code>lock_open</code>, <code>lock_clock</code></td>
 </tr>
 <tr>
-<td>Done for today / paused</td>
+<td>Done for today or for now / paused</td>
 <td><code>caution</code></td>
 <td><code>caution-container</code></td>
 <td><code>hourglass_bottom</code>, <code>schedule</code></td>
@@ -450,8 +454,8 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <li><strong>PIN checks take about 0.3s on purpose:</strong> always show the checking state.</li>
 <li><strong>Lockouts:</strong> the 3rd wrong PIN locks for 30s, then 2 min, 10 min, 1 hour. A live countdown shows meanwhile, and input is disabled.</li>
 <li><strong>Approval confirmation:</strong> the flash (at least 500ms), a vibration and a toast naming the app. No buttons, no fields.</li>
-<li><strong>Onboarding:</strong> permission states appear only there. Progress counts only the 3 required permissions, and Start protecting stays disabled until all 3 are allowed.</li>
-<li><strong>The Home switch shows the lock setting:</strong> on = locked. It stays on while an unlock or daily time is running.</li>
+<li><strong>Onboarding:</strong> permission states appear only there. Progress counts only the 2 required permissions, and Start protecting stays disabled until both are allowed.</li>
+<li><strong>The Home switch shows the lock setting:</strong> on = locked. It stays on while an unlock or repeating time is running.</li>
 <li><strong>The Guardian screen blocks screenshots</strong> (<code>FLAG_SECURE</code>).</li>
 <li><strong>The lock screen's first frame</strong> is its window background, which must equal <code>background</code> in the current theme so nothing flashes.</li>
 </ul>
@@ -506,6 +510,10 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <td>Once / Daily</td>
 </tr>
 <tr>
+<td>Daily (How often, Amendment 6)</td>
+<td>Repeating, with the Every row (Day by default)</td>
+</tr>
+<tr>
 <td>Set minutes / Set days</td>
 <td>Custom</td>
 </tr>
@@ -515,7 +523,7 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 </tr>
 <tr>
 <td>Required permissions: 2 of 3</td>
-<td>2 of 3 required</td>
+<td>1 of 2 required / 2 of 2 required · ready</td>
 </tr>
 <tr>
 <td>Permission granted (description)</td>
@@ -558,17 +566,17 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 </tr>
 <tr>
 <td><code>lock_clock</code></td>
-<td>Daily time left</td>
+<td>Repeating time left (daily, or in a shorter period)</td>
 <td><code>open</code></td>
 </tr>
 <tr>
 <td><code>hourglass_bottom</code></td>
-<td>Done for today</td>
+<td>Done for today; done for now</td>
 <td><code>caution</code></td>
 </tr>
 <tr>
 <td><code>schedule</code></td>
-<td>Daily time paused</td>
+<td>Repeating time paused</td>
 <td><code>caution</code></td>
 </tr>
 <tr>
@@ -703,28 +711,28 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 - <strong>Required:</strong>
   - See when a locked app opens: Accessibility (<code>accessibility_new</code>).
   - Show the lock over apps: display over other apps (<code>layers</code>).
-  - Keep running in the background: battery optimisation (<code>battery_alert</code>).
 - <strong>Optional:</strong>
+  - Keep running in the background: battery optimisation (<code>battery_alert</code>).
   - Make Krypt harder to remove: Device Admin (<code>admin_panel_settings</code>).
   - Alerts about new apps: notifications (<code>notifications</code>).</p>
 <p><strong>The consumer provides</strong> <code>OnboardingUiState.permissions</code> and each step's settings intent. Tapping a row's button sends the user to that Settings page.</p>
-<p><strong>State:</strong> "Allowed" with <code>check_circle</code> in <code>granted</code>, or "Not allowed yet" with <code>cancel</code> in <code>on-surface-variant</code>. It is refreshed on resume and changes with a fade + scale over <code>motion-indicator</code> (200-500ms). Its TalkBack label is the same word.</p>
+<p><strong>State:</strong> "Allowed" with <code>check_circle</code> in <code>granted</code>, or "Not allowed yet" (a required row) / "Not allowed" (an optional row) with <code>cancel</code> in <code>on-surface-variant</code>. It is refreshed on resume and changes with a fade + scale over <code>motion-indicator</code> (200-500ms). Its TalkBack label is the same word.</p>
 <p><strong>Rules</strong>
 - The button reads "Allow in settings" with an <code>open_in_new</code> icon, which says before the hand-off that Krypt is leaving.
 - The battery row adds a "Help for Xiaomi, Samsung and others" tertiary button that opens the OEM pages in <code>OemBatteryLinks.kt</code>.
 - These indicators appear only in onboarding.
-- Optional rows never block anything and have no Skip; leaving one alone is the skip.</p></div></article><article id="c-mandatoryprogress" class="doc-comp"><h3>Required progress</h3><div class="doc-card"><div class="doc-pv" data-pv="MandatoryProgress"></div></div><div class="doc-prose"><p>Three thin ticks at the top of the onboarding checklist, one per required permission. The optional ones are never counted.</p>
-<p><strong>Shows:</strong> three 3dp ticks that fill with <code>primary</code> as each required permission is allowed, and the line "2 of 3 required" in <code>body-small</code>. At 3 of 3 the line reads "3 of 3 required · ready" in <code>granted</code>.</p>
-<p><strong>At the bottom of the checklist:</strong> one primary button, <strong>Start protecting</strong>. It is disabled until 3 of 3, with "Allow the 3 required items to start." under it.</p>
+- Optional rows never block anything and have no Skip; leaving one alone is the skip.</p></div></article><article id="c-mandatoryprogress" class="doc-comp"><h3>Required progress</h3><div class="doc-card"><div class="doc-pv" data-pv="MandatoryProgress"></div></div><div class="doc-prose"><p>Two thin ticks at the top of the onboarding checklist, one per required permission. The optional ones are never counted.</p>
+<p><strong>Shows:</strong> two 3dp ticks that fill with <code>primary</code> as each required permission is allowed, and the line "1 of 2 required" in <code>body-small</code>. At 2 of 2 the line reads "2 of 2 required · ready" in <code>granted</code>.</p>
+<p><strong>At the bottom of the checklist:</strong> one primary button, <strong>Start protecting</strong>. It is disabled until 2 of 2, with "Allow the 2 required items to start." under it.</p>
 <p><strong>The consumer provides</strong> <code>mandatoryGranted</code>, <code>mandatoryTotal</code> and <code>canFinish</code>. "Start protecting" calls <code>tryFinish()</code>.</p>
 <p><strong>Rules</strong>
-- Only the 3 required items move the ticks.
-- The ticks are one <code>progressbar</code> for TalkBack: "2 of 3 required".</p></div></article><p class="doc-group">HOME</p><article id="c-approw" class="doc-comp"><h3>App row</h3><div class="doc-card"><div class="doc-pv" data-pv="AppRow"></div></div><div class="doc-prose"><p>One installed app in Home. Every row has the same shape and height: icon, name, one status line, switch.</p>
+- Only the 2 required items move the ticks.
+- The ticks are one <code>progressbar</code> for TalkBack: "1 of 2 required".</p></div></article><p class="doc-group">HOME</p><article id="c-approw" class="doc-comp"><h3>App row</h3><div class="doc-card"><div class="doc-pv" data-pv="AppRow"></div></div><div class="doc-prose"><p>One installed app in Home. Every row has the same shape and height: icon, name, one status line, switch.</p>
 <p><strong>Shows:</strong> the app icon at <code>app-icon-row</code> masked to <code>radius-sm</code>, the name in <code>title-medium</code>, one StatusLine (Not locked shows "Not locked" in <code>on-surface-variant</code> with no icon, so no row is shorter and <code>lock_open</code> keeps one meaning), and the Material 3 Switch at the end. There are no buttons inside rows; rows are 68dp tall and separated only by hairlines.</p>
-<p><strong>Ending access early:</strong> a row in Open now is tappable. It opens a small bottom sheet with the app, its status ("Open · 12 min left · until 14:35") and one primary action, <strong>Relock now</strong>, or <strong>Stop daily time</strong> for daily rows, plus <strong>Keep it open</strong>.</p>
+<p><strong>Ending access early:</strong> a row with a one-time unlock or repeating time is tappable: in Open now, or in Locked once that time is used up or paused. It opens a small bottom sheet with the app, its status ("Open · 12 min left · until 14:35") and one primary action: <strong>Relock now</strong>, <strong>Stop daily time</strong> for daily rows, or <strong>Stop repeating time</strong> for a shorter period ("Every 2 h · …", "Every 30 min · …"). Under it is <strong>Keep it open</strong>, or <strong>Keep daily time</strong> / <strong>Keep repeating time</strong> when that time is used up or paused.</p>
 <p><strong>The screen around it:</strong> an eyebrow ("KRYPT" with the mark), the serif title "Your apps", the two count badges, a search field, then sections in this order: <strong>Open now</strong>, <strong>Locked</strong>, <strong>Not locked</strong>. Each section has a small capitals header with its count. When the user arrives from a "New app protected" notification, that row is highlighted on <code>primary-container</code> for 2 seconds.</p>
-<p><strong>The consumer provides</strong> a <code>HomeUiState</code> row (<code>displayName</code>, <code>isLocked</code>, <code>status</code>), its icon from <code>iconCache</code>, and <code>onToggle</code>, <code>onLockNow</code> (Relock now), <code>onEndDailyTime</code> (Stop daily time).</p>
-<p><strong>The switch</strong> is Material 3's 52×32 Switch in Krypt colours: off is a 1.5dp <code>outline</code> ring with a small <code>outline</code> thumb; on is a <code>primary</code> track with an <code>on-primary</code> thumb. On means locked, and it stays on while an unlock or daily time is running.</p>
+<p><strong>The consumer provides</strong> a <code>HomeUiState</code> row (<code>displayName</code>, <code>isLocked</code>, <code>status</code>), its icon from <code>iconCache</code>, and <code>onToggle</code>, <code>onLockNow</code> (Relock now), <code>onEndDailyTime</code> (Stop daily time / Stop repeating time).</p>
+<p><strong>The switch</strong> is Material 3's 52×32 Switch in Krypt colours: off is a 1.5dp <code>outline</code> ring with a small <code>outline</code> thumb; on is a <code>primary</code> track with an <code>on-primary</code> thumb. On means locked, and it stays on while an unlock or repeating time (daily, or in a shorter period) is running.</p>
 <p><strong>Rules</strong>
 - Turning a lock <strong>on</strong> happens at once. Turning it <strong>off</strong> opens a sheet first: "Unlock Notes for good?", with <strong>Remove lock</strong> and <strong>Keep it locked</strong>.
 - The switch and the tappable row each have a 48dp target and their own TalkBack label ("Lock Instagram"; "Instagram, open, 12 minutes left. Tap for options").
@@ -775,12 +783,37 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <td><code>caution</code></td>
 <td>Daily · paused until automatic time is on</td>
 </tr>
+<tr>
+<td>Shorter period, time left</td>
+<td><code>lock_clock</code></td>
+<td><code>open</code></td>
+<td>Every 1 h 30 min · 10 of 15 min left · until Sep 28 (every hour: Hourly · 10 of 15 min left · until Sep 28)</td>
+</tr>
+<tr>
+<td>Shorter period, used up</td>
+<td><code>hourglass_bottom</code></td>
+<td><code>caution</code></td>
+<td>Every 30 min · back at 14:30 · until Sep 28</td>
+</tr>
+<tr>
+<td>Shorter period, used up in the rule's last period</td>
+<td><code>hourglass_bottom</code></td>
+<td><code>caution</code></td>
+<td>Every 2 h · done · until Sep 28</td>
+</tr>
+<tr>
+<td>Shorter period, paused</td>
+<td><code>schedule</code></td>
+<td><code>caution</code></td>
+<td>Every 2 h · paused until automatic time is on</td>
+</tr>
 </tbody>
 </table>
 <p><strong>Badges</strong> (<code>kx-badge</code>, fully round) carry the counts in Home's header: "42 locked" on <code>locked-container</code>, "2 open now" on <code>open-container</code>.</p>
 <p><strong>Rules</strong>
 - <code>lock_open</code> means only an active one-time unlock; never put it on a Not locked row. Not locked carries text alone so every row keeps the same height.
-- Use the middle dot " · " as the only separator. Numbers that tick are set in <code>mono-time</code> so they don't jitter.
+- Use the middle dot " · " as the only separator. Numbers that tick are set in <code>mono-time</code> so they don't jitter, and so is the "back at" time.
+- Repeating time names its period first: "Daily" for a day, "Hourly" for an hour, "Every 30 min" under an hour, "Every 2 h" for whole hours, and "Every 1 h 30 min" otherwise. The "back at" time is on the phone's own clock, in its current zone, and follows its 12- or 24-hour style ("back at 4:00 PM").
 - Wrap to a second line at large font scale; never cut off the time left.</p></div></article><p class="doc-group">LOCK SCREEN</p><article id="c-lockscreen" class="doc-comp"><h3>Lock screen</h3><div class="doc-card"><div class="doc-pv" data-pv="LockScreen"></div></div><div class="doc-prose"><p>What appears instead of a locked app: a calm, left-aligned page that follows the phone's light or dark theme, with one way in.</p>
 <p><strong>Shows</strong>, in a column at most <code>column-max</code> wide with a <code>space-5</code> gutter:
 - <strong>Top:</strong> the eyebrow "PROTECTED BY KRYPT" with the mark.
@@ -815,6 +848,24 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <td>Paused.</td>
 <td>Daily time needs automatic date and time. Turn it on in Settings, or ask your Guardian.</td>
 </tr>
+<tr>
+<td>Shorter period, used up</td>
+<td><code>hourglass_bottom</code> (<code>caution</code>)</td>
+<td>Done for now.</td>
+<td>You've used your 30 minutes for now. More time at 16:00. Need it sooner? Ask your Guardian.</td>
+</tr>
+<tr>
+<td>Shorter period, used up in the rule's last period</td>
+<td><code>hourglass_bottom</code> (<code>caution</code>)</td>
+<td>Done for now.</td>
+<td>You've used your 30 minutes. If you need more, ask your Guardian for extra time.</td>
+</tr>
+<tr>
+<td>Shorter period, paused</td>
+<td><code>schedule</code> (<code>caution</code>)</td>
+<td>Paused.</td>
+<td>Repeating time needs automatic date and time. Turn it on in Settings, or ask your Guardian.</td>
+</tr>
 </tbody>
 </table>
 <p>The ShareHandoff timeline appears under the reason once a request is sent.</p>
@@ -822,7 +873,7 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <p><strong>Rules</strong>
 - There is no PIN entry here, ever. Back and Back to home both go to the launcher, never to the app.
 - <strong>First frame:</strong> the window background is plain <code>background</code> (a <code>values</code> and a <code>values-night</code> colour). The very first frame is therefore the finished page's background, and nothing flashes.
-- Update the reason in place, and close by itself when an approval or daily time arrives.
+- Update the reason in place, and close by itself when an approval arrives or repeating time comes back: at midnight for a day, or when the next period starts ("More time at 16:00": the phone's own clock, in its current zone and its 12- or 24-hour style).
 - At 200% font scale the column scrolls, and the action area stays pinned to the bottom.</p></div></article><article id="c-sharehandoff" class="doc-comp"><h3>Request hand-off</h3><div class="doc-card"><div class="doc-pv" data-pv="ShareHandoff"></div></div><div class="doc-prose"><p>The request hand-off on the lock screen: Request access opens the share sheet, then a three-step timeline says what is happening, and the action bar changes to the next useful action.</p>
 <p><strong>Idle / expired / failed:</strong> primary <strong>Request access</strong> (with <code>share</code>), tertiary row <strong>Paste reply</strong> · <strong>Back to home</strong>. Under the button: "Pick any chat to send the request to your Guardian."
 <strong>Preparing:</strong> the primary shows a spinner and reads "Preparing request".
@@ -840,28 +891,45 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <p><strong>Step 1 · Choose</strong> (a normal scrolling screen, no keypad): eyebrow "ACCESS REQUEST", the app as the <code>display-small</code> title (or its package in mono with "Why only a package name?"), the age line "Sent 1 min ago · expires in 4:00", DurationChips, and the live SummarySentence. A pinned primary <strong>Continue</strong> opens step 2; it is disabled while a custom value is invalid.</p>
 <p><strong>Step 2 · Confirm</strong> (a modal bottom sheet over step 1): the SummarySentence fixed at the top, PinEntry (4-8 digits, dots + keypad), and the pinned primary <strong>Approve and send</strong>. Nothing in the sheet scrolls; it fits a 320×640dp screen. Dismissing the sheet (drag down or back) returns to step 1 with the choice kept and the PIN cleared.</p>
 <p><strong>States in the sheet:</strong> typing; checking (dots breathe, "Checking…"); wrong PIN (dots shake and clear, "That PIN isn't right. 2 tries left."); lockout (LockoutCountdown replaces the keypad; the sheet stays open). After success the share sheet opens and the screen shows <code>display-large</code> "Sent." with "You can close this screen."</p>
-<p><strong>The consumer provides</strong> <code>GuardianPinState</code> and calls <code>setKind()</code> / <code>pickMinutes()</code> / <code>editMinutes()</code> / <code>pickDays()</code> / <code>editDays()</code> on step 1 and <code>approve(pin)</code> on step 2. No ViewModel change: step 2 is presentation only.</p>
-<p><strong>Live behaviour (as in the card):</strong> changing Once / Daily, a duration chip, the days or a custom value updates the SummarySentence on both steps at once; Daily reveals the days chips; an invalid custom value shows "Choose 1 to 1440 minutes.", hides the sentence and disables Continue. In the sheet the keypad fills the 8 dots, and Approve and send enables at 4 digits.</p>
+<p><strong>The consumer provides</strong> <code>GuardianPinState</code> and calls <code>setKind()</code> / <code>pickPeriod()</code> / <code>editPeriod()</code> / <code>pickMinutes()</code> / <code>editMinutes()</code> / <code>pickDays()</code> / <code>editDays()</code> on step 1 and <code>approve(pin)</code> on step 2. No ViewModel change: step 2 is presentation only.</p>
+<p><strong>Live behaviour (as in the card):</strong> changing Once / Repeating / For good, the period, a duration chip, the days or a custom value updates the SummarySentence on both steps at once. Repeating reveals the Every chips and the days chips. A period shorter than a day hides the duration chips that don't fit in it ("Instagram, 30 minutes every 2 hours for 7 days."), and one of an hour or less offers 5, 10, 15 and 30 min instead. Custom in Every reveals the Hours field: "1.5" reads "every 90 minutes", and a period outside 5 minutes to 24 hours shows "Choose 5 minutes to 24 hours, like 1.5 or 1:30." For good hides the duration rows ("Instagram, unlocked for good."). An invalid custom value shows its error ("Choose 1 to N minutes.", where N is 1440, or the period's minutes when repeating, e.g. 90), hides the sentence and disables Continue. In the sheet the keypad fills the 8 dots, and Approve and send enables at 4 digits.</p>
 <p><strong>Rules</strong>
 - <code>FLAG_SECURE</code> covers the whole activity, the sheet included.
 - The choice survives wrong PINs, lockouts and dismissing the sheet.
-- The request still expires 5 minutes after it was made; if it expires while the sheet is open, the sheet closes and step 1 shows the expired error.</p></div></article><article id="c-durationchips" class="doc-comp"><h3>Duration chips</h3><div class="doc-card"><div class="doc-pv" data-pv="DurationChips"></div></div><div class="doc-prose"><p>How the Guardian chooses what to allow: a two-option segmented control for how often, and chip rows for how long and how many days.</p>
+- The request still expires 5 minutes after it was made; if it expires while the sheet is open, the sheet closes and step 1 shows the expired error.</p></div></article><article id="c-durationchips" class="doc-comp"><h3>Duration chips</h3><div class="doc-card"><div class="doc-pv" data-pv="DurationChips"></div></div><div class="doc-prose"><p>How the Guardian chooses what to allow: a segmented control for how often, and chip rows for how often time comes back, how long and how many days.</p>
 <ul>
-<li><strong>How often</strong> (only when the request says the phone supports daily time): <strong>Once</strong> / <strong>Daily</strong>, a Material 3 <code>SingleChoiceSegmentedButtonRow</code>. The selected segment is filled with <code>primary</code>.</li>
-<li><strong>For how long:</strong> chips for 15 min, 30 min, 1 hour, 2 hours and <strong>Custom</strong>. Custom reveals a minutes field (1-1440, <code>MINUTES_FIELD_TAG</code>), with the error "Choose 1 to 1440 minutes."</li>
-<li><strong>For how many days</strong> (Daily only): chips for 3, 7, 14, 30 days and <strong>Custom</strong>. Custom reveals a days field (1-365, <code>DAYS_FIELD_TAG</code>), with the error "Choose 1 to 365 days." A <code>caution-container</code> note sits under this row: "Today counts as day 1, including time already used. Need more time today? Choose Once."</li>
+<li><strong>How often</strong> (only when the request says the phone supports more than one time): <strong>Once</strong> / <strong>Repeating</strong> / <strong>For good</strong>, a Material 3 <code>SingleChoiceSegmentedButtonRow</code>, with only the options the phone supports (<code>caps=daily</code>, <code>caps=forgood</code>). The selected segment is filled with <code>primary</code>.</li>
+<li><strong>Repeating</strong> is time that comes back every day, or in a shorter period such as every 30 minutes or every 2 hours. Before Amendment 6 it was <strong>Daily</strong>.</li>
+<li><strong>Every</strong> (Repeating only, and only when the request carries <code>caps=periods</code>): chips for 30 min, 1 hour, 2 hours, 4 hours, 6 hours, 12 hours and <strong>Day</strong>, then <strong>Custom</strong>. Day is the default. Custom reveals an "Hours" field (<code>PERIOD_FIELD_TAG</code>, suffix "hours", decimal keypad) that takes any period from 5 minutes to 24 hours: "1.5", "1,5" and "1:30" are 90 minutes, "0.5" is 30, "5" is 5 hours, rounded to whole minutes. Anything else shows "Choose 5 minutes to 24 hours, like 1.5 or 1:30." Without <code>caps=periods</code> the row isn't shown, and Repeating means a day.</li>
+<li>Periods follow the clock from midnight: every 2 hours is 00:00-02:00, 02:00-04:00, and so on. When the period doesn't divide a day, the day's last period is shorter and ends at midnight: every 5 hours ends with 20:00-24:00.</li>
+<li><strong>For good</strong> removes the app's lock on the child's phone, as Home's "Remove lock" does. It has no duration, so the rows below are hidden while it is selected.</li>
+<li><strong>For how long:</strong> chips for 15 min, 30 min, 1 hour, 2 hours and <strong>Custom</strong>. When repeating, only chips shorter than the period are shown, so the time is still a limit. A period of an hour or less uses 5, 10, 15 and 30 min instead: every 30 minutes shows 5, 10 and 15 min, every hour all four. Every 90 minutes shows 15 min, 30 min and 1 hour. A 5-minute period has no shorter chip, so only Custom is shown, and the minutes switch to Custom for the Guardian to type. If the selected chip is no longer shown, the largest one that fits is selected instead. Custom reveals a minutes field (<code>MINUTES_FIELD_TAG</code>) that takes 1 to 1440 minutes, or 1 up to the period when repeating, with the error "Choose 1 to N minutes." ("Choose 1 to 90 minutes." every 90 minutes).</li>
+<li><strong>For how many days</strong> (Repeating only): chips for 3, 7, 14, 30 days and <strong>Custom</strong>. Custom reveals a days field (1-365, <code>DAYS_FIELD_TAG</code>), with the error "Choose 1 to 365 days." A <code>caution-container</code> note sits under this row:
+<ul>
+<li>every day: "Today counts as day 1, including time already used. Need more time today? Choose Once."</li>
+<li>shorter periods: "Periods follow the clock from midnight: 00:00, 01:30, 03:00 and so on. Time already used in this one counts. Need more right now? Choose Once."</li>
+<li>periods that don't divide a day add a sentence: "Periods follow the clock from midnight: 00:00, 05:00, 10:00 and so on. The last one ends at midnight. Time already used in this one counts. Need more right now? Choose Once."</li>
+<li>Both list the first three start times, in the phone's 12- or 24-hour style, then "and so on". With three starts or fewer they list them all: "00:00, 08:00 and 16:00".</li>
+</ul>
+</li>
 </ul>
 <p><strong>Chips</strong> are 36dp tall with a hairline <code>outline</code> border at <code>radius-sm</code>; the selected chip fills with <code>primary</code>. There are no checkmarks: the fill is the selection, and TalkBack reads "selected".</p>
-<p><strong>The consumer provides</strong> the <code>AccessForm</code> and calls <code>setKind()</code>, <code>pickMinutes()</code>, <code>editMinutes()</code>, <code>pickDays()</code>, <code>editDays()</code>.</p>
+<p><strong>The consumer provides</strong> the <code>AccessForm</code> and calls <code>setKind()</code>, <code>pickPeriod()</code>, <code>editPeriod()</code>, <code>pickMinutes()</code>, <code>editMinutes()</code>, <code>pickDays()</code>, <code>editDays()</code>.</p>
 <p><strong>Rules</strong>
-- Defaults: Once, 15 min. Daily defaults to 7 days.
+- Defaults: Once, 15 min. Repeating defaults to every Day, for 7 days.
 - An invalid custom value disables Continue on step 1 of the Guardian flow.
 - The choice is kept through wrong PINs and lockouts.</p></div></article><article id="c-summarysentence" class="doc-comp"><h3>Summary sentence</h3><div class="doc-card"><div class="doc-pv" data-pv="SummarySentence"></div></div><div class="doc-prose"><p>The Guardian's choice read back as one serif sentence: live at the end of step 1, then fixed at the top of the PIN sheet, so they know exactly what they are signing.</p>
-<p><strong>Shows</strong> in the <code>headline</code> style: "Instagram, <em>30 minutes</em>, once." or "Instagram, <em>1 hour a day</em> for 7 days." The duration is set in italic. When the app isn't installed on the Guardian's phone, the package name stands in, set in mono.</p>
+<p><strong>Shows</strong> in the <code>headline</code> style:
+- Once: "Instagram, <em>30 minutes</em>, once."
+- Repeating, every day: "Instagram, <em>1 hour</em> a day for 7 days."
+- Repeating, every hour: "Instagram, <em>15 minutes</em> an hour for 7 days."
+- Repeating, any other period: "Instagram, <em>30 minutes</em> every 2 hours for 7 days.", "Instagram, <em>15 minutes</em> every 90 minutes for 7 days." or "Instagram, <em>5 minutes</em> every 30 minutes for 7 days."
+- For good: "Instagram, <em>unlocked for good</em>."</p>
+<p>A period in whole hours is said in hours ("every 2 hours"), any other in minutes ("every 90 minutes"). Only the duration (or "unlocked for good") is set in italic. When the app isn't installed on the Guardian's phone, the package name stands in, set in mono.</p>
 <p><strong>The consumer provides</strong> the current <code>AccessForm</code> and the app label if Krypt can find it on this phone (by package name), else the package.</p>
 <p><strong>Rules</strong>
 - It updates live as the choice changes (<code>liveRegion = Polite</code>), and hides while a custom value is invalid.
-- The same words go into the message the Guardian sends back.</p></div></article><p class="doc-group">FEEDBACK</p><article id="c-pastelink" class="doc-comp"><h3>Paste a link</h3><div class="doc-card"><div class="doc-pv" data-pv="PasteLink"></div></div><div class="doc-prose"><p>The way in when a messenger won't make a Krypt link tappable: a tertiary button that reads the clipboard and opens the link it finds.</p>
+- The same words go into the message the Guardian sends back: "Krypt reply for Chrome: 30 minutes every 2 hours for 7 days."</p></div></article><p class="doc-group">FEEDBACK</p><article id="c-pastelink" class="doc-comp"><h3>Paste a link</h3><div class="doc-card"><div class="doc-pv" data-pv="PasteLink"></div></div><div class="doc-prose"><p>The way in when a messenger won't make a Krypt link tappable: a tertiary button that reads the clipboard and opens the link it finds.</p>
 <ul>
 <li><strong>On Krypt's own screens</strong> (onboarding and the PIN gate): <strong>Paste a link</strong> with <code>link</code>. When nothing is found, a snackbar says: "No Krypt link found. Copy the whole message first."</li>
 <li><strong>On the lock screen</strong> (approvals only): <strong>Paste reply</strong> with <code>content_paste</code>. When no reply is found, an inline <code>error</code> line says: "No reply on the clipboard. Copy your Guardian's whole message, then try again." There is no snackbar here.</li>
@@ -871,7 +939,11 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 - The snackbar is used for this case only.
 - On the PIN gate, one line explains it: "Got a Krypt link that won't open? Copy it and tap Paste a link."</p></div></article><article id="c-toast" class="doc-comp"><h3>Toasts</h3><div class="doc-card"><div class="doc-pv" data-pv="Toast"></div></div><div class="doc-prose"><p>System toasts from Krypt's windowless moments, such as applying an approval and the link receiver. Each is one short sentence with the app's name when it is known.</p>
 <p><strong>Messages</strong>
-- <strong>Successes:</strong> "Instagram is open until 14:35"; "Instagram: 1 hour a day until Sep 28"; "Instagram: daily time is set, but today's is used up".
+- <strong>Successes:</strong>
+  - "Instagram is open until 14:35"
+  - "Instagram: 1 hour a day until Sep 28"; "Instagram: 15 minutes an hour until Sep 28"; "Instagram: 30 minutes every 2 hours until Sep 28"; "Instagram: 15 minutes every 90 minutes until Sep 28"
+  - "Instagram: daily time is set, but today's is used up"; "Instagram: repeating time is set, but it's used up for now"
+  - "Instagram is unlocked for good"
 - <strong>Approval errors:</strong>
   - "Couldn't read this reply"
   - "This reply doesn't match a waiting request"
@@ -885,8 +957,9 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <p><strong>Shows:</strong> <code>flash</code> covers the translucent window at 94% opacity. A 96dp <code>on-flash</code> ring holds a <code>check_circle</code>; the ring settles from 70% to full size. The whole moment lasts <code>motion-flash</code> (700ms; the spec requires at least 500ms). Alongside it: a 50ms vibration and the TalkBack announcement "Opened by your Guardian". The toast follows.</p>
 <p><strong>Outcomes</strong>
 - <strong>Once:</strong> flash, then "Instagram is open until 14:35".
-- <strong>Daily, with time left today:</strong> flash, then "Instagram: 1 hour a day until Sep 28".
-- <strong>Daily, today already used up:</strong> the toast only, with no flash.
+- <strong>Repeating, with time left in this period:</strong> flash, then "Instagram: 1 hour a day until Sep 28", "Instagram: 15 minutes an hour until Sep 28" or "Instagram: 30 minutes every 2 hours until Sep 28".
+- <strong>Repeating, this period already used up:</strong> the toast only, with no flash: "Instagram: daily time is set, but today's is used up", or "Instagram: repeating time is set, but it's used up for now" for a period shorter than a day.
+- <strong>For good:</strong> flash, then "Instagram is unlocked for good".
 - <strong>Error:</strong> one toast, then the window closes.</p>
 <p><strong>The consumer provides</strong> the <code>ApprovalOutcome</code> from <code>ApprovalConsumer</code>, played by <code>UnlockSuccessEffect</code>.</p>
 <p><strong>Rules</strong>
@@ -906,7 +979,7 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 - <strong>"I'm protecting this phone"</strong> continues to setup.
 - <strong>"I'm a Guardian"</strong> shows one screen: "You only need Krypt to approve requests. When a request arrives in a chat, tap its link." with <strong>Paste a link</strong> as its primary action and no permissions asked.</p>
 <h3>Onboarding: one checklist</h3>
-<p>Title "Before Krypt can protect", the three-tick MandatoryProgress, then the PermissionStep checklist in two groups, Required and Optional. Each row opens its Settings page and shows Allowed / Not allowed yet live. <strong>Start protecting</strong> is pinned at the bottom and disabled until 3 of 3, with <strong>Paste a link</strong> as a tertiary in the top bar.</p>
+<p>Title "Before Krypt can protect", the two-tick MandatoryProgress, then the PermissionStep checklist in two groups, Required and Optional. Each row opens its Settings page and shows Allowed / Not allowed yet live (an optional row says Not allowed). <strong>Start protecting</strong> is pinned at the bottom and disabled until 2 of 2, with <strong>Paste a link</strong> as a tertiary in the top bar.</p>
 <h3>Set Guardian PIN: a hand-over in three beats</h3>
 <ol>
 <li><strong>"Give this phone to your Guardian."</strong> The display title, one line ("They'll choose a PIN only they know"), and <strong>Continue</strong>.</li>
@@ -917,7 +990,7 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <h3>Krypt Admin gate</h3>
 <p>Eyebrow "KRYPT ADMIN" and the title "Guardian only". PinEntry with the line "Enter the Guardian PIN to manage apps", then <strong>Continue</strong>. A lockout replaces the line with LockoutCountdown. <strong>Paste a link</strong> is a tertiary below, with its one-line explanation.</p>
 <h3>Home: your apps</h3>
-<p>See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sections Open now / Locked / Not locked. Every row is the same height with no buttons inside; tapping an Open now row opens a sheet with Relock now / Stop daily time. Removing a lock asks in a sheet. A <code>contrast</code> icon at the top right opens the Appearance sheet (System default / Light / Dark).</p>
+<p>See AppRow: eyebrow, serif title "Your apps", count badges, search, then the sections Open now / Locked / Not locked. Every row is the same height with no buttons inside; tapping a row with an unlock or repeating time opens a sheet with Relock now, Stop daily time or Stop repeating time. Removing a lock asks in a sheet. A <code>contrast</code> icon at the top right opens the Appearance sheet (System default / Light / Dark).</p>
 <h3>Lock screen</h3>
 <p>See LockScreen: the eyebrow, the app tile, the one-word serif statement and its line, the ShareHandoff timeline once sent, and a state-driven bottom action bar (Request access while idle; Paste reply with Send again while waiting). It follows the Appearance setting (System default unless changed).</p>
 <h3>Guardian approval (on the Guardian's phone)</h3>
@@ -936,7 +1009,7 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 <p>No layout: UnlockFlash, then the toast.</p>
 <h3>System surfaces</h3>
 <ul>
-<li><strong>Notification small icon:</strong> <code>krypt-mark-sm.svg</code>, the small brand mark as a white-on-transparent vector drawable (Android tints it). A generic <code>shield</code> would read as antivirus. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off", "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings." and "Krypt is protecting this phone".</li>
+<li><strong>Notification small icon:</strong> <code>krypt-mark-sm.svg</code>, the small brand mark as a white-on-transparent vector drawable (Android tints it). A generic <code>shield</code> would read as antivirus. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off" and "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings."</li>
 <li><strong>Share sheet titles:</strong> "Send your request" and "Send your reply".</li>
 </ul></div></section>
 <footer class="doc-foot"><svg viewBox="36 22 36 66" height="14" width="8" aria-hidden="true"><path fill="currentColor" d="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 32.4 C52 32.2 53 32.1 54 32.1 C55 32.1 56 32.2 57 32.4 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z"/></svg><span>Krypt design system · built to docs/UI-DESIGN-BRIEF.md · fonts SIL OFL, icons Apache 2.0</span></footer>
@@ -1055,25 +1128,25 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
     <div class="kx-group">
       <div class="kx-row"><span class="kx-row__icon"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.75 6.99c-.14-.55-.69-.87-1.24-.75-2.38.53-5.03.76-7.51.76s-5.13-.23-7.51-.76c-.55-.12-1.1.2-1.24.75-.14.56.2 1.13.75 1.26 1.61.36 3.35.61 5 .75v12c0 .55.45 1 1 1s1-.45 1-1v-5h2v5c0 .55.45 1 1 1s1-.45 1-1V9c1.65-.14 3.39-.39 4.99-.75.56-.13.9-.7.76-1.26zM12 6c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg></span><div class="kx-row__body"><span class="kx-row__title">See when a locked app opens</span><span class="kx-perm kx-perm--yes" role="img" aria-label="Allowed"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9.29 16.29 5.7 12.7c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L10 14.17l6.88-6.88c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-7.59 7.59c-.38.39-1.02.39-1.41 0z"/></svg>Allowed</span></div></div>
       <div class="kx-row"><span class="kx-row__icon"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.6 18.06c-.36.28-.87.28-1.23 0l-6.15-4.78c-.36-.28-.86-.28-1.22 0-.51.4-.51 1.17 0 1.57l6.76 5.26c.72.56 1.73.56 2.46 0l6.76-5.26c.51-.4.51-1.17 0-1.57l-.01-.01c-.36-.28-.86-.28-1.22 0l-6.15 4.79zm.63-3.02l6.76-5.26c.51-.4.51-1.18 0-1.58l-6.76-5.26c-.72-.56-1.73-.56-2.46 0L4.01 8.21c-.51.4-.51 1.18 0 1.58l6.76 5.26c.72.56 1.74.56 2.46-.01z"/></svg></span><div class="kx-row__body"><span class="kx-row__title">Show the lock over apps</span><span class="kx-perm kx-perm--yes" role="img" aria-label="Allowed"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9.29 16.29 5.7 12.7c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L10 14.17l6.88-6.88c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-7.59 7.59c-.38.39-1.02.39-1.41 0z"/></svg>Allowed</span></div></div>
-      <div class="kx-row" style="align-items:flex-start"><span class="kx-row__icon"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.67 4H14V3c0-.55-.45-1-1-1h-2c-.55 0-1 .45-1 1v1H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.34 22h7.32c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18h-2v-2h2v2zm0-5c0 .55-.45 1-1 1s-1-.45-1-1v-3c0-.55.45-1 1-1s1 .45 1 1v3z"/></svg></span><div class="kx-row__body"><span class="kx-row__title">Keep running in the background</span><span class="kx-small" style="font-size:14px;line-height:20px">So the battery saver never switches Krypt off.</span><span class="kx-perm kx-perm--no" id="ind" role="img" aria-label="Not allowed yet" style="margin-top:4px"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3c-.39.39-1.02.39-1.41 0L12 13.41 9.11 16.3c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L10.59 12 7.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L12 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg>Not allowed yet</span><div style="margin-top:var(--space-3)"><button class="kx-btn kx-btn--sm" id="go">Allow in settings <svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 19H6c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1h5c.55 0 1-.45 1-1s-.45-1-1-1H5c-1.11 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-6c0-.55-.45-1-1-1s-1 .45-1 1v5c0 .55-.45 1-1 1zM14 4c0 .55.45 1 1 1h2.59l-9.13 9.13c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L19 6.41V9c0 .55.45 1 1 1s1-.45 1-1V4c0-.55-.45-1-1-1h-5c-.55 0-1 .45-1 1z"/></svg></button></div></div></div>
     </div>
     <span class="kx-tag" style="margin-top:var(--space-4)">OPTIONAL</span>
     <div class="kx-group">
+      <div class="kx-row" style="align-items:flex-start"><span class="kx-row__icon"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.67 4H14V3c0-.55-.45-1-1-1h-2c-.55 0-1 .45-1 1v1H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.34 22h7.32c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18h-2v-2h2v2zm0-5c0 .55-.45 1-1 1s-1-.45-1-1v-3c0-.55.45-1 1-1s1 .45 1 1v3z"/></svg></span><div class="kx-row__body"><span class="kx-row__title">Keep running in the background</span><span class="kx-small" style="font-size:14px;line-height:20px">So the battery saver never switches Krypt off.</span><span class="kx-perm kx-perm--no" id="ind" role="img" aria-label="Not allowed" style="margin-top:4px"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3c-.39.39-1.02.39-1.41 0L12 13.41 9.11 16.3c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L10.59 12 7.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L12 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg>Not allowed</span><div style="margin-top:var(--space-3)"><button class="kx-btn kx-btn--sm" id="go">Allow in settings <svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 19H6c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1h5c.55 0 1-.45 1-1s-.45-1-1-1H5c-1.11 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-6c0-.55-.45-1-1-1s-1 .45-1 1v5c0 .55-.45 1-1 1zM14 4c0 .55.45 1 1 1h2.59l-9.13 9.13c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L19 6.41V9c0 .55.45 1 1 1s1-.45 1-1V4c0-.55-.45-1-1-1h-5c-.55 0-1 .45-1 1z"/></svg></button></div></div></div>
       <div class="kx-row"><span class="kx-row__icon"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><g><path d="M17,11c0.34,0,0.67,0.04,1,0.09V7.58c0-0.8-0.47-1.52-1.2-1.83l-5.5-2.4c-0.51-0.22-1.09-0.22-1.6,0l-5.5,2.4 C3.47,6.07,3,6.79,3,7.58v3.6c0,4.54,3.2,8.79,7.5,9.82c0.55-0.13,1.08-0.32,1.6-0.55C11.41,19.47,11,18.28,11,17 C11,13.69,13.69,11,17,11z"/><path d="M17,13c-2.21,0-4,1.79-4,4c0,2.21,1.79,4,4,4s4-1.79,4-4C21,14.79,19.21,13,17,13z M17,14.38c0.62,0,1.12,0.51,1.12,1.12 s-0.51,1.12-1.12,1.12s-1.12-0.51-1.12-1.12S16.38,14.38,17,14.38z M17,19.75c-0.93,0-1.74-0.46-2.24-1.17 c0.05-0.72,1.51-1.08,2.24-1.08s2.19,0.36,2.24,1.08C18.74,19.29,17.93,19.75,17,19.75z"/></g></g></svg></span><div class="kx-row__body"><span class="kx-row__title">Make Krypt harder to remove</span><span class="kx-perm kx-perm--no"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3c-.39.39-1.02.39-1.41 0L12 13.41 9.11 16.3c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L10.59 12 7.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L12 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg>Not allowed</span></div><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71c-.39.39-.39 1.02 0 1.41L13.17 12l-3.88 3.88c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l4.59-4.59c.39-.39.39-1.02 0-1.41L10.7 6.7c-.38-.38-1.02-.38-1.41.01z"/></svg></div>
       <div class="kx-row"><span class="kx-row__icon"><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-1.29 1.29c-.63.63-.19 1.71.7 1.71h13.17c.89 0 1.34-1.08.71-1.71L18 16z"/></svg></span><div class="kx-row__body"><span class="kx-row__title">Alerts about new apps</span><span class="kx-perm kx-perm--no"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3c-.39.39-1.02.39-1.41 0L12 13.41 9.11 16.3c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L10.59 12 7.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L12 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg>Not allowed</span></div><svg class="kx-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71c-.39.39-.39 1.02 0 1.41L13.17 12l-3.88 3.88c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l4.59-4.59c.39-.39.39-1.02 0-1.41L10.7 6.7c-.38-.38-1.02-.38-1.41.01z"/></svg></div>
     </div>
   </div>
 </div></template><template id="tpl-MandatoryProgress"><style></style><div class="kx-stage">
   <div class="kx-specimen" style="gap:var(--space-5)">
-    <span class="kx-note">Counts only the 3 required</span>
-    <div style="display:flex;flex-direction:column;gap:var(--space-2)"><div class="kx-ticks" role="progressbar" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><span class="kx-tick"></span><span class="kx-tick"></span><span class="kx-tick"></span></div><span class="kx-small">0 of 3 required</span></div>
-    <div style="display:flex;flex-direction:column;gap:var(--space-2)"><div class="kx-ticks" role="progressbar" aria-valuemin="0" aria-valuemax="3" aria-valuenow="2"><span class="kx-tick kx-tick--on"></span><span class="kx-tick kx-tick--on"></span><span class="kx-tick"></span></div><span class="kx-small">2 of 3 required</span></div>
-    <div style="display:flex;flex-direction:column;gap:var(--space-2)"><div class="kx-ticks" role="progressbar" aria-valuemin="0" aria-valuemax="3" aria-valuenow="3"><span class="kx-tick kx-tick--on"></span><span class="kx-tick kx-tick--on"></span><span class="kx-tick kx-tick--on"></span></div><span class="kx-small" style="color:var(--granted)">3 of 3 required · ready</span></div>
+    <span class="kx-note">Counts only the 2 required</span>
+    <div style="display:flex;flex-direction:column;gap:var(--space-2)"><div class="kx-ticks" role="progressbar" aria-valuemin="0" aria-valuemax="2" aria-valuenow="0"><span class="kx-tick"></span><span class="kx-tick"></span></div><span class="kx-small">0 of 2 required</span></div>
+    <div style="display:flex;flex-direction:column;gap:var(--space-2)"><div class="kx-ticks" role="progressbar" aria-valuemin="0" aria-valuemax="2" aria-valuenow="1"><span class="kx-tick kx-tick--on"></span><span class="kx-tick"></span></div><span class="kx-small">1 of 2 required</span></div>
+    <div style="display:flex;flex-direction:column;gap:var(--space-2)"><div class="kx-ticks" role="progressbar" aria-valuemin="0" aria-valuemax="2" aria-valuenow="2"><span class="kx-tick kx-tick--on"></span><span class="kx-tick kx-tick--on"></span></div><span class="kx-small" style="color:var(--granted)">2 of 2 required · ready</span></div>
   </div>
   <div class="kx-specimen" style="gap:var(--space-3)">
     <span class="kx-note">Bottom of the checklist</span>
     <button class="kx-btn kx-btn--primary kx-btn--block" disabled>Start protecting</button>
-    <p class="kx-small" style="text-align:center">Allow the 3 required items to start.</p>
+    <p class="kx-small" style="text-align:center">Allow the 2 required items to start.</p>
     <span class="kx-note" style="margin-top:var(--space-4)">When ready</span>
     <button class="kx-btn kx-btn--primary kx-btn--block">Start protecting</button>
   </div>
@@ -1127,6 +1200,11 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
     <span class="kx-status kx-status--open"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g></g><g><g><path d="M18,11c0.7,0,1.37,0.1,2,0.29V10c0-1.1-0.9-2-2-2h-1V6c0-2.76-2.24-5-5-5S7,3.24,7,6v2H6c-1.1,0-2,0.9-2,2v10 c0,1.1,0.9,2,2,2h6.26C11.47,20.87,11,19.49,11,18C11,14.13,14.13,11,18,11z M9,6c0-1.66,1.34-3,3-3s3,1.34,3,3v2H9V6z"/><path d="M18,13c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S20.76,13,18,13z M20,20c-0.2,0.2-0.51,0.2-0.71,0l-1.65-1.65 c-0.09-0.09-0.15-0.22-0.15-0.35v-2.5c0-0.28,0.22-0.5,0.5-0.5h0c0.28,0,0.5,0.22,0.5,0.5v2.29l1.5,1.5 C20.2,19.49,20.2,19.8,20,20z"/></g></g></svg><span>Daily · 25 of 60 min left · until Sep 28</span></span>
     <span class="kx-status kx-status--caution"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><path d="M16,22c1.1,0,2-0.9,2-2l-0.01-3.18c0-0.53-0.21-1.03-0.58-1.41L14,12l3.41-3.43c0.37-0.37,0.58-0.88,0.58-1.41L18,4 c0-1.1-0.9-2-2-2H8C6.9,2,6,2.9,6,4v3.16C6,7.69,6.21,8.2,6.58,8.58L10,12l-3.41,3.4C6.21,15.78,6,16.29,6,16.82V20 c0,1.1,0.9,2,2,2H16z M8,7.09V5c0-0.55,0.45-1,1-1h6c0.55,0,1,0.45,1,1v2.09c0,0.27-0.11,0.52-0.29,0.71L12,11.5L8.29,7.79 C8.11,7.61,8,7.35,8,7.09z"/></g></svg><span>Daily · done for today · until Sep 28</span></span>
     <span class="kx-status kx-status--caution"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm-.22-13h-.06c-.4 0-.72.32-.72.72v4.72c0 .35.18.68.49.86l4.15 2.49c.34.2.78.1.98-.24.21-.34.1-.79-.25-.99l-3.87-2.3V7.72c0-.4-.32-.72-.72-.72z"/></svg><span>Daily · paused until automatic time is on</span></span>
+    <span class="kx-status kx-status--open"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g></g><g><g><path d="M18,11c0.7,0,1.37,0.1,2,0.29V10c0-1.1-0.9-2-2-2h-1V6c0-2.76-2.24-5-5-5S7,3.24,7,6v2H6c-1.1,0-2,0.9-2,2v10 c0,1.1,0.9,2,2,2h6.26C11.47,20.87,11,19.49,11,18C11,14.13,14.13,11,18,11z M9,6c0-1.66,1.34-3,3-3s3,1.34,3,3v2H9V6z"/><path d="M18,13c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S20.76,13,18,13z M20,20c-0.2,0.2-0.51,0.2-0.71,0l-1.65-1.65 c-0.09-0.09-0.15-0.22-0.15-0.35v-2.5c0-0.28,0.22-0.5,0.5-0.5h0c0.28,0,0.5,0.22,0.5,0.5v2.29l1.5,1.5 C20.2,19.49,20.2,19.8,20,20z"/></g></g></svg><span>Hourly · <span class="kx-mono">10</span> of 15 min left · until Sep 28</span></span>
+    <span class="kx-status kx-status--open"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g></g><g><g><path d="M18,11c0.7,0,1.37,0.1,2,0.29V10c0-1.1-0.9-2-2-2h-1V6c0-2.76-2.24-5-5-5S7,3.24,7,6v2H6c-1.1,0-2,0.9-2,2v10 c0,1.1,0.9,2,2,2h6.26C11.47,20.87,11,19.49,11,18C11,14.13,14.13,11,18,11z M9,6c0-1.66,1.34-3,3-3s3,1.34,3,3v2H9V6z"/><path d="M18,13c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S20.76,13,18,13z M20,20c-0.2,0.2-0.51,0.2-0.71,0l-1.65-1.65 c-0.09-0.09-0.15-0.22-0.15-0.35v-2.5c0-0.28,0.22-0.5,0.5-0.5h0c0.28,0,0.5,0.22,0.5,0.5v2.29l1.5,1.5 C20.2,19.49,20.2,19.8,20,20z"/></g></g></svg><span>Every 1 h 30 min · <span class="kx-mono">10</span> of 15 min left · until Sep 28</span></span>
+    <span class="kx-status kx-status--caution"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><path d="M16,22c1.1,0,2-0.9,2-2l-0.01-3.18c0-0.53-0.21-1.03-0.58-1.41L14,12l3.41-3.43c0.37-0.37,0.58-0.88,0.58-1.41L18,4 c0-1.1-0.9-2-2-2H8C6.9,2,6,2.9,6,4v3.16C6,7.69,6.21,8.2,6.58,8.58L10,12l-3.41,3.4C6.21,15.78,6,16.29,6,16.82V20 c0,1.1,0.9,2,2,2H16z M8,7.09V5c0-0.55,0.45-1,1-1h6c0.55,0,1,0.45,1,1v2.09c0,0.27-0.11,0.52-0.29,0.71L12,11.5L8.29,7.79 C8.11,7.61,8,7.35,8,7.09z"/></g></svg><span>Every 30 min · back at <span class="kx-mono">14:30</span> · until Sep 28</span></span>
+    <span class="kx-status kx-status--caution"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><path d="M16,22c1.1,0,2-0.9,2-2l-0.01-3.18c0-0.53-0.21-1.03-0.58-1.41L14,12l3.41-3.43c0.37-0.37,0.58-0.88,0.58-1.41L18,4 c0-1.1-0.9-2-2-2H8C6.9,2,6,2.9,6,4v3.16C6,7.69,6.21,8.2,6.58,8.58L10,12l-3.41,3.4C6.21,15.78,6,16.29,6,16.82V20 c0,1.1,0.9,2,2,2H16z M8,7.09V5c0-0.55,0.45-1,1-1h6c0.55,0,1,0.45,1,1v2.09c0,0.27-0.11,0.52-0.29,0.71L12,11.5L8.29,7.79 C8.11,7.61,8,7.35,8,7.09z"/></g></svg><span>Every 2 h · done · until Sep 28</span></span>
+    <span class="kx-status kx-status--caution"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm-.22-13h-.06c-.4 0-.72.32-.72.72v4.72c0 .35.18.68.49.86l4.15 2.49c.34.2.78.1.98-.24.21-.34.1-.79-.25-.99l-3.87-2.3V7.72c0-.4-.32-.72-.72-.72z"/></svg><span>Every 2 h · paused until automatic time is on</span></span>
     <span class="kx-status kx-status--none"><span>Not locked</span></span>
   </div>
   <div class="kx-specimen" style="width:240px">
@@ -1196,12 +1274,14 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 </div></template><template id="tpl-GuardianApproval"><style></style><div class="kx-stage">
   <div style="display:flex;flex-direction:column;gap:var(--space-3)">
     <span class="kx-note">Step 1 · Choose (try it)</span>
-    <div class="kx-phone gx-p1" style="height:700px">
+    <div class="kx-phone gx-p1" style="height:860px">
     <div class="kx-pad-x gx-s1" style="padding-top:var(--space-8);display:flex;flex-direction:column;gap:var(--space-5);flex:1;overflow:hidden">
       <div class="kx-head"><span class="kx-eyebrow"><svg class="kx-ic" viewBox="36 22 36 66" aria-hidden="true" style="width:9px;height:16px"><path fill="currentColor" d="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 32.4 C52 32.2 53 32.1 54 32.1 C55 32.1 56 32.2 57 32.4 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z"/></svg>ACCESS REQUEST</span><h1 class="kx-title">Instagram</h1><span class="kx-status kx-status--none"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><g><path d="M10,3h4c0.55,0,1-0.45,1-1c0-0.55-0.45-1-1-1h-4C9.45,1,9,1.45,9,2C9,2.55,9.45,3,10,3z"/><path d="M19.03,7.39l0.75-0.75c0.38-0.38,0.39-1.01,0-1.4c0,0-0.01-0.01-0.01-0.01c-0.39-0.39-1.01-0.38-1.4,0l-0.75,0.75 C16.07,4.74,14.12,4,12,4c-4.8,0-8.88,3.96-9,8.76C2.87,17.84,6.94,22,12,22c4.98,0,9-4.03,9-9C21,10.88,20.26,8.93,19.03,7.39z M13,13c0,0.55-0.45,1-1,1s-1-0.45-1-1V9c0-0.55,0.45-1,1-1s1,0.45,1,1V13z"/></g></g></svg><span>Sent 1 min ago · expires in <span class="kx-mono">4:00</span></span></span></div>
-      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="daily" aria-checked="false">Daily</button></div></div>
-      <div class="kx-field"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
-        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 1 to 1440 minutes.</span></div></div>
+      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="repeat" aria-checked="false">Repeating</button><button role="radio" data-g="kind" data-v="good" aria-checked="false">For good</button></div></div>
+      <div class="kx-field gx-every" hidden><span class="kx-field__label">Every</span><div class="kx-chips" role="radiogroup" aria-label="Every"><button class="kx-chip" role="radio" data-g="period" data-v="30" aria-checked="false">30 min</button><button class="kx-chip" role="radio" data-g="period" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="period" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="240" aria-checked="false">4 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="360" aria-checked="false">6 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="720" aria-checked="false">12 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="1440" aria-checked="true">Day</button><button class="kx-chip" role="radio" data-g="period" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-pcustom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-pcustom-box" style="cursor:text"><input class="gx-pinput" type="text" inputmode="decimal" value="1.5" aria-label="Hours, 5 minutes to 24 hours" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">hours</span></label><span class="kx-field__msg kx-field__msg--error gx-perr" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 5 minutes to 24 hours, like 1.5 or 1:30.</span></div></div>
+      <div class="kx-field gx-long"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="5" aria-checked="false">5 min</button><button class="kx-chip" role="radio" data-g="min" data-v="10" aria-checked="false">10 min</button><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg><span class="gx-max">Choose 1 to 1440 minutes.</span></span></div></div>
       <div class="kx-field gx-days" hidden><span class="kx-field__label">For how many days</span><div class="kx-chips" role="radiogroup" aria-label="For how many days"><button class="kx-chip" role="radio" data-g="days" data-v="3" aria-checked="false">3 days</button><button class="kx-chip" role="radio" data-g="days" data-v="7" aria-checked="true">7 days</button><button class="kx-chip" role="radio" data-g="days" data-v="14" aria-checked="false">14 days</button><button class="kx-chip" role="radio" data-g="days" data-v="30" aria-checked="false">30 days</button></div></div>
       <p class="kx-sentence" data-sentence role="status" style="margin-top:var(--space-2)">Instagram, <em>30 minutes</em>, once.</p>
     </div>
@@ -1210,12 +1290,14 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
   </div>
   <div style="display:flex;flex-direction:column;gap:var(--space-3)">
     <span class="kx-note">Step 2 · Confirm with PIN (sheet)</span>
-    <div class="kx-phone gx-p2" style="height:700px" aria-hidden="false">
+    <div class="kx-phone gx-p2" style="height:860px" aria-hidden="false">
       <div class="gx-behind" aria-hidden="true" inert style="display:flex;flex-direction:column;height:100%"><div class="kx-pad-x gx-s1" style="padding-top:var(--space-8);display:flex;flex-direction:column;gap:var(--space-5);flex:1;overflow:hidden">
       <div class="kx-head"><span class="kx-eyebrow"><svg class="kx-ic" viewBox="36 22 36 66" aria-hidden="true" style="width:9px;height:16px"><path fill="currentColor" d="M38.5 47 C38.5 43.5 39.4 40.2 41 37.4 L42 26.5 C42.3 24.3 44.6 23.6 46 25.1 L51 32.4 C52 32.2 53 32.1 54 32.1 C55 32.1 56 32.2 57 32.4 L62 25.1 C63.4 23.6 65.7 24.3 66 26.5 L67 37.4 C68.6 40.2 69.5 43.5 69.5 47 C69.5 52.6 66.6 57.5 62.2 60.3 L66.5 81 A3.5 3.5 0 0 1 63 85 H45 A3.5 3.5 0 0 1 41.5 81 L45.8 60.3 C41.4 57.5 38.5 52.6 38.5 47 Z"/></svg>ACCESS REQUEST</span><h1 class="kx-title">Instagram</h1><span class="kx-status kx-status--none"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><g><rect fill="none" height="24" width="24"/><rect fill="none" height="24" width="24"/></g><g><g><path d="M10,3h4c0.55,0,1-0.45,1-1c0-0.55-0.45-1-1-1h-4C9.45,1,9,1.45,9,2C9,2.55,9.45,3,10,3z"/><path d="M19.03,7.39l0.75-0.75c0.38-0.38,0.39-1.01,0-1.4c0,0-0.01-0.01-0.01-0.01c-0.39-0.39-1.01-0.38-1.4,0l-0.75,0.75 C16.07,4.74,14.12,4,12,4c-4.8,0-8.88,3.96-9,8.76C2.87,17.84,6.94,22,12,22c4.98,0,9-4.03,9-9C21,10.88,20.26,8.93,19.03,7.39z M13,13c0,0.55-0.45,1-1,1s-1-0.45-1-1V9c0-0.55,0.45-1,1-1s1,0.45,1,1V13z"/></g></g></svg><span>Sent 1 min ago · expires in <span class="kx-mono">4:00</span></span></span></div>
-      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="daily" aria-checked="false">Daily</button></div></div>
-      <div class="kx-field"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
-        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 1 to 1440 minutes.</span></div></div>
+      <div class="kx-field"><span class="kx-field__label">How often</span><div class="kx-seg" role="radiogroup" aria-label="How often"><button role="radio" data-g="kind" data-v="once" aria-checked="true">Once</button><button role="radio" data-g="kind" data-v="repeat" aria-checked="false">Repeating</button><button role="radio" data-g="kind" data-v="good" aria-checked="false">For good</button></div></div>
+      <div class="kx-field gx-every" hidden><span class="kx-field__label">Every</span><div class="kx-chips" role="radiogroup" aria-label="Every"><button class="kx-chip" role="radio" data-g="period" data-v="30" aria-checked="false">30 min</button><button class="kx-chip" role="radio" data-g="period" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="period" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="240" aria-checked="false">4 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="360" aria-checked="false">6 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="720" aria-checked="false">12 hours</button><button class="kx-chip" role="radio" data-g="period" data-v="1440" aria-checked="true">Day</button><button class="kx-chip" role="radio" data-g="period" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-pcustom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-pcustom-box" style="cursor:text"><input class="gx-pinput" type="text" inputmode="decimal" value="1.5" aria-label="Hours, 5 minutes to 24 hours" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">hours</span></label><span class="kx-field__msg kx-field__msg--error gx-perr" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 5 minutes to 24 hours, like 1.5 or 1:30.</span></div></div>
+      <div class="kx-field gx-long"><span class="kx-field__label">For how long</span><div class="kx-chips" role="radiogroup" aria-label="For how long"><button class="kx-chip" role="radio" data-g="min" data-v="5" aria-checked="false">5 min</button><button class="kx-chip" role="radio" data-g="min" data-v="10" aria-checked="false">10 min</button><button class="kx-chip" role="radio" data-g="min" data-v="15" aria-checked="false">15 min</button><button class="kx-chip" role="radio" data-g="min" data-v="30" aria-checked="true">30 min</button><button class="kx-chip" role="radio" data-g="min" data-v="60" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" data-g="min" data-v="120" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" data-g="min" data-v="custom" aria-checked="false">Custom</button></div>
+        <div class="gx-custom" hidden style="margin-top:var(--space-2);display:flex;flex-direction:column;gap:6px"><label class="kx-field__box gx-custom-box" style="cursor:text"><input class="gx-input" type="number" inputmode="numeric" min="1" max="1440" value="45" aria-label="Minutes, 1 to 1440" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit"><span class="kx-small">minutes</span></label><span class="kx-field__msg kx-field__msg--error gx-err" hidden><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg><span class="gx-max">Choose 1 to 1440 minutes.</span></span></div></div>
       <div class="kx-field gx-days" hidden><span class="kx-field__label">For how many days</span><div class="kx-chips" role="radiogroup" aria-label="For how many days"><button class="kx-chip" role="radio" data-g="days" data-v="3" aria-checked="false">3 days</button><button class="kx-chip" role="radio" data-g="days" data-v="7" aria-checked="true">7 days</button><button class="kx-chip" role="radio" data-g="days" data-v="14" aria-checked="false">14 days</button><button class="kx-chip" role="radio" data-g="days" data-v="30" aria-checked="false">30 days</button></div></div>
       <p class="kx-sentence" data-sentence role="status" style="margin-top:var(--space-2)">Instagram, <em>30 minutes</em>, once.</p>
     </div>
@@ -1234,23 +1316,34 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 </div></template><template id="tpl-DurationChips"><style></style><div class="kx-stage">
   <div class="kx-specimen" style="width:340px;gap:var(--space-6)">
     <div class="kx-field"><span class="kx-field__label">How often</span>
-      <div class="kx-seg" role="radiogroup" aria-label="How often" data-g="k"><button role="radio" aria-checked="false">Once</button><button role="radio" aria-checked="true">Daily</button></div></div>
+      <div class="kx-seg" role="radiogroup" aria-label="How often" data-g="k"><button role="radio" aria-checked="false">Once</button><button role="radio" aria-checked="true">Repeating</button><button role="radio" aria-checked="false">For good</button></div></div>
+    <div class="kx-field"><span class="kx-field__label">Every</span>
+      <div class="kx-chips" role="radiogroup" aria-label="Every" data-g="p"><button class="kx-chip" role="radio" aria-checked="false">30 min</button><button class="kx-chip" role="radio" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" aria-checked="false">4 hours</button><button class="kx-chip" role="radio" aria-checked="false">6 hours</button><button class="kx-chip" role="radio" aria-checked="false">12 hours</button><button class="kx-chip" role="radio" aria-checked="false">Day</button><button class="kx-chip" role="radio" aria-checked="true" data-c>Custom</button></div>
+      <div id="pf" style="display:flex;flex-direction:column;gap:6px;margin-top:var(--space-2)"><div class="kx-field__box"><span style="flex:1">1.5</span><span class="kx-small">hours</span></div></div></div>
     <div class="kx-field"><span class="kx-field__label">For how long</span>
-      <div class="kx-chips" role="radiogroup" data-g="m"><button class="kx-chip" role="radio" aria-checked="false">15 min</button><button class="kx-chip" role="radio" aria-checked="false">30 min</button><button class="kx-chip" role="radio" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" aria-checked="false">2 hours</button><button class="kx-chip" role="radio" aria-checked="true" data-c>Custom</button></div>
-      <div id="mf" style="display:flex;flex-direction:column;gap:6px;margin-top:var(--space-2)"><div class="kx-field__box kx-field__box--error"><span style="flex:1">2000</span><span class="kx-small">minutes</span></div><span class="kx-field__msg kx-field__msg--error"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 1 to 1440 minutes.</span></div></div>
+      <div class="kx-chips" role="radiogroup" data-g="m"><button class="kx-chip" role="radio" aria-checked="false">15 min</button><button class="kx-chip" role="radio" aria-checked="false">30 min</button><button class="kx-chip" role="radio" aria-checked="false">1 hour</button><button class="kx-chip" role="radio" aria-checked="true" data-c>Custom</button></div>
+      <div id="mf" style="display:flex;flex-direction:column;gap:6px;margin-top:var(--space-2)"><div class="kx-field__box kx-field__box--error"><span style="flex:1">200</span><span class="kx-small">minutes</span></div><span class="kx-field__msg kx-field__msg--error"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z"/></svg>Choose 1 to 90 minutes.</span></div></div>
     <div class="kx-field"><span class="kx-field__label">For how many days</span>
       <div class="kx-chips" role="radiogroup" data-g="d"><button class="kx-chip" role="radio" aria-checked="false">3 days</button><button class="kx-chip" role="radio" aria-checked="true">7 days</button><button class="kx-chip" role="radio" aria-checked="false">14 days</button><button class="kx-chip" role="radio" aria-checked="false">30 days</button><button class="kx-chip" role="radio" aria-checked="false">Custom</button></div>
-      <div class="kx-note-panel" style="margin-top:var(--space-2)"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1-8h-2V7h2v2z"/></svg><span>Today counts as day 1, including time already used. Need more time today? Choose Once.</span></div></div>
+      <div class="kx-note-panel" style="margin-top:var(--space-2)"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1-8h-2V7h2v2z"/></svg><span>Periods follow the clock from midnight: 00:00, 01:30, 03:00 and so on. Time already used in this one counts. Need more right now? Choose Once.</span></div></div>
   </div>
 </div></template><template id="tpl-SummarySentence"><style></style><div class="kx-stage">
   <div class="kx-specimen" style="width:320px">
     <span class="kx-note">Once</span>
     <p class="kx-sentence" role="status">Instagram, <em>30 minutes</em>, once.</p>
-    <span class="kx-note" style="margin-top:var(--space-4)">Daily</span>
-    <p class="kx-sentence" role="status">Instagram, <em>1 hour a day</em> for 7 days.</p>
+    <span class="kx-note" style="margin-top:var(--space-4)">Repeating, every day</span>
+    <p class="kx-sentence" role="status">Instagram, <em>1 hour</em> a day for 7 days.</p>
+    <span class="kx-note" style="margin-top:var(--space-4)">Repeating, every hour</span>
+    <p class="kx-sentence" role="status">Instagram, <em>15 minutes</em> an hour for 7 days.</p>
   </div>
   <div class="kx-specimen" style="width:320px">
-    <span class="kx-note">App not on this phone</span>
+    <span class="kx-note">Repeating, every 2 hours</span>
+    <p class="kx-sentence" role="status">Instagram, <em>30 minutes</em> every 2 hours for 7 days.</p>
+    <span class="kx-note" style="margin-top:var(--space-4)">Repeating, every 1.5 hours (typed)</span>
+    <p class="kx-sentence" role="status">Instagram, <em>15 minutes</em> every 90 minutes for 7 days.</p>
+    <span class="kx-note" style="margin-top:var(--space-4)">For good</span>
+    <p class="kx-sentence" role="status">Instagram, <em>unlocked for good</em>.</p>
+    <span class="kx-note" style="margin-top:var(--space-4)">App not on this phone</span>
     <p class="kx-sentence"><span class="kx-mono" style="font-size:18px">com.instagram.android</span>, <em>30 minutes</em>, once.</p>
   </div>
 </div></template><template id="tpl-PasteLink"><style></style><div class="kx-stage">
@@ -1267,7 +1360,9 @@ td{padding:10px 12px;vertical-align:top;box-shadow:inset 0 -1px 0 var(--outline-
 </div></template><template id="tpl-Toast"><style></style><div class="kx-stage" style="flex-direction:column;gap:var(--space-3)">
   <span class="kx-toast" role="status">Instagram is open until 14:35</span>
   <span class="kx-toast" role="status">Instagram: 1 hour a day until Sep 28</span>
+  <span class="kx-toast" role="status">Instagram: 30 minutes every 2 hours until Sep 28</span>
   <span class="kx-toast" role="status">Instagram: daily time is set, but today's is used up</span>
+  <span class="kx-toast" role="status">Instagram: repeating time is set, but it's used up for now</span>
   <span class="kx-toast" role="alert">This reply doesn't match a waiting request</span>
 </div></template><template id="tpl-UnlockFlash"><style></style><div class="kx-stage">
   <div class="kx-phone" style="height:400px;width:300px">
@@ -1321,8 +1416,8 @@ setInterval(function(){s=s>1?s-1:30;t.textContent='0:'+String(s).padStart(2,'0')
 
 },"PermissionStep":function(root){
 
-var Y='<svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9.29 16.29 5.7 12.7c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L10 14.17l6.88-6.88c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-7.59 7.59c-.38.39-1.02.39-1.41 0z"/></svg>Allowed',N='<svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3c-.39.39-1.02.39-1.41 0L12 13.41 9.11 16.3c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L10.59 12 7.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L12 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg>Not allowed yet';
-root.getElementById('go').onclick=function(){var e=root.getElementById('ind'),y=e.classList.contains('kx-perm--yes');e.className='kx-perm '+(y?'kx-perm--no':'kx-perm--yes');e.innerHTML=y?N:Y;e.setAttribute('aria-label',y?'Not allowed yet':'Allowed');};
+var Y='<svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9.29 16.29 5.7 12.7c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L10 14.17l6.88-6.88c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-7.59 7.59c-.38.39-1.02.39-1.41 0z"/></svg>Allowed',N='<svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3c-.39.39-1.02.39-1.41 0L12 13.41 9.11 16.3c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41L10.59 12 7.7 9.11c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0L12 10.59l2.89-2.89c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z"/></svg>Not allowed';
+root.getElementById('go').onclick=function(){var e=root.getElementById('ind'),y=e.classList.contains('kx-perm--yes');e.className='kx-perm '+(y?'kx-perm--no':'kx-perm--yes');e.innerHTML=y?N:Y;e.setAttribute('aria-label',y?'Not allowed':'Allowed');};
 
 },"AppRow":function(root){
 root.querySelectorAll('.kx-switch').forEach(function(s){s.onclick=function(e){e.stopPropagation();s.setAttribute('aria-checked',s.getAttribute('aria-checked')==='true'?'false':'true');};});
@@ -1331,25 +1426,69 @@ var s=299,e=root.getElementById('t');setInterval(function(){s=s>0?s-1:299;e.text
 },"GuardianApproval":function(root){
 
 (function(){
-  var st={kind:'once',min:'30',days:'7',custom:45};
+  var st={kind:'once',period:'1440',hours:'1.5',min:'30',days:'7',custom:45};
   var p1=root.querySelector('.gx-p1'), behind=root.querySelector('.gx-behind');
   function minutes(){return st.min==='custom'?st.custom:parseInt(st.min,10);}
   function dur(m){if(m%60===0){var h=m/60;return h+(h===1?' hour':' hours');}return m+(m===1?' minute':' minutes');}
-  function valid(){var m=minutes();return m>=1&&m<=1440&&Math.floor(m)===m;}
-  function sentence(){var d=dur(minutes());return st.kind==='once'?'Instagram, <em>'+d+'</em>, once.':'Instagram, <em>'+d+' a day</em> for '+st.days+' days.';}
+  // A typed period, in hours, as minutes: "1.5", "1,5" and "1:30" are 90, "0.5" is 30, "5" is 300.
+  // Null unless it comes to 5 minutes to 24 hours.
+  function typed(t){
+    var m;
+    if(t.indexOf(':')>=0){
+      var p=t.split(':');
+      if(p.length!==2||!/^\d+$/.test(p[0])||!/^\d+$/.test(p[1])||+p[0]>24||+p[1]>59)return null;
+      m=(+p[0])*60+(+p[1]);
+    }else{
+      var h=Number(t.replace(',','.'));
+      if(t===''||!isFinite(h)||h<=0||h>24)return null;
+      m=Math.round(h*60);
+    }
+    return m>=5&&m<=1440?m:null;
+  }
+  // Repeating time comes back every period, in minutes: a chip, or typed; a day is 1440. Null while a typed one can't be used.
+  function period(){if(st.kind!=='repeat')return 1440;return st.period==='custom'?typed(st.hours):parseInt(st.period,10);}
+  function maxMin(){var p=period();return st.kind==='repeat'&&p!==null?p:1440;}
+  // When repeating, only chips shorter than the period are shown; an hour or less gets 5, 10, 15 and 30 min.
+  function shown(){var p=period();if(st.kind!=='repeat'||p===null)return [15,30,60,120];return (p<=60?[5,10,15,30]:[15,30,60,120]).filter(function(m){return m<p;});}
+  // A chip no longer shown becomes the largest one that is (with none shown, it stays as it was).
+  function fit(){if(st.min==='custom')return;var m=parseInt(st.min,10),s=shown();if(s.indexOf(m)>=0||!s.length)return;var f=s.filter(function(x){return x<=m;});st.min=String(f.length?f[f.length-1]:s[0]);}
+  function minutesOk(){var m=minutes();return m>=1&&m<=maxMin()&&Math.floor(m)===m;}
+  function periodBad(){return st.kind==='repeat'&&st.period==='custom'&&st.hours!==''&&period()===null;}
+  function valid(){if(st.kind==='good')return true;return minutesOk()&&period()!==null;}
+  function sentence(){
+    if(st.kind==='good')return 'Instagram, <em>unlocked for good</em>.';
+    var d=dur(minutes());
+    if(st.kind==='once')return 'Instagram, <em>'+d+'</em>, once.';
+    var p=period();
+    return 'Instagram, <em>'+d+'</em>'+(p===1440?' a day':p===60?' an hour':' every '+dur(p))+' for '+st.days+' days.';
+  }
+  // .kx-field sets display:flex, so hidden alone would not hide it.
+  function show(e,on){e.hidden=!on;e.style.display=on?'':'none';}
   function sync(){
+    fit();
     root.querySelectorAll('[data-g]').forEach(function(b){b.setAttribute('aria-checked',st[b.dataset.g]===b.dataset.v?'true':'false');});
-    root.querySelectorAll('.gx-days').forEach(function(e){e.hidden=st.kind!=='daily';});
+    root.querySelectorAll('[data-g="min"]').forEach(function(b){show(b,b.dataset.v==='custom'||shown().indexOf(parseInt(b.dataset.v,10))>=0);});
+    root.querySelectorAll('.gx-every, .gx-days').forEach(function(e){show(e,st.kind==='repeat');});
+    root.querySelectorAll('.gx-long').forEach(function(e){show(e,st.kind!=='good');});
+    root.querySelectorAll('.gx-pcustom').forEach(function(e){e.hidden=st.period!=='custom';e.style.display=e.hidden?'none':'flex';});
+    var pbad=periodBad();
+    root.querySelectorAll('.gx-perr').forEach(function(e){e.hidden=!pbad;e.style.display=pbad?'flex':'none';});
+    root.querySelectorAll('.gx-pcustom-box').forEach(function(e){e.classList.toggle('kx-field__box--error',pbad);});
     root.querySelectorAll('.gx-custom').forEach(function(e){e.hidden=st.min!=='custom';e.style.display=e.hidden?'none':'flex';});
-    var ok=valid();
-    root.querySelectorAll('.gx-err').forEach(function(e){e.hidden=ok;e.style.display=ok?'none':'flex';});
-    root.querySelectorAll('.gx-custom-box').forEach(function(e){e.classList.toggle('kx-field__box--error',!ok);});
+    // The minutes field shows its own error only for a typed number that can't be used.
+    var mbad=st.min==='custom'&&!isNaN(st.custom)&&!minutesOk(),ok=valid(),n=maxMin();
+    root.querySelectorAll('.gx-err').forEach(function(e){e.hidden=!mbad;e.style.display=mbad?'flex':'none';});
+    root.querySelectorAll('.gx-max').forEach(function(e){e.textContent='Choose 1 to '+n+(n===1?' minute.':' minutes.');});
+    root.querySelectorAll('.gx-custom-box').forEach(function(e){e.classList.toggle('kx-field__box--error',mbad);});
     root.querySelectorAll('[data-sentence]').forEach(function(e){e.style.visibility=ok?'visible':'hidden';if(ok)e.innerHTML=sentence();});
     root.querySelectorAll('.gx-continue').forEach(function(b){b.disabled=!ok;});
-    root.querySelectorAll('.gx-input').forEach(function(i){var ae=(typeof root!=='undefined'&&root.activeElement)||document.activeElement;if(ae!==i)i.value=st.custom;});
+    root.querySelectorAll('.gx-input').forEach(function(i){i.max=n;i.setAttribute('aria-label','Minutes, 1 to '+n);var ae=(typeof root!=='undefined'&&root.activeElement)||document.activeElement;if(ae!==i)i.value=st.custom;});
+    root.querySelectorAll('.gx-pinput').forEach(function(i){var ae=(typeof root!=='undefined'&&root.activeElement)||document.activeElement;if(ae!==i)i.value=st.hours;});
   }
   p1.querySelectorAll('[data-g]').forEach(function(b){b.onclick=function(){st[b.dataset.g]=b.dataset.v;sync();};});
   p1.querySelector('.gx-input').oninput=function(e){st.custom=e.target.value===''?NaN:Number(e.target.value);sync();};
+  // Hours, as the app takes them: digits and . , : only, at most 5 characters.
+  p1.querySelector('.gx-pinput').oninput=function(e){var v=e.target.value.replace(/[^0-9.,:]/g,'').slice(0,5);if(v!==e.target.value)e.target.value=v;st.hours=v;sync();};
   var pin=0,max=8,busy=false,dots=root.querySelector('.gx-dots'),msg=root.querySelector('.gx-msg'),ap=root.querySelector('.gx-approve');
   function draw(){var h='';for(var i=0;i<max;i++)h+='<span class="kx-dot'+(i<pin?' kx-dot--on':(i>=4?' kx-dot--opt':''))+'"></span>';dots.innerHTML=h;dots.setAttribute('aria-label','Guardian PIN, '+pin+' digits entered');ap.disabled=pin<4||busy;}
   root.querySelectorAll('.gx-k').forEach(function(k){k.onclick=function(){if(busy)return;pin=k.dataset.k==='del'?Math.max(0,pin-1):Math.min(max,pin+1);msg.textContent='Your PIN never leaves this phone.';draw();};});
@@ -1361,7 +1500,7 @@ var s=299,e=root.getElementById('t');setInterval(function(){s=s>0?s-1:299;e.text
 
 },"DurationChips":function(root){
 
-root.querySelectorAll('[role=radiogroup]').forEach(function(g){g.querySelectorAll('button').forEach(function(c){c.onclick=function(){g.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-checked','false');});c.setAttribute('aria-checked','true');if(g.dataset.g==='m')root.getElementById('mf').style.display=c.hasAttribute('data-c')?'flex':'none';};});});
+root.querySelectorAll('[role=radiogroup]').forEach(function(g){g.querySelectorAll('button').forEach(function(c){c.onclick=function(){g.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-checked','false');});c.setAttribute('aria-checked','true');if(g.dataset.g==='m')root.getElementById('mf').style.display=c.hasAttribute('data-c')?'flex':'none';if(g.dataset.g==='p')root.getElementById('pf').style.display=c.hasAttribute('data-c')?'flex':'none';};});});
 
 },"UnlockFlash":function(root){
 

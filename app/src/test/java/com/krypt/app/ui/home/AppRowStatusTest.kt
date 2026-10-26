@@ -27,7 +27,7 @@ class AppRowStatusTest {
 
     @Test
     fun everyDayTime_showsWhatIsLeftToday_roundedUp() {
-        val daily = DailyAccess.Available(remainingMs = 17 * 60_000L + 1, minutesPerDay = 60, lastDay = LAST_DAY)
+        val daily = DailyAccess.Available(remainingMs = 17 * 60_000L + 1, minutes = 60, lastDay = LAST_DAY)
 
         assertEquals(
             AppRowStatus.Daily(DailyLine.Left(18, 60, LAST_DAY)),
@@ -44,6 +44,31 @@ class AppRowStatusTest {
         assertEquals(
             AppRowStatus.Daily(DailyLine.Paused(60, LAST_DAY)),
             appRowStatus(isLocked = true, grantRemainingMs = 0, daily = DailyAccess.Paused(60, LAST_DAY)),
+        )
+    }
+
+    @Test
+    fun timeEveryFewHours_keepsItsPeriod_andWhenItComesBack() {
+        val backAt = 1_790_000_000_000L
+        assertEquals(
+            AppRowStatus.Daily(DailyLine.Left(10, 15, LAST_DAY, periodMinutes = 60)),
+            appRowStatus(
+                isLocked = true,
+                grantRemainingMs = 0,
+                daily = DailyAccess.Available(10 * 60_000L, 15, LAST_DAY, periodMinutes = 60),
+            ),
+        )
+        assertEquals(
+            AppRowStatus.Daily(DailyLine.UsedUp(30, LAST_DAY, periodMinutes = 120, backAtMs = backAt)),
+            appRowStatus(
+                isLocked = true,
+                grantRemainingMs = 0,
+                daily = DailyAccess.UsedUp(30, LAST_DAY, periodMinutes = 120, backAtMs = backAt),
+            ),
+        )
+        assertEquals(
+            AppRowStatus.Daily(DailyLine.Paused(30, LAST_DAY, periodMinutes = 120)),
+            appRowStatus(isLocked = true, grantRemainingMs = 0, daily = DailyAccess.Paused(30, LAST_DAY, periodMinutes = 120)),
         )
     }
 

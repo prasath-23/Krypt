@@ -21,6 +21,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import com.krypt.app.R
+import com.krypt.app.data.daily.DailyAllowance
+import com.krypt.app.ui.common.clockText
 import com.krypt.app.ui.common.dayText
 import com.krypt.app.ui.home.AppRowStatus
 import com.krypt.app.ui.home.DailyLine
@@ -90,15 +92,51 @@ fun statusText(status: AppRowStatus, endsAt: String? = null): AnnotatedString {
 @Composable
 private fun dailyText(line: DailyLine, mono: SpanStyle): AnnotatedString {
     val until = dayText(LocalContext.current, line.lastDay, ZoneId.systemDefault())
+    if (line.periodMinutes != DailyAllowance.DAY_MINUTES) return periodText(line, until, mono)
     return when (line) {
         is DailyLine.Left -> styledFormat(
             pluralStringResource(R.plurals.home_status_daily_left, line.minutesLeft),
             StyledArg(line.minutesLeft.toString(), mono),
-            StyledArg(line.minutesPerDay.toString()),
+            StyledArg(line.minutes.toString()),
             StyledArg(until),
         )
         is DailyLine.UsedUp -> AnnotatedString(stringResource(R.string.home_status_daily_used_up, until))
         is DailyLine.Paused -> AnnotatedString(stringResource(R.string.home_status_daily_paused))
+    }
+}
+
+/** Every-day time in periods shorter than a day: "Every 2 h · 20 of 30 min left · until Sep 28". */
+@Composable
+private fun periodText(line: DailyLine, until: String, mono: SpanStyle): AnnotatedString {
+    val minutes = line.periodMinutes
+    val period = when {
+        minutes == 60 -> stringResource(R.string.home_period_hourly)
+        minutes < 60 -> stringResource(R.string.home_period_minutes, minutes)
+        minutes % 60 == 0 -> stringResource(R.string.home_period_hours, minutes / 60)
+        else -> stringResource(R.string.home_period_hours_minutes, minutes / 60, minutes % 60)
+    }
+    return when (line) {
+        is DailyLine.Left -> styledFormat(
+            pluralStringResource(R.plurals.home_status_period_left, line.minutesLeft),
+            StyledArg(period),
+            StyledArg(line.minutesLeft.toString(), mono),
+            StyledArg(line.minutes.toString()),
+            StyledArg(until),
+        )
+        is DailyLine.UsedUp -> {
+            val backAt = line.backAtMs
+            if (backAt != null) {
+                styledFormat(
+                    stringResource(R.string.home_status_period_used_up),
+                    StyledArg(period),
+                    StyledArg(clockText(LocalContext.current, backAt), mono),
+                    StyledArg(until),
+                )
+            } else {
+                AnnotatedString(stringResource(R.string.home_status_period_done, period, until))
+            }
+        }
+        is DailyLine.Paused -> AnnotatedString(stringResource(R.string.home_status_period_paused, period))
     }
 }
 

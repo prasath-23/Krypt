@@ -6,9 +6,9 @@ The Guardian's approval in two steps, so the keypad is never inside a scrolling 
 
 **States in the sheet:** typing; checking (dots breathe, "Checking…"); wrong PIN (dots shake and clear, "That PIN isn't right. 2 tries left."); lockout (LockoutCountdown replaces the keypad; the sheet stays open). After success the share sheet opens and the screen shows `display-large` "Sent." with "You can close this screen."
 
-**The consumer provides** `GuardianPinState` and calls `setKind()` / `pickMinutes()` / `editMinutes()` / `pickDays()` / `editDays()` on step 1 and `approve(pin)` on step 2. No ViewModel change: step 2 is presentation only.
+**The consumer provides** `GuardianPinState` and calls `setKind()` / `pickPeriod()` / `editPeriod()` / `pickMinutes()` / `editMinutes()` / `pickDays()` / `editDays()` on step 1 and `approve(pin)` on step 2. No ViewModel change: step 2 is presentation only.
 
-**Live behaviour (as in the card):** changing Once / Daily, a duration chip, the days or a custom value updates the SummarySentence on both steps at once; Daily reveals the days chips; an invalid custom value shows "Choose 1 to 1440 minutes.", hides the sentence and disables Continue. In the sheet the keypad fills the 8 dots, and Approve and send enables at 4 digits.
+**Live behaviour (as in the card):** changing Once / Repeating / For good, the period, a duration chip, the days or a custom value updates the SummarySentence on both steps at once. Repeating reveals the Every chips and the days chips. A period shorter than a day hides the duration chips that don't fit in it ("Instagram, 30 minutes every 2 hours for 7 days."), and one of an hour or less offers 5, 10, 15 and 30 min instead. Custom in Every reveals the Hours field: "1.5" reads "every 90 minutes", and a period outside 5 minutes to 24 hours shows "Choose 5 minutes to 24 hours, like 1.5 or 1:30." For good hides the duration rows ("Instagram, unlocked for good."). An invalid custom value shows its error ("Choose 1 to N minutes.", where N is 1440, or the period's minutes when repeating, e.g. 90), hides the sentence and disables Continue. In the sheet the keypad fills the 8 dots, and Approve and send enables at 4 digits.
 
 **Rules**
 - `FLAG_SECURE` covers the whole activity, the sheet included.

@@ -35,8 +35,9 @@ import javax.inject.Inject
 /**
  * e2e test for the onboarding mandatory-permission gate (FR-027, SC-009).
  * First run opens on "who is this phone for?"; protecting it leads to one
- * checklist whose Start protecting stays disabled until the three required
- * permissions are allowed.
+ * checklist whose Start protecting stays disabled until the two required
+ * permissions are allowed (Accessibility and Overlay; the battery exemption
+ * is optional since Amendment 5).
  *
  * Uses [FakeE2EPermissionStatusProbe] so permission state is driven
  * programmatically without actual OS-level grants.
@@ -97,21 +98,22 @@ class OnboardingMandatoryGateE2ETest {
     }
 
     @Test
-    fun startProtectingDisabled_withTwoOfThreeMandatoryPermissions() {
-        grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY, PermissionKey.NOTIFICATIONS)
+    fun startProtectingDisabled_withOneOfTwoMandatoryPermissions() {
+        // The battery exemption and notifications are optional: they don't count.
+        grant(PermissionKey.ACCESSIBILITY, PermissionKey.BATTERY, PermissionKey.NOTIFICATIONS)
         ActivityScenario.launch(MainActivity::class.java).use {
             openChecklist()
-            composeRule.onNodeWithText("2 of 3 required").assertExists()
+            composeRule.onNodeWithText("1 of 2 required").assertExists()
             composeRule.onNodeWithText("Start protecting").assertIsNotEnabled()
         }
     }
 
     @Test
     fun startProtectingEnabled_whenAllMandatoryGranted() {
-        grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY, PermissionKey.BATTERY)
+        grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY)
         ActivityScenario.launch(MainActivity::class.java).use {
             openChecklist()
-            composeRule.onNodeWithText("3 of 3 required · ready").assertExists()
+            composeRule.onNodeWithText("2 of 2 required · ready").assertExists()
             composeRule.onNodeWithText("Start protecting").assertIsEnabled()
         }
     }
@@ -119,12 +121,12 @@ class OnboardingMandatoryGateE2ETest {
     /** There is no Skip any more: an optional item is skipped by leaving it alone. */
     @Test
     fun optionalItems_needNoSkip_andNeverBlockStartProtecting() {
-        grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY, PermissionKey.BATTERY)
+        grant(PermissionKey.ACCESSIBILITY, PermissionKey.OVERLAY)
         ActivityScenario.launch(MainActivity::class.java).use {
             openChecklist()
             composeRule.onNodeWithText("OPTIONAL").assertExists()
-            // Device Admin and Notifications, left alone.
-            composeRule.onAllNodesWithText("Not allowed").assertCountEquals(2)
+            // Keep running in the background, Device Admin and Notifications, left alone.
+            composeRule.onAllNodesWithText("Not allowed").assertCountEquals(3)
             composeRule.onNodeWithText("Start protecting").assertIsEnabled()
         }
     }
@@ -135,8 +137,8 @@ class OnboardingMandatoryGateE2ETest {
         ActivityScenario.launch(MainActivity::class.java).use {
             openChecklist()
             composeRule.onNodeWithText("Allowed").assertExists()
-            // The other two required items.
-            composeRule.onAllNodesWithText("Not allowed yet").assertCountEquals(2)
+            // The other required item.
+            composeRule.onAllNodesWithText("Not allowed yet").assertCountEquals(1)
         }
     }
 

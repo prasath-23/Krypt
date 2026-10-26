@@ -27,11 +27,14 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.common.Outcome
+import com.krypt.app.data.LockState
+import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.deeplink.ApprovalConsumer
 import com.krypt.app.deeplink.ApprovalOutcome
 import com.krypt.app.deeplink.UnlockRequestIssuer
 import com.krypt.app.guardian.DAYS_FIELD_TAG
 import com.krypt.app.guardian.MINUTES_FIELD_TAG
+import com.krypt.app.guardian.PERIOD_FIELD_TAG
 import com.krypt.app.guardian.PIN_FIELD_TAG
 import com.krypt.app.ui.guardian.GuardianActivity
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -63,6 +66,7 @@ class GuardianScreenE2ETest {
     @Inject lateinit var state: TestState
     @Inject lateinit var issuer: UnlockRequestIssuer
     @Inject lateinit var consumer: ApprovalConsumer
+    @Inject lateinit var lockedApps: LockedAppsRepository
 
     @Before
     fun setUp() {
@@ -145,12 +149,12 @@ class GuardianScreenE2ETest {
     @Test
     fun daily_withCustomMinutesAndDays_isWhatTheApprovalAllows() {
         open(issueRequest()).use {
-            compose.awaitText("Daily")
-            compose.onNodeWithText("Daily").performClick()
-            // With Daily there are two Custom chips: minutes first, then days.
-            compose.onAllNodesWithText("Custom")[0].performClick()
-            compose.onNodeWithTag(MINUTES_FIELD_TAG).performTextInput("1")
+            compose.awaitText("Repeating")
+            compose.onNodeWithText("Repeating").performClick()
+            // With Repeating there are three Custom chips: the period's, then minutes, then days.
             compose.onAllNodesWithText("Custom")[1].performScrollTo().performClick()
+            compose.onNodeWithTag(MINUTES_FIELD_TAG).performScrollTo().performTextInput("1")
+            compose.onAllNodesWithText("Custom")[2].performScrollTo().performClick()
             compose.onNodeWithTag(DAYS_FIELD_TAG).performScrollTo().performTextInput("2")
             compose.awaitText("com.example.target, 1 minute a day for 2 days.")
             compose.enterGuardianPin(TEST_PIN)
@@ -164,17 +168,106 @@ class GuardianScreenE2ETest {
 
         val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
         val daily = (runBlocking { consumer.consume(url) } as Outcome.Ok).value as ApprovalOutcome.EveryDay
-        assertEquals(1, daily.allowance.minutesPerDay)
+        assertEquals(1, daily.allowance.minutes)
+        assertEquals(24 * 60, daily.allowance.periodMinutes)
         assertEquals(1L, daily.allowance.lastDay.toEpochDay() - daily.allowance.firstDay.toEpochDay())
     }
 
     @Test
+    fun repeating_everyTwoHours_isWhatTheApprovalAllows() {
+        open(issueRequest()).use {
+            compose.awaitText("Repeating")
+            compose.onNodeWithText("Repeating").performClick()
+            compose.awaitText("Every")
+            // "2 hours" and "30 min" are period chips and minutes chips: the period row is first.
+            compose.onAllNodesWithText("2 hours")[0].performClick()
+            compose.onAllNodesWithText("30 min")[1].performScrollTo().performClick()
+            compose.awaitText("com.example.target, 30 minutes every 2 hours for 7 days.")
+            compose.enterGuardianPin(TEST_PIN)
+            compose.awaitText("Sent.")
+        }
+        val shared = Intents.getIntents()
+            .first { it.action == Intent.ACTION_CHOOSER }
+            .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
+            .getStringExtra(Intent.EXTRA_TEXT)!!
+        assertEquals(true, shared.contains("Krypt reply for com.example.target: 30 minutes every 2 hours for 7 days."))
+
+        val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
+        val repeating = (runBlocking { consumer.consume(url) } as Outcome.Ok).value as ApprovalOutcome.EveryDay
+        assertEquals(30, repeating.allowance.minutes)
+        assertEquals(120, repeating.allowance.periodMinutes)
+    }
+
+    @Test
+    fun repeating_withATypedPeriod_isWhatTheApprovalAllows() {
+        open(issueRequest()).use {
+            compose.awaitText("Repeating")
+            compose.onNodeWithText("Repeating").performClick()
+            compose.awaitText("Every")
+            compose.onAllNodesWithText("Custom")[0].performClick()
+            compose.onNodeWithTag(PERIOD_FIELD_TAG).performTextInput("1.5")
+            compose.awaitText("com.example.target, 15 minutes every 90 minutes for 7 days.")
+            compose.enterGuardianPin(TEST_PIN)
+            compose.awaitText("Sent.")
+        }
+        val shared = Intents.getIntents()
+            .first { it.action == Intent.ACTION_CHOOSER }
+            .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
+            .getStringExtra(Intent.EXTRA_TEXT)!!
+        assertEquals(true, shared.contains("Krypt reply for com.example.target: 15 minutes every 90 minutes for 7 days."))
+
+        val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
+        val repeating = (runBlocking { consumer.consume(url) } as Outcome.Ok).value as ApprovalOutcome.EveryDay
+        assertEquals(90, repeating.allowance.periodMinutes)
+    }
+
+    @Test
     fun aRequestFromAnOlderPhone_offersOneTimeOnly() {
-        open(issueRequest().replace("&caps=daily", "")).use {
+        open(withCaps(null)).use {
             compose.awaitText("30 min")
-            compose.onAllNodes(hasText("Daily")).assertCountEquals(0)
+            compose.onAllNodes(hasText("Repeating")).assertCountEquals(0)
+            compose.onAllNodes(hasText("For good")).assertCountEquals(0)
         }
     }
+
+    @Test
+    fun aPhoneThatTakesOnlyEveryDayApprovals_isOfferedNoForGood_andNoPeriods() {
+        open(withCaps("daily")).use {
+            compose.awaitText("Repeating")
+            compose.onAllNodes(hasText("For good")).assertCountEquals(0)
+            compose.onNodeWithText("Repeating").performClick()
+            compose.awaitText("For how many days")
+            compose.onAllNodes(hasText("Every")).assertCountEquals(0)
+        }
+    }
+
+    @Test
+    fun forGood_removesTheAppsLock() {
+        runBlocking { lockedApps.lock("com.example.target", "Target") }
+        open(issueRequest()).use {
+            compose.awaitText("For good")
+            compose.onNodeWithText("For good").performClick()
+            // No duration to choose, and the sentence says what it does.
+            compose.awaitText("com.example.target, unlocked for good.")
+            compose.onAllNodes(hasText("For how long")).assertCountEquals(0)
+            compose.enterGuardianPin(TEST_PIN)
+            compose.awaitText("Sent.")
+        }
+        val shared = Intents.getIntents()
+            .first { it.action == Intent.ACTION_CHOOSER }
+            .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
+            .getStringExtra(Intent.EXTRA_TEXT)!!
+        assertEquals(true, shared.contains("Krypt reply for com.example.target: unlocked for good."))
+
+        val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
+        val outcome = (runBlocking { consumer.consume(url) } as Outcome.Ok).value
+        assertEquals(true, outcome is ApprovalOutcome.ForGood)
+        assertEquals(LockState.UNLOCKED, runBlocking { lockedApps.findByPackage("com.example.target") }?.lockState)
+    }
+
+    /** A request as an older phone sends it: [caps] in place of today's, or none at all. */
+    private fun withCaps(caps: String?): String =
+        Regex("&caps=[^&]*").replace(issueRequest(), if (caps == null) "" else "&caps=$caps")
 
     @Test
     fun unusableTypedMinutes_keepContinueOff() {

@@ -22,6 +22,31 @@
 >   transaction that consumes the request. It inserts no `unlock_grants` row.
 > - The ciphertext is 2-3 bytes longer for an every-day approval, so its length reveals the approval type.
 
+> **Amendment 4 (2026-10-15)**: the Guardian can also unlock an app **for good**.
+> - A **for-good** approval is a 6-entry map like an every-day one, but its sixth pair is key 7,
+>   `forGood` = 1, in place of key 6. `durMin` is then 0. `v` stays `"1"`.
+> - Installs from before Amendment 4 expect key 6 there, so they refuse a for-good approval as
+>   `PayloadInconsistent` rather than read it as a timed unlock. The Guardian offers "For good" only
+>   when the request carries `caps=forgood` (see `request.md`).
+> - A for-good approval removes the app's lock (`locked_apps.lockState` = `UNLOCKED`, as Home's
+>   "Remove lock" does) in the same transaction that consumes the request. It inserts no
+>   `unlock_grants` row and saves no every-day rule. The app stays open until someone locks it again.
+
+> **Amendment 6 (2026-10-26)**: an every-day approval can give its minutes per period shorter than a day.
+> - Such an approval is a **7-entry map** (`0xa7`): keys 1-5, then key 6, `days`, then key 8, `periodMinutes`:
+>   the period's length in minutes, 5 to 1439. `durMin` is then the minutes in each period, 1 to `periodMinutes`.
+>   `v` stays `"1"`.
+> - A day is never sent this way. A per-day approval keeps the 6-entry map with key 6, so installs from before
+>   Amendment 6 still read it.
+> - Installs from before Amendment 6 decode only the 5- and 6-entry maps, so they refuse a 7-entry approval as
+>   `PayloadInconsistent` rather than read it as minutes a day. The Guardian offers periods only when the
+>   request carries `caps=periods` (see `request.md`).
+> - The Subject also refuses, as `PayloadInconsistent`, a 7-entry map whose `periodMinutes` is under 5 or is
+>   1440 or more (a day must use the 6-entry map), and a `durMin` longer than the period.
+> - The rule is saved like any every-day rule, with its period (`daily_allowances.periodMinutes`).
+> - Key 8 makes the plaintext 2 to 4 bytes longer than a per-day approval, so the length also tells the two
+>   apart, and roughly how long the period is.
+
 Guardian-device-to-Subject-device unlock approval. Emitted after the Guardian enters a valid PIN in the Guardian Popup. Carries an AES-256-GCM-encrypted grant payload that the Subject can decrypt using its stored MasterKey plus the matched `OutstandingRequest`.
 
 ## URL format
@@ -55,9 +80,11 @@ Minimal CBOR map:
   1: <string>  // "v": protocol version (redundant but belt-and-suspenders)
   2: <string>  // "req": same UUID (binds ciphertext to request ID)
   3: <string>  // "app": target package (binds grant to app)
-  4: <int>     // "durMin": grant duration in minutes, 1..1440 (default 15); per day for an every-day approval
+  4: <int>     // "durMin": grant duration in minutes, 1..1440 (default 15); per day, or per period, for an every-day approval (at most periodMinutes); 0 for good
   5: <int>     // "iat": epoch seconds when grant was issued
-  6: <int>     // "days" (Amendment 3, every-day approvals only): 1..365; present => 6-entry map (0xa6)
+  6: <int>     // "days" (Amendment 3, every-day approvals only): 1..365; present => 6-entry map (0xa6), or 7-entry with key 8
+  7: <int>     // "forGood" (Amendment 4, for-good approvals only): 1, instead of key 6; 6-entry map (0xa6)
+  8: <int>     // "periodMinutes" (Amendment 6, every-day approvals in periods shorter than a day): 5..1439, after key 6; 7-entry map (0xa7)
 }
 ```
 

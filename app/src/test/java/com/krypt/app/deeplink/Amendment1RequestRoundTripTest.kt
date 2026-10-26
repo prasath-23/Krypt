@@ -49,19 +49,58 @@ class Amendment1RequestRoundTripTest {
     }
 
     @Test
-    fun requestsSayThisPhoneTakesEveryDayApprovals() {
+    fun requestsSayThisPhoneTakesEveryDayAndForGoodApprovals() {
         val (url, original) = builder.build(setupSalt, pinProof, "com.whatsapp")
 
         assertTrue(url, url.contains("caps=daily"))
         assertTrue(original.supportsDaily)
-        assertTrue((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsDaily)
+        assertTrue(original.supportsForGood)
+        val parsed = (parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value
+        assertTrue(parsed.supportsDaily)
+        assertTrue(parsed.supportsForGood)
+    }
+
+    @Test
+    fun requestsSayThisPhoneTakesPeriodsShorterThanADay() {
+        val (url, original) = builder.build(setupSalt, pinProof, "com.whatsapp")
+
+        assertTrue(url, url.contains("caps=daily%2Cforgood%2Cperiods") || url.contains("caps=daily,forgood,periods"))
+        assertTrue(original.supportsPeriods)
+        assertTrue((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsPeriods)
+    }
+
+    @Test
+    fun aRequestFromAPhoneBeforePeriods_isOfferedADayOnly() {
+        val parsed = (parser.parse(withCaps("daily,forgood"), clock.nowSeconds()) as Outcome.Ok).value
+
+        assertTrue(parsed.supportsDaily)
+        assertTrue(parsed.supportsForGood)
+        assertFalse(parsed.supportsPeriods)
     }
 
     @Test
     fun aRequestWithoutCaps_fromAnOlderPhone_takesOneTimeApprovalsOnly() {
-        val url = builder.build(setupSalt, pinProof, "com.whatsapp").first.replace("&caps=daily", "")
+        val url = withCaps(null)
 
-        assertFalse((parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value.supportsDaily)
+        val parsed = (parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value
+        assertFalse(parsed.supportsDaily)
+        assertFalse(parsed.supportsForGood)
+        assertFalse(parsed.supportsPeriods)
+    }
+
+    @Test
+    fun aRequestFromAPhoneThatTakesOnlyEveryDayApprovals_isOfferedNoForGood() {
+        val url = withCaps("daily")
+
+        val parsed = (parser.parse(url, clock.nowSeconds()) as Outcome.Ok).value
+        assertTrue(parsed.supportsDaily)
+        assertFalse(parsed.supportsForGood)
+    }
+
+    /** A request as an older phone sends it: [caps] in place of today's, or none at all. */
+    private fun withCaps(caps: String?): String {
+        val url = builder.build(setupSalt, pinProof, "com.whatsapp").first
+        return Regex("&caps=[^&]*").replace(url, if (caps == null) "" else "&caps=$caps")
     }
 
     @Test

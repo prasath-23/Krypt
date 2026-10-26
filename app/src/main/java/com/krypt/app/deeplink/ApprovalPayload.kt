@@ -3,7 +3,9 @@ package com.krypt.app.deeplink
 /**
  * Plaintext inside the AES-GCM sealed-box in a `krypt://approve?data=...`
  * URL. Encoded as a CBOR map with integer keys per contracts/approve.md:
- * keys 1..5 for a one-time unlock, plus key 6 ([days]) for an every-day one.
+ * keys 1..5 for a one-time unlock, plus key 6 ([days]) for an every-day one,
+ * or key 7 ([forGood]) for one that removes the app's lock. An every-day one
+ * counted in periods shorter than a day also has key 8 ([periodMinutes]).
  *
  * Re-carrying `req` and `app` inside the ciphertext binds the approval to
  * its originating request — even a hypothetical ciphertext forgery (which
@@ -17,7 +19,10 @@ data class ApprovalPayload(
     val req: String,
     /** Android package name of the target app. */
     val app: String,
-    /** Grant duration in minutes: 1 to [AccessChoice.MAX_MINUTES]. */
+    /**
+     * Grant duration in minutes: 1 to [AccessChoice.MAX_MINUTES], and for an
+     * every-day approval the minutes in each period; 0 for a for-good approval.
+     */
     val durMin: Int,
     /** Issued-at (Guardian wall clock) in seconds since Unix epoch. */
     val iat: Long,
@@ -26,21 +31,43 @@ data class ApprovalPayload(
      * [durMin] minutes a day. Null for a one-time unlock of [durMin] minutes.
      */
     val days: Int? = null,
+    /** A for-good approval: the app's lock is removed. It has no duration ([durMin] 0) and no [days]. */
+    val forGood: Boolean = false,
+    /**
+     * Every-day approvals only: the period, in minutes, that [durMin] minutes
+     * are given for ([AccessChoice.MIN_PERIOD_MINUTES] up to a day). A day
+     * unless the Guardian chose a shorter one.
+     */
+    val periodMinutes: Int = AccessChoice.DAY_MINUTES,
 ) {
     init {
         require(v.isNotEmpty()) { "v must not be empty" }
         require(req.isNotEmpty()) { "req must not be empty" }
         require(app.isNotEmpty()) { "app must not be empty" }
-        require(durMin in 1..AccessChoice.MAX_MINUTES) {
-            "durMin ($durMin) must be in 1..${AccessChoice.MAX_MINUTES}"
+        if (forGood) {
+            require(durMin == 0 && days == null) { "a for-good approval has no duration or days" }
+        } else {
+            require(durMin in 1..AccessChoice.MAX_MINUTES) {
+                "durMin ($durMin) must be in 1..${AccessChoice.MAX_MINUTES}"
+            }
         }
         require(iat > 0) { "iat ($iat) must be positive" }
         require(days == null || days in 1..AccessChoice.MAX_DAYS) {
             "days ($days) must be in 1..${AccessChoice.MAX_DAYS}"
         }
+        if (periodMinutes != AccessChoice.DAY_MINUTES) {
+            require(days != null && periodMinutes in AccessChoice.MIN_PERIOD_MINUTES until AccessChoice.DAY_MINUTES) {
+                "a $periodMinutes-minute period needs days, and must be ${AccessChoice.MIN_PERIOD_MINUTES} minutes to a day"
+            }
+            require(durMin <= periodMinutes) { "durMin ($durMin) is more than a $periodMinutes-minute period" }
+        }
     }
 
     /** What the approval allows. */
     val access: AccessChoice
-        get() = if (days == null) AccessChoice.OneTime(durMin) else AccessChoice.EveryDay(durMin, days)
+        get() = when {
+            forGood -> AccessChoice.ForGood
+            days == null -> AccessChoice.OneTime(durMin)
+            else -> AccessChoice.EveryDay(durMin, days, periodMinutes)
+        }
 }

@@ -138,12 +138,12 @@ Consolidated in `research.md`. Topics investigated:
 
 1. AccessibilityService event filter tuning for <200 ms overlay latency
 2. WindowManager overlay flags for genuinely non-dismissible UI (TYPE_APPLICATION_OVERLAY with FLAG_NOT_FOCUSABLE + FLAG_LAYOUT_IN_SCREEN + FLAG_FULLSCREEN + secure-flag tradeoffs)
-3. Battery-optimisation survival: foreground service type, ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, periodic WorkManager heartbeat as watchdog
+3. Battery-optimisation survival: foreground service type, ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, periodic WorkManager heartbeat as watchdog (Amendment 5 removed the foreground service, made the battery exemption optional and moved the heartbeat to every 6 hours)
 4. PBKDF2 vs scrypt vs Argon2 on AndroidX - chosen: PBKDF2-HMAC-SHA256 with >=300k iterations (first-party, no BouncyCastle add-on)
 5. Deep-link URI size budget vs messenger payload limits (WhatsApp hard cap ~65k chars; SMS splits at 160; design target under 512 chars)
 6. API 30+ package-visibility rules (`<queries>` manifest element vs `QUERY_ALL_PACKAGES`)
 7. API 33+ runtime `POST_NOTIFICATIONS` permission flow
-8. API 34+ foreground-service type declarations
+8. API 34+ foreground-service type declarations (superseded by Amendment 5: Krypt runs no foreground service)
 9. Hilt injection into `AccessibilityService` and `BroadcastReceiver` (requires `@AndroidEntryPoint` on each)
 10. Compose-in-WindowManager-overlay lifecycle pitfalls (why we use XML for the overlay specifically)
 

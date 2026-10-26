@@ -55,13 +55,28 @@ class DailyApprovalConsumerTest {
 
         val rule = repo.dailyRules.getValue(APP)
         assertEquals(outcome.allowance, rule)
-        assertEquals(60, rule.minutesPerDay)
+        assertEquals(60, rule.minutes)
+        assertEquals("a day, as before periods", 24 * 60, rule.periodMinutes)
         assertEquals(TODAY, rule.firstDay)
         assertEquals("seven days, today included", TODAY.plusDays(6), rule.lastDay)
         assertEquals(UTC, rule.zone)
         assertEquals(request.requestId, rule.requestId)
         assertTrue("no one-time grant", repo.grants.isEmpty())
         assertTrue(repo.findById(request.requestId)!!.consumed)
+    }
+
+    @Test
+    fun anApprovalEveryTwoHours_savesTheRuleWithItsPeriod() = runTest {
+        val request = issue()
+        val url = approvalBuilder.build(masterKey, request, AccessChoice.EveryDay(minutes = 30, days = 7, periodMinutes = 120))
+
+        val outcome = (consumer.consume(url) as Outcome.Ok).value as ApprovalOutcome.EveryDay
+
+        val rule = repo.dailyRules.getValue(APP)
+        assertEquals(outcome.allowance, rule)
+        assertEquals(30, rule.minutes)
+        assertEquals(120, rule.periodMinutes)
+        assertEquals(TODAY.plusDays(6), rule.lastDay)
     }
 
     @Test

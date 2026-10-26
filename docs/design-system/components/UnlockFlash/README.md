@@ -4,8 +4,9 @@ The approval confirmation: a soft mint field with a ringed check, a short vibrat
 
 **Outcomes**
 - **Once:** flash, then "Instagram is open until 14:35".
-- **Daily, with time left today:** flash, then "Instagram: 1 hour a day until Sep 28".
-- **Daily, today already used up:** the toast only, with no flash.
+- **Repeating, with time left in this period:** flash, then "Instagram: 1 hour a day until Sep 28", "Instagram: 15 minutes an hour until Sep 28" or "Instagram: 30 minutes every 2 hours until Sep 28".
+- **Repeating, this period already used up:** the toast only, with no flash: "Instagram: daily time is set, but today's is used up", or "Instagram: repeating time is set, but it's used up for now" for a period shorter than a day.
+- **For good:** flash, then "Instagram is unlocked for good".
 - **Error:** one toast, then the window closes.
 
 **The consumer provides** the `ApprovalOutcome` from `ApprovalConsumer`, played by `UnlockSuccessEffect`.
