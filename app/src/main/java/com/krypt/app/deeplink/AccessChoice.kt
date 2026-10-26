@@ -6,23 +6,27 @@ package com.krypt.app.deeplink
  * learns it only from an approval made with the Guardian PIN.
  */
 sealed interface AccessChoice {
-    /** Minutes of access. */
-    val minutes: Int
 
     /** Unlock the app once, for [minutes]. */
-    data class OneTime(override val minutes: Int) : AccessChoice {
+    data class OneTime(val minutes: Int) : AccessChoice {
         init {
             require(minutes in 1..MAX_MINUTES) { "minutes ($minutes) must be in 1..$MAX_MINUTES" }
         }
     }
 
     /** Up to [minutes] a day, every day for [days] calendar days starting today. */
-    data class EveryDay(override val minutes: Int, val days: Int) : AccessChoice {
+    data class EveryDay(val minutes: Int, val days: Int) : AccessChoice {
         init {
             require(minutes in 1..MAX_MINUTES) { "minutes ($minutes) must be in 1..$MAX_MINUTES" }
             require(days in 1..MAX_DAYS) { "days ($days) must be in 1..$MAX_DAYS" }
         }
     }
+
+    /**
+     * Unlock the app for good: its lock is removed, as Home's "Remove lock"
+     * does on the child's phone. It stays open until someone locks it again.
+     */
+    data object ForGood : AccessChoice
 
     companion object {
         const val DEFAULT_MINUTES = 15

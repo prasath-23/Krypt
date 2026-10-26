@@ -65,7 +65,10 @@ class GuardianPinViewModel @Inject constructor(
                     attemptsLeft = PinAttemptLimiter.FIRST_LOCKOUT_AT,
                     lockoutRetryInMs = null,
                     errorMessage = null,
-                    form = AccessForm(everyDayAllowed = parsed.value.supportsDaily),
+                    form = AccessForm(
+                        everyDayAllowed = parsed.value.supportsDaily,
+                        forGoodAllowed = parsed.value.supportsForGood,
+                    ),
                 )
             )
             is Outcome.Err -> GuardianPinState.FatalError(

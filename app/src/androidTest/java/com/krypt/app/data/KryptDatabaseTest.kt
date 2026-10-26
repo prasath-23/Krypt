@@ -191,7 +191,7 @@ class KryptDatabaseTest {
                 issuedAt = 1_000, expiresAt = 10_000, consumed = 0,
             )
         )
-        val repo = RoomOutstandingRequestRepository(db, outstanding, grants, db.dailyAllowanceDao())
+        val repo = RoomOutstandingRequestRepository(db, outstanding, grants, db.dailyAllowanceDao(), lockedApps)
         val allowance = DailyAllowance(
             "com.a", 60, LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(106), ZoneId.of("UTC"), id, 5_000,
         )
@@ -200,6 +200,31 @@ class KryptDatabaseTest {
 
         assertEquals(1, results.count { it })
         assertEquals(listOf("com.a"), db.dailyAllowanceDao().all().map { it.packageName })
+        assertNull(grants.activeGrantForPackage("com.a", now = 0))
+    }
+
+    @Test
+    fun consumingAForGoodApproval_isSingleUse_andRemovesTheLock() = runBlocking {
+        val id = UUID.randomUUID()
+        lockedApps.insert(
+            LockedAppEntity(
+                packageName = "com.a", displayName = "A", lockState = LockState.LOCKED,
+                lockSource = LockSource.DEFAULT_DENY, createdAt = 1_000, updatedAt = 1_000,
+            )
+        )
+        outstanding.insert(
+            OutstandingRequestEntity(
+                requestId = id.toString(), targetPackage = "com.a", salt = ByteArray(16),
+                issuedAt = 1_000, expiresAt = 10_000, consumed = 0,
+            )
+        )
+        val repo = RoomOutstandingRequestRepository(db, outstanding, grants, db.dailyAllowanceDao(), lockedApps)
+
+        val results = (1..10).map { async { repo.consumeAndRemoveLock(id, 5_000, "com.a") } }.awaitAll()
+
+        assertEquals(1, results.count { it })
+        assertEquals(LockState.UNLOCKED, lockedApps.findByPackage("com.a")?.lockState)
+        assertEquals(1, outstanding.findById(id.toString())?.consumed)
         assertNull(grants.activeGrantForPackage("com.a", now = 0))
     }
 

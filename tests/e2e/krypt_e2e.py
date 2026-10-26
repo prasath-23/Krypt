@@ -249,6 +249,18 @@ def enable_krypt_service():
     return False
 
 
+def allow_in_background():
+    """Put Krypt on the battery whitelist (onboarding's "Keep running in the background") and
+    check that it stays there. Like the accessibility setting, the system's cleanup for the
+    uninstall can take Krypt off it again a moment after Krypt is reinstalled."""
+    for _ in range(5):
+        sh(f"dumpsys deviceidle whitelist +{KRYPT}")
+        time.sleep(2)
+        if f",{KRYPT}," in sh("dumpsys deviceidle whitelist"):
+            return True
+    return False
+
+
 def wait_for_krypt_service():
     """Every uiautomator dump unbinds Krypt's accessibility service for a moment (a real device runs no
     uiautomator), so wait for it before doing what it has to react to."""
@@ -564,7 +576,7 @@ def install_fresh():
     adb("logcat", "-c")
     expect("Success" in adb("install", "-r", "-g", APP_APK), "Krypt did not install")
     sh(f"appops set {KRYPT} SYSTEM_ALERT_WINDOW allow")
-    sh(f"dumpsys deviceidle whitelist +{KRYPT}")
+    expect(allow_in_background(), "Krypt could not be put on the battery whitelist")
     expect(enable_krypt_service(), "Krypt's accessibility service could not be turned on")
     connected = wait_for(lambda: "connected" in adb("logcat", "-d", "-s", "KryptA11y:*"), timeout=30)
     expect(connected, "Krypt's accessibility service did not connect")
@@ -604,6 +616,8 @@ def back_to_home_from_lock():
 
 @case("06 onboarding with the mandatory permissions granted")
 def onboarding():
+    # On a slow emulator the uninstall's cleanup can still be running here; make sure it left the whitelist alone.
+    expect(allow_in_background(), "Krypt could not be put on the battery whitelist")
     launch(KRYPT)
     # First run asks who the phone is for; protecting it leads to the permission checklist.
     if wait_text(r"^I'm protecting this phone$", 30):
@@ -1106,6 +1120,33 @@ def uninstall_blocked():
     expect("DELETE_FAILED_DEVICE_POLICY_MANAGER" in result, f"uninstall said: {result.strip()}")
 
 
+@case("32 For good: the Guardian unlocks Chrome for good, and it opens with no time limit")
+def for_good_removes_the_lock():
+    # Last, so that nothing after it needs Chrome locked.
+    request = request_access_for(CHROME)
+    open_link(request)
+    wait_guardian_form()
+    tap_text(r"^For good$")
+    expect(wait_text(r"^Chrome, unlocked for good\.$", 10), "the summary doesn't say for good")
+    expect(not matching(r"^For how long$"), "a duration is still offered for good")
+    guardian_approve(PIN)
+    text = shared_text(APPROVAL_TIMEOUT)
+    approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", text)
+    expect(approval and "Krypt reply for Chrome: unlocked for good." in text, f"share text: {text!r}")
+    dismiss_share_sheet()
+    home()
+    open_link(approval.group(0))
+    top = wait_top(re.escape(CHROME) + r"/", 20)
+    expect(CHROME in top, f"Chrome did not open; top is {top}")
+    rows = db(f"select lockState from locked_apps where packageName='{CHROME}'")
+    expect(rows == [("UNLOCKED",)], f"Chrome's lock: {rows}")
+    home()
+    launch(CHROME)  # no grant to run out: it just opens
+    top = wait_top(re.escape(CHROME) + r"/", 20)
+    expect(CHROME in top and LOCK_SCREEN not in top, f"Chrome was blocked again; top is {top}")
+    home()
+
+
 QUICK_SKIP = {"30", "31"}
 
 
@@ -1123,7 +1164,8 @@ def main():
                  paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
                  daily_time_paused_without_auto_time, daily_time_runs_out,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,
-                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked]
+                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked,
+                 for_good_removes_the_lock]
     shutil.rmtree(EVIDENCE, ignore_errors=True)
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)
     for run in all_cases:

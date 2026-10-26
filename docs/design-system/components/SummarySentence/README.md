@@ -1,6 +1,6 @@
 The Guardian's choice read back as one serif sentence: live at the end of step 1, then fixed at the top of the PIN sheet, so they know exactly what they are signing.
 
-**Shows** in the `headline` style: "Instagram, *30 minutes*, once." or "Instagram, *1 hour a day* for 7 days." The duration is set in italic. When the app isn't installed on the Guardian's phone, the package name stands in, set in mono.
+**Shows** in the `headline` style: "Instagram, *30 minutes*, once.", "Instagram, *1 hour a day* for 7 days." or "Instagram, *unlocked for good*." The duration (or "unlocked for good") is set in italic. When the app isn't installed on the Guardian's phone, the package name stands in, set in mono.
 
 **The consumer provides** the current `AccessForm` and the app label if Krypt can find it on this phone (by package name), else the package.
 

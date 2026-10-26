@@ -463,51 +463,61 @@ private fun DurationChips(
     onEditDays: (String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        if (form.everyDayAllowed) {
+        val kinds = form.kinds
+        if (kinds.size > 1) {
             val howOften = stringResource(R.string.guardian_how_often)
             FieldLabel(text = howOften)
             Spacer(Modifier.height(KryptSpace.s2))
             SegmentedChoice(
-                options = KINDS,
+                options = kinds,
                 selected = form.kind,
                 onSelect = { kind -> if (enabled) onKind(kind) },
                 label = { kind -> kindLabel(kind) },
                 groupLabel = howOften,
             )
-            Spacer(Modifier.height(KryptSpace.s6))
         }
 
-        FieldLabel(text = stringResource(R.string.guardian_how_long))
-        Spacer(Modifier.height(KryptSpace.s2))
-        ChipRow {
-            AccessForm.MINUTE_PRESETS.forEach { minutes ->
-                ChoiceChip(
-                    text = minutesChipLabel(minutes),
-                    selected = form.minutes == AccessForm.Amount.Preset(minutes),
-                    onClick = { if (enabled) onPickMinutes(minutes) },
-                )
-            }
-            ChoiceChip(
-                text = stringResource(R.string.guardian_custom),
-                selected = form.minutes is AccessForm.Amount.Custom,
-                onClick = { if (enabled && form.minutes !is AccessForm.Amount.Custom) onEditMinutes("") },
-            )
-        }
+        // For good has no duration: no minutes to choose.
         AnimatedVisibility(
-            visible = form.minutes is AccessForm.Amount.Custom,
+            visible = form.kind != AccessForm.Kind.FOR_GOOD,
             enter = Reveal,
             exit = Conceal,
         ) {
-            CustomAmountField(
-                text = (form.minutes as? AccessForm.Amount.Custom)?.text.orEmpty(),
-                onTextChange = { typed -> onEditMinutes(typed.filter(Char::isDigit).take(MINUTES_MAX_DIGITS)) },
-                label = stringResource(R.string.guardian_minutes_label),
-                suffix = stringResource(R.string.guardian_minutes_suffix),
-                error = stringResource(R.string.guardian_minutes_error),
-                isError = form.minutesInvalid,
-                readOnly = !enabled,
-                tag = MINUTES_FIELD_TAG,
-            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (kinds.size > 1) Spacer(Modifier.height(KryptSpace.s6))
+                FieldLabel(text = stringResource(R.string.guardian_how_long))
+                Spacer(Modifier.height(KryptSpace.s2))
+                ChipRow {
+                    AccessForm.MINUTE_PRESETS.forEach { minutes ->
+                        ChoiceChip(
+                            text = minutesChipLabel(minutes),
+                            selected = form.minutes == AccessForm.Amount.Preset(minutes),
+                            onClick = { if (enabled) onPickMinutes(minutes) },
+                        )
+                    }
+                    ChoiceChip(
+                        text = stringResource(R.string.guardian_custom),
+                        selected = form.minutes is AccessForm.Amount.Custom,
+                        onClick = { if (enabled && form.minutes !is AccessForm.Amount.Custom) onEditMinutes("") },
+                    )
+                }
+                AnimatedVisibility(
+                    visible = form.minutes is AccessForm.Amount.Custom,
+                    enter = Reveal,
+                    exit = Conceal,
+                ) {
+                    CustomAmountField(
+                        text = (form.minutes as? AccessForm.Amount.Custom)?.text.orEmpty(),
+                        onTextChange = { typed -> onEditMinutes(typed.filter(Char::isDigit).take(MINUTES_MAX_DIGITS)) },
+                        label = stringResource(R.string.guardian_minutes_label),
+                        suffix = stringResource(R.string.guardian_minutes_suffix),
+                        error = stringResource(R.string.guardian_minutes_error),
+                        isError = form.minutesInvalid,
+                        readOnly = !enabled,
+                        tag = MINUTES_FIELD_TAG,
+                    )
+                }
+            }
         }
 
         AnimatedVisibility(
@@ -632,14 +642,23 @@ private fun SummarySentence(choice: AccessChoice, appLabel: String?, packageName
     } else {
         StyledArg(packageName, SpanStyle(fontFamily = GeistMono, fontSize = SENTENCE_MONO_SIZE))
     }
-    val duration = StyledArg(durationWords(choice.minutes), SpanStyle(fontStyle = FontStyle.Italic))
+    val italic = SpanStyle(fontStyle = FontStyle.Italic)
     val sentence = when (choice) {
-        is AccessChoice.OneTime -> styledFormat(stringResource(R.string.guardian_summary_once), app, duration)
+        is AccessChoice.OneTime -> styledFormat(
+            stringResource(R.string.guardian_summary_once),
+            app,
+            StyledArg(durationWords(choice.minutes), italic),
+        )
         is AccessChoice.EveryDay -> styledFormat(
             stringResource(R.string.guardian_summary_daily),
             app,
-            duration,
+            StyledArg(durationWords(choice.minutes), italic),
             StyledArg(daysWords(choice.days)),
+        )
+        AccessChoice.ForGood -> styledFormat(
+            stringResource(R.string.guardian_summary_for_good),
+            app,
+            StyledArg(stringResource(R.string.access_for_good), italic),
         )
     }
     Text(
@@ -689,7 +708,7 @@ private fun GuardianPinState.Validating.placeholderForm() = GuardianPinState.Rea
     attemptsLeft = 0,
     lockoutRetryInMs = null,
     errorMessage = null,
-    form = AccessForm(everyDayAllowed = request.supportsDaily),
+    form = AccessForm(everyDayAllowed = request.supportsDaily, forGoodAllowed = request.supportsForGood),
 )
 
 @Composable
@@ -703,6 +722,7 @@ private fun fatalMessage(key: String): String = when (key) {
 private fun kindLabel(kind: AccessForm.Kind): String = when (kind) {
     AccessForm.Kind.ONE_TIME -> stringResource(R.string.guardian_once)
     AccessForm.Kind.EVERY_DAY -> stringResource(R.string.guardian_daily)
+    AccessForm.Kind.FOR_GOOD -> stringResource(R.string.guardian_for_good)
 }
 
 /** A duration chip: "15 min", "30 min", "1 hour", "2 hours". */
@@ -736,6 +756,7 @@ private fun accessText(access: AccessChoice): String = when (access) {
         durationWords(access.minutes),
         daysWords(access.days),
     )
+    AccessChoice.ForGood -> stringResource(R.string.access_for_good)
 }
 
 /** Time left as a ticking clock, e.g. "4:00". */
@@ -753,7 +774,6 @@ private const val CHECKING_DOT = "\u2022"
 /** The package in mono inside the summary sentence (SummarySentence preview). */
 private val SENTENCE_MONO_SIZE = 18.sp
 
-private val KINDS = listOf(AccessForm.Kind.ONE_TIME, AccessForm.Kind.EVERY_DAY)
 
 /** Revealing a field: `motion-base`. */
 private val Reveal: EnterTransition =

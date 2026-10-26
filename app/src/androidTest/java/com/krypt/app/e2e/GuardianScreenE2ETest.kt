@@ -27,6 +27,8 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krypt.app.common.Outcome
+import com.krypt.app.data.LockState
+import com.krypt.app.data.LockedAppsRepository
 import com.krypt.app.deeplink.ApprovalConsumer
 import com.krypt.app.deeplink.ApprovalOutcome
 import com.krypt.app.deeplink.UnlockRequestIssuer
@@ -63,6 +65,7 @@ class GuardianScreenE2ETest {
     @Inject lateinit var state: TestState
     @Inject lateinit var issuer: UnlockRequestIssuer
     @Inject lateinit var consumer: ApprovalConsumer
+    @Inject lateinit var lockedApps: LockedAppsRepository
 
     @Before
     fun setUp() {
@@ -170,11 +173,48 @@ class GuardianScreenE2ETest {
 
     @Test
     fun aRequestFromAnOlderPhone_offersOneTimeOnly() {
-        open(issueRequest().replace("&caps=daily", "")).use {
+        open(withCaps(null)).use {
             compose.awaitText("30 min")
             compose.onAllNodes(hasText("Daily")).assertCountEquals(0)
+            compose.onAllNodes(hasText("For good")).assertCountEquals(0)
         }
     }
+
+    @Test
+    fun aPhoneThatTakesOnlyEveryDayApprovals_isOfferedNoForGood() {
+        open(withCaps("daily")).use {
+            compose.awaitText("Daily")
+            compose.onAllNodes(hasText("For good")).assertCountEquals(0)
+        }
+    }
+
+    @Test
+    fun forGood_removesTheAppsLock() {
+        runBlocking { lockedApps.lock("com.example.target", "Target") }
+        open(issueRequest()).use {
+            compose.awaitText("For good")
+            compose.onNodeWithText("For good").performClick()
+            // No duration to choose, and the sentence says what it does.
+            compose.awaitText("com.example.target, unlocked for good.")
+            compose.onAllNodes(hasText("For how long")).assertCountEquals(0)
+            compose.enterGuardianPin(TEST_PIN)
+            compose.awaitText("Sent.")
+        }
+        val shared = Intents.getIntents()
+            .first { it.action == Intent.ACTION_CHOOSER }
+            .let { IntentCompat.getParcelableExtra(it, Intent.EXTRA_INTENT, Intent::class.java) }!!
+            .getStringExtra(Intent.EXTRA_TEXT)!!
+        assertEquals(true, shared.contains("Krypt reply for com.example.target: unlocked for good."))
+
+        val url = Regex("""krypt://approve\?\S+""").find(shared)!!.value
+        val outcome = (runBlocking { consumer.consume(url) } as Outcome.Ok).value
+        assertEquals(true, outcome is ApprovalOutcome.ForGood)
+        assertEquals(LockState.UNLOCKED, runBlocking { lockedApps.findByPackage("com.example.target") }?.lockState)
+    }
+
+    /** A request as an older phone sends it: [caps] in place of today's, or none at all. */
+    private fun withCaps(caps: String?): String =
+        Regex("&caps=[^&]*").replace(issueRequest(), if (caps == null) "" else "&caps=$caps")
 
     @Test
     fun unusableTypedMinutes_keepContinueOff() {

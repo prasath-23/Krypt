@@ -23,6 +23,10 @@
 > without it comes from an older install, which only takes one-time approvals. Unknown `caps`
 > values are ignored.
 
+> **Amendment 4 (2026-10-15)**: `caps` gains `forgood` (`caps=daily,forgood`): the Subject's phone
+> accepts approvals that remove the app's lock for good, and the Guardian only offers "For good"
+> when it is present. Older Guardian installs still find `daily` in the list.
+
 Subject-device-to-Guardian-device unlock request. Emitted when a Subject taps "Ask Guardian" on Krypt's lock screen. Carries enough information for the Guardian device to prompt its user for the PIN and compose an approval.
 
 ## URL format
@@ -36,7 +40,7 @@ krypt://request?v=1
                &kdfIter=<int: PBKDF2 iterations used at setup>
                &iat=<epoch seconds>
                &ttl=<seconds, default 300>
-               &caps=daily
+               &caps=daily,forgood
 ```
 
 ## Size budget
@@ -55,7 +59,7 @@ Typical length: ~230 chars. Must stay under 512 chars.
 | `kdfIter` | int, 300000..10000000 | PBKDF2-HMAC-SHA256 iteration count used at setup. The Guardian MUST derive with this value. |
 | `iat` | epoch seconds | Issued-at. |
 | `ttl` | seconds | Validity window. Default 300 (5 minutes, FR-019). |
-| `caps` | comma-separated words, optional | What the Subject's phone accepts. `daily`: every-day approvals (Amendment 3). |
+| `caps` | comma-separated words, optional | What the Subject's phone accepts. `daily`: every-day approvals (Amendment 3). `forgood`: approvals that remove the app's lock (Amendment 4). |
 
 ## Generation (Subject device)
 

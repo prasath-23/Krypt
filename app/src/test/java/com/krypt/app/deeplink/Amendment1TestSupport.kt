@@ -77,6 +77,22 @@ internal class FakeOutstandingRequestRepository : OutstandingRequestRepository {
         true
     }
 
+    /** Packages whose lock a for-good approval removed. */
+    val removedLocks: MutableList<String> = mutableListOf()
+
+    override suspend fun consumeAndRemoveLock(
+        requestId: UUID,
+        nowMs: Long,
+        packageName: String,
+    ): Boolean = mutex.withLock {
+        val existing = requests[requestId] ?: return@withLock false
+        if (existing.consumed) return@withLock false
+        if (nowMs > existing.expiresAtMs) return@withLock false
+        requests[requestId] = existing.copy(consumed = true)
+        removedLocks += packageName
+        true
+    }
+
     var pruneCalls: Int = 0
         private set
 

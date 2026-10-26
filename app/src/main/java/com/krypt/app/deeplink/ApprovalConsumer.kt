@@ -40,7 +40,8 @@ import javax.inject.Singleton
  *   8. CBOR decode + cross-consistency check payload vs URL/OR.
  *   9. Atomic consume + save: a grant for a one-time approval, the app's
  *      every-day rule for an every-day one (which first needs a trusted
- *      date: ClockNotTrusted, request left open, if there is none).
+ *      date: ClockNotTrusted, request left open, if there is none), or the
+ *      app's lock removed for a for-good one.
  *      * 0 rows affected -> UnmatchedRequest
  *  10. Return [ApprovalOutcome].
  */
@@ -169,6 +170,15 @@ class ApprovalConsumer @Inject constructor(
                     )
                     if (!saved) return@withContext Outcome.err(ApprovalError.UnmatchedRequest)
                     Outcome.ok(ApprovalOutcome.EveryDay(request.requestId, request.targetPackage, allowance))
+                }
+                AccessChoice.ForGood -> {
+                    val removed = outstandingRepo.consumeAndRemoveLock(
+                        requestId = request.requestId,
+                        nowMs = nowMs,
+                        packageName = request.targetPackage,
+                    )
+                    if (!removed) return@withContext Outcome.err(ApprovalError.UnmatchedRequest)
+                    Outcome.ok(ApprovalOutcome.ForGood(request.requestId, request.targetPackage))
                 }
             }
         }

@@ -27,6 +27,9 @@ object DeepLinkScheme {
     /** In `caps`: the phone accepts every-day approvals. */
     const val CAP_DAILY = "daily"
 
+    /** In `caps`: the phone accepts "for good" approvals, which remove the app's lock. */
+    const val CAP_FOR_GOOD = "forgood"
+
     /** Canonical query-parameter names (shared across WP03 + WP04). */
     object Params {
         const val VERSION = "v"

@@ -16,12 +16,13 @@ Krypt runs with no internet permission and no server. The request and the approv
 4. **The Guardian approves on their own phone.** They choose how much time to allow, then confirm with their PIN. Krypt shares back a `krypt://approve` link.
 5. **Tapping the reply opens the app.** If a messenger doesn't make the link tappable, copy the whole message and tap **Paste reply** on the lock screen.
 
-Two kinds of access:
+What the Guardian can allow:
 
 | | |
 |---|---|
 | **Once** | 15 min, 30 min, 1 hour, 2 hours, or any 1 to 1440 minutes |
 | **Every day** | N minutes a day for 3, 7, 14 or 30 days, or any 1 to 365 days. This needs automatic date and time to be on. |
+| **For good** | The app's lock is removed, as if the Guardian had turned it off in Krypt's Home list. The app stays open until someone locks it again. |
 
 The same app runs on both phones. On the locked phone it is the locker. On the Guardian's phone it only opens approval links.
 

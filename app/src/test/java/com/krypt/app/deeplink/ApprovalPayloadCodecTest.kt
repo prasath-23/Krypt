@@ -30,6 +30,31 @@ class ApprovalPayloadCodecTest {
     }
 
     @Test
+    fun aForGoodPayload_roundTrips_asASixEntryMapEndingInKey7() {
+        val original = samplePayload().copy(durMin = 0, forGood = true)
+        val bytes = ApprovalPayloadCodec.encode(original)
+
+        assertEquals(0xA6, bytes[0].toInt() and 0xFF)
+        // The sixth pair is key 7 = 1, where a decoder from before for-good approvals expects key 6.
+        assertEquals(0x07, bytes[bytes.size - 2].toInt() and 0xFF)
+        assertEquals(0x01, bytes[bytes.size - 1].toInt() and 0xFF)
+        val restored = ApprovalPayloadCodec.decode(bytes)
+        assertEquals(original, restored)
+        assertEquals(AccessChoice.ForGood, restored.access)
+    }
+
+    @Test
+    fun aForGoodPayload_carryingADuration_isRefused() {
+        assertThrows(IllegalArgumentException::class.java) { samplePayload().copy(forGood = true) }
+
+        val bytes = ApprovalPayloadCodec.encode(samplePayload().copy(durMin = 0, forGood = true))
+        // Key 4 (durMin) = 0 -> 15. The text fields are ASCII, so 04 00 occurs only there.
+        val at = (0 until bytes.size - 1).first { bytes[it] == 0x04.toByte() && bytes[it + 1] == 0x00.toByte() }
+        bytes[at + 1] = 15
+        assertThrows(IllegalArgumentException::class.java) { ApprovalPayloadCodec.decode(bytes) }
+    }
+
+    @Test
     fun encodedStartsWithMapHeader0xA5() {
         val encoded = ApprovalPayloadCodec.encode(samplePayload())
         assertEquals("first byte must be CBOR map-of-5 marker",

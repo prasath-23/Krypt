@@ -109,6 +109,12 @@ class ApprovalTrampolineActivity : ComponentActivity() {
                     Toast.makeText(this, getString(R.string.approval_toast_daily_used_up, label), Toast.LENGTH_LONG).show()
                 }
             }
+            is ApprovalOutcome.ForGood -> {
+                // The lock is already gone from the database; let its lock screen close too.
+                sessionStore.announceUnlocked(outcome.targetPackage)
+                successEffect.play(this, getString(R.string.approval_toast_for_good, label))
+                openUnlockedApp(outcome.targetPackage)
+            }
         }
         finish()
     }

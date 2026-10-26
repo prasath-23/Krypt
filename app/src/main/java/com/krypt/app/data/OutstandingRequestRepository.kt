@@ -48,6 +48,18 @@ interface OutstandingRequestRepository {
         allowance: DailyAllowance,
     ): Boolean
 
+    /**
+     * Atomic, like [consumeAndInsertGrant]: IF [requestId] is open at [nowMs],
+     * mark it consumed AND remove [packageName]'s lock (lock state UNLOCKED,
+     * as Home's "Remove lock" does), for a for-good approval. Returns false,
+     * changing nothing, otherwise.
+     */
+    suspend fun consumeAndRemoveLock(
+        requestId: UUID,
+        nowMs: Long,
+        packageName: String,
+    ): Boolean
+
     /** Delete requests that expired, or were consumed more than a day ago. */
     suspend fun pruneStale(nowMs: Long)
 }

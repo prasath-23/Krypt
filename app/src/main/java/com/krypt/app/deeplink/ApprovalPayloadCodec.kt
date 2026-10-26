@@ -27,6 +27,11 @@ import java.nio.charset.StandardCharsets
  *
  * Every-day approvals use a 6-entry map (0xa6) with one more pair:
  *   06 <uint days>       ; days (durMin is then minutes per day)
+ *
+ * For-good approvals also use a 6-entry map, with key 7 instead of 6:
+ *   07 <uint 1>          ; forGood (durMin is then 0)
+ * Installs from before for-good approvals expect key 6 there, so they
+ * refuse one outright rather than read it as a timed unlock.
  */
 internal object ApprovalPayloadCodec {
 
@@ -36,17 +41,23 @@ internal object ApprovalPayloadCodec {
     private const val MT_MAP: Int = 0xA0
 
     private const val MAP_HEADER_5: Byte = (MT_MAP or 5).toByte()   // 0xa5
-    private const val MAP_HEADER_6: Byte = (MT_MAP or 6).toByte()   // 0xa6: every day
+    private const val MAP_HEADER_6: Byte = (MT_MAP or 6).toByte()   // 0xa6: every day, or for good
+
+    /** The sixth pair's key: days for an every-day approval, the flag for a for-good one. */
+    private const val KEY_DAYS = 6
+    private const val KEY_FOR_GOOD = 7
 
     fun encode(payload: ApprovalPayload): ByteArray {
         val out = ByteArrayOutputStream(96)
-        out.write((if (payload.days == null) MAP_HEADER_5 else MAP_HEADER_6).toInt() and 0xFF)
+        val sixEntries = payload.days != null || payload.forGood
+        out.write((if (sixEntries) MAP_HEADER_6 else MAP_HEADER_5).toInt() and 0xFF)
         writeKeyAndText(out, key = 1, value = payload.v)
         writeKeyAndText(out, key = 2, value = payload.req)
         writeKeyAndText(out, key = 3, value = payload.app)
         writeKeyAndUnsigned(out, key = 4, value = payload.durMin.toLong())
         writeKeyAndUnsigned(out, key = 5, value = payload.iat)
-        payload.days?.let { writeKeyAndUnsigned(out, key = 6, value = it.toLong()) }
+        payload.days?.let { writeKeyAndUnsigned(out, key = KEY_DAYS, value = it.toLong()) }
+        if (payload.forGood) writeKeyAndUnsigned(out, key = KEY_FOR_GOOD, value = 1)
         return out.toByteArray()
     }
 
@@ -67,11 +78,26 @@ internal object ApprovalPayloadCodec {
         val app    = readKeyAndText(reader, expectedKey = 3)
         val durMin = readKeyAndUnsigned(reader, expectedKey = 4)
         val iat    = readKeyAndUnsigned(reader, expectedKey = 5)
-        val days   = if (header == MAP_HEADER_6) readKeyAndUnsigned(reader, expectedKey = 6) else null
+        var days: Long? = null
+        var forGood = false
+        if (header == MAP_HEADER_6) {
+            when (val key = readUnsigned(reader, MT_UNSIGNED_INT)) {
+                KEY_DAYS.toLong() -> days = readUnsigned(reader, MT_UNSIGNED_INT)
+                KEY_FOR_GOOD.toLong() -> {
+                    require(readUnsigned(reader, MT_UNSIGNED_INT) == 1L) { "forGood must be 1" }
+                    forGood = true
+                }
+                else -> throw IllegalArgumentException("expected CBOR key $KEY_DAYS or $KEY_FOR_GOOD, got $key")
+            }
+        }
         reader.requireExhausted()
 
         // Bounded here too, so the child's phone never trusts a longer unlock than any Guardian can grant.
-        require(durMin in 1..AccessChoice.MAX_MINUTES) { "durMin out of range: $durMin" }
+        if (forGood) {
+            require(durMin == 0L) { "a for-good approval has no duration: $durMin" }
+        } else {
+            require(durMin in 1..AccessChoice.MAX_MINUTES) { "durMin out of range: $durMin" }
+        }
         require(iat > 0) { "iat must be positive" }
         require(days == null || days in 1..AccessChoice.MAX_DAYS) { "days out of range: $days" }
 
@@ -82,6 +108,7 @@ internal object ApprovalPayloadCodec {
             durMin = durMin.toInt(),
             iat = iat,
             days = days?.toInt(),
+            forGood = forGood,
         )
     }
 

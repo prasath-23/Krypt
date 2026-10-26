@@ -2,8 +2,23 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2 and 3 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3 and 4 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 4 (2026-10-15) - Unlock For Good from the Guardian's Link
+
+**What changed:** before this, a Guardian could only remove an app's lock in person, on the child's phone (Home, then the app, then "Remove lock"). Approvals sent by link were always time-limited.
+
+1. **The approval screen offers a third choice, "For good",** next to Once and Daily, in "How often". It has no duration, so the duration chips are hidden, and the sentence reads "Instagram, unlocked for good."
+2. **On the child's phone, a for-good approval removes the app's lock,** exactly as Home's "Remove lock" does (`lockState` = `UNLOCKED`), in the same transaction that consumes the request. The app opens, its lock screen closes, and Home lists it under Not locked. It stays open until someone locks it again from Home. There is no grant and no every-day rule.
+3. **Older phones are never sent one.** The request says the phone accepts it (`caps=forgood`, `contracts/request.md`), and the screen offers "For good" only then. The approval payload marks it with its own key (`contracts/approve.md`), so an older install refuses it instead of reading it as a timed unlock.
+4. **Unchanged:** the request still expires after 5 minutes. A for-good approval is single-use and bound to its request and app like any other. The Guardian PIN is still checked on the Guardian's phone only.
+
+**FRs touched:**
+- FR-037: the Guardian chooses one-time, every-day, or for-good access when approving.
+- FR-041 (new): a for-good approval removes the app's lock on the child's phone. It is offered only to phones whose request carries `caps=forgood`.
 
 ---
 

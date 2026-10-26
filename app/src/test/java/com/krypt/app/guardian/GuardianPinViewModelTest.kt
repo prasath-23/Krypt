@@ -394,6 +394,34 @@ class GuardianPinViewModelTest {
     }
 
     @Test
+    fun forGood_isNotOffered_toAPhoneThatDoesntTakeIt() = runTest {
+        every { parser.parse(any(), any()) } returns Outcome.ok(sampleRequest.copy(supportsDaily = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+
+        assertEquals(listOf(AccessForm.Kind.ONE_TIME, AccessForm.Kind.EVERY_DAY), readyState(vm).form.kinds)
+        vm.setKind(AccessForm.Kind.FOR_GOOD)
+        assertNull("nothing that phone would refuse", readyState(vm).form.choice)
+    }
+
+    @Test
+    fun forGood_needsNoMinutes_evenWithAnUnusableTypedValue() = runTest {
+        every { parser.parse(any(), any()) } returns
+            Outcome.ok(sampleRequest.copy(supportsDaily = true, supportsForGood = true))
+        val vm = newVm()
+        vm.parseIncoming("krypt://request?v=1")
+        assertEquals(
+            listOf(AccessForm.Kind.ONE_TIME, AccessForm.Kind.EVERY_DAY, AccessForm.Kind.FOR_GOOD),
+            readyState(vm).form.kinds,
+        )
+
+        vm.editMinutes("0") // can't be used
+        vm.setKind(AccessForm.Kind.FOR_GOOD)
+
+        assertEquals(AccessChoice.ForGood, readyState(vm).form.choice)
+    }
+
+    @Test
     fun everyDay_allowsTheChosenMinutesADay_forTheChosenDays() = runTest {
         val daily = sampleRequest.copy(supportsDaily = true)
         every { parser.parse(any(), any()) } returns Outcome.ok(daily)

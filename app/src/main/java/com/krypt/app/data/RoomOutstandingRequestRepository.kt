@@ -20,6 +20,7 @@ class RoomOutstandingRequestRepository @Inject constructor(
     private val requestDao: OutstandingRequestDao,
     private val grantDao: UnlockGrantDao,
     private val dailyDao: DailyAllowanceDao,
+    private val lockedDao: LockedAppDao,
 ) : OutstandingRequestRepository {
 
     override suspend fun insert(request: OutstandingRequest) {
@@ -66,6 +67,19 @@ class RoomOutstandingRequestRepository @Inject constructor(
             val affected = requestDao.markConsumedIfOpen(requestId.toString(), nowMs)
             if (affected == 0) return@withTransaction false
             dailyDao.upsert(allowance.toEntity())
+            true
+        }
+    }
+
+    override suspend fun consumeAndRemoveLock(
+        requestId: UUID,
+        nowMs: Long,
+        packageName: String,
+    ): Boolean = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val affected = requestDao.markConsumedIfOpen(requestId.toString(), nowMs)
+            if (affected == 0) return@withTransaction false
+            lockedDao.updateLockState(packageName, LockState.UNLOCKED, nowMs)
             true
         }
     }

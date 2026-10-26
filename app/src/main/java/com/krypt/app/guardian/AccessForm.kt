@@ -3,30 +3,40 @@ package com.krypt.app.guardian
 import com.krypt.app.deeplink.AccessChoice
 
 /**
- * The "Allow" part of the Guardian's approval screen: one time, or every
- * day for a number of days. Minutes and days come from a preset chip or a
- * typed value; [choice] is null while a typed value isn't usable, and the
- * approval can't be sent. "Every day" is only offered when the request says
- * the child's phone understands it ([everyDayAllowed]).
+ * The "Allow" part of the Guardian's approval screen: one time, every day
+ * for a number of days, or for good. Minutes and days come from a preset
+ * chip or a typed value; [choice] is null while a typed value isn't usable,
+ * and the approval can't be sent. "Every day" and "For good" are only
+ * offered when the request says the child's phone understands them
+ * ([everyDayAllowed], [forGoodAllowed]).
  */
 data class AccessForm(
     val kind: Kind = Kind.ONE_TIME,
     val minutes: Amount = Amount.Preset(AccessChoice.DEFAULT_MINUTES),
     val days: Amount = Amount.Preset(AccessChoice.DEFAULT_DAYS),
     val everyDayAllowed: Boolean = false,
+    val forGoodAllowed: Boolean = false,
 ) {
 
-    enum class Kind { ONE_TIME, EVERY_DAY }
+    enum class Kind { ONE_TIME, EVERY_DAY, FOR_GOOD }
+
+    /** The kinds to offer, in order: those the child's phone understands. */
+    val kinds: List<Kind>
+        get() = buildList {
+            add(Kind.ONE_TIME)
+            if (everyDayAllowed) add(Kind.EVERY_DAY)
+            if (forGoodAllowed) add(Kind.FOR_GOOD)
+        }
 
     val choice: AccessChoice?
-        get() {
-            val m = usableMinutes ?: return null
-            return when (kind) {
-                Kind.ONE_TIME -> AccessChoice.OneTime(m)
-                Kind.EVERY_DAY -> {
-                    val d = usableDays ?: return null
-                    if (everyDayAllowed) AccessChoice.EveryDay(m, d) else null
-                }
+        get() = when (kind) {
+            // No minutes or days: an unusable typed value can't block it.
+            Kind.FOR_GOOD -> if (forGoodAllowed) AccessChoice.ForGood else null
+            Kind.ONE_TIME -> usableMinutes?.let { AccessChoice.OneTime(it) }
+            Kind.EVERY_DAY -> {
+                val m = usableMinutes
+                val d = usableDays
+                if (everyDayAllowed && m != null && d != null) AccessChoice.EveryDay(m, d) else null
             }
         }
 
