@@ -95,6 +95,17 @@ class DailyAllowanceMeter @Inject constructor(
 
     override fun access(pkg: String): DailyAccess = synchronized(lock) { accessLocked(pkg) }
 
+    /**
+     * How long [pkg] could still be used on its every-day time if it stayed
+     * in front with the screen on from [afterMs] from now (when a one-time
+     * unlock running now ends, say): 0 when it would have none then, null
+     * when it would last longer than [withinMs]. A period that starts in the
+     * meantime starts full, and the rule's end ends it.
+     */
+    fun usableMs(pkg: String, afterMs: Long, withinMs: Long): Long? = synchronized(lock) {
+        usableLocked(pkg, afterMs, withinMs)
+    }
+
     /** The app in front changed ([pkg] null: none known). [locked]: Krypt locks it. */
     fun onForeground(pkg: String?, locked: Boolean) = act {
         foreground = pkg
@@ -102,7 +113,11 @@ class DailyAllowanceMeter @Inject constructor(
     }
 
     /** The screen is on and unlocked (true), or off or at the keyguard (false). */
-    fun onScreenInteractive(isInteractive: Boolean) = act { interactive = isInteractive }
+    fun onScreenInteractive(isInteractive: Boolean) = act {
+        // Timers stop while the phone sleeps, so the one for a used-up period's end is set again.
+        if (isInteractive) forgetRefillLocked()
+        interactive = isInteractive
+    }
 
     /** Something outside may have changed what [access] returns: a grant, the clock, the rules. */
     fun reevaluate() = act { }
@@ -175,9 +190,7 @@ class DailyAllowanceMeter @Inject constructor(
             interactive = true
             timer?.cancel()
             timer = null
-            refillTimer?.cancel()
-            refillTimer = null
-            refillAtMs = null
+            forgetRefillLocked()
         }
         _changes.value = _changes.value + 1
     }
@@ -262,17 +275,39 @@ class DailyAllowanceMeter @Inject constructor(
     private fun accessLocked(pkg: String): DailyAccess {
         val rule = rules[pkg] ?: return DailyAccess.None
         val now = dayClock.nowMs() ?: return DailyAccess.Paused(rule.minutes, rule.lastDay, rule.periodMinutes)
-        val minute = LocalMinutes.of(now, rule.zone)
-        if (!rule.covers(LocalMinutes.day(minute))) return DailyAccess.None
-        val period = rule.periodOf(minute)
-        val usedInPeriod = (used[pkg]?.subMap(period.first, true, period.last, true)?.values?.sum() ?: 0L) +
-            countingMs(pkg, sinceMs = rule.periodStartMs(now), nowMs = now)
-        val left = rule.allowedMs - usedInPeriod
+        if (!rule.covers(LocalMinutes.day(LocalMinutes.of(now, rule.zone)))) return DailyAccess.None
+        val left = rule.allowedMs - usedLocked(pkg, rule, atMs = now, nowMs = now)
         return if (left > 0) {
             DailyAccess.Available(left, rule.minutes, rule.lastDay, rule.periodMinutes)
         } else {
             DailyAccess.UsedUp(rule.minutes, rule.lastDay, rule.periodMinutes, nextPeriodAt(rule, now))
         }
+    }
+
+    /** [usableMs], period by period from [afterMs] on: each step uses up a period or finds the time's end. */
+    private fun usableLocked(pkg: String, afterMs: Long, withinMs: Long): Long? {
+        val rule = rules[pkg] ?: return 0L
+        val now = dayClock.nowMs() ?: return 0L
+        var at = now + afterMs
+        var usable = 0L
+        while (usable <= withinMs) {
+            if (!rule.covers(LocalMinutes.day(LocalMinutes.of(at, rule.zone)))) return usable
+            val left = rule.allowedMs - usedLocked(pkg, rule, atMs = at, nowMs = now)
+            if (left <= 0) return usable
+            val end = rule.periodEndMs(at)
+            // Time that runs out just as its period ends doesn't stop the app: the next period starts full.
+            if (at + left < end) return (usable + left).takeIf { it <= withinMs }
+            usable += end - at
+            at = end
+        }
+        return null
+    }
+
+    /** The time used in [rule]'s period that [atMs] falls in: what is saved, and what is being counted at [nowMs]. */
+    private fun usedLocked(pkg: String, rule: DailyAllowance, atMs: Long, nowMs: Long): Long {
+        val period = rule.periodOf(LocalMinutes.of(atMs, rule.zone))
+        val saved = used[pkg]?.subMap(period.first, true, period.last, true)?.values?.sum() ?: 0L
+        return saved + countingMs(pkg, sinceMs = rule.periodStartMs(atMs), nowMs = nowMs)
     }
 
     /** When the next period starts, for a rule counted in periods shorter than a day that still covers it then. */
@@ -386,6 +421,13 @@ class DailyAllowanceMeter @Inject constructor(
             synchronized(lock) { refillAtMs = null }
             reevaluate()
         }
+    }
+
+    /** Drop the refill timer, so the next [scheduleRefillLocked] sets it from the clock again. */
+    private fun forgetRefillLocked() {
+        refillTimer?.cancel()
+        refillTimer = null
+        refillAtMs = null
     }
 
     private data class Session(

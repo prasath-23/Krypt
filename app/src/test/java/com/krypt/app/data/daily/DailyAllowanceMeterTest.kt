@@ -26,13 +26,19 @@ class DailyAllowanceMeterTest {
     private val repo = FakeDailyAllowanceRepository()
     private val ended = mutableListOf<String>()
 
+    /**
+     * Milliseconds the phone slept. They pass on its clocks but not on the
+     * test scheduler, as coroutine timers don't run while it sleeps.
+     */
+    private var sleptMs = 0L
+
     private class Env(val meter: DailyAllowanceMeter, val sessionStore: LockerSessionStore, val clock: Clock)
 
-    /** A meter whose wall and monotonic clocks both follow the test scheduler's virtual time. */
+    /** A meter whose wall and monotonic clocks both follow the test scheduler's virtual time, and [sleptMs]. */
     private fun TestScope.env(startWall: Long = MORNING): Env {
         val clock = object : Clock {
-            override fun nowMs() = startWall + testScheduler.currentTime
-            override fun elapsedMs() = testScheduler.currentTime
+            override fun nowMs() = startWall + testScheduler.currentTime + sleptMs
+            override fun elapsedMs() = testScheduler.currentTime + sleptMs
             override fun bootCount() = 1
         }
         val sessionStore = LockerSessionStore(FakeSharedPreferences(), clock)
@@ -510,6 +516,120 @@ class DailyAllowanceMeterTest {
         autoTime = false
 
         assertEquals(DailyAccess.Paused(15, TODAY.plusDays(1), periodMinutes = 60), e.meter.access(APP))
+    }
+
+    @Test
+    fun aRefillTimerThatSlept_isSetAgainWhenTheScreenComesOn() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env() // 08:00
+        e.meter.onForeground(APP, locked = true)
+        pass(15 * MIN) // used up until 09:00
+        e.meter.onForeground(KRYPT, locked = false) // the lock screen
+        e.meter.onScreenInteractive(false)
+        runCurrent()
+
+        sleptMs = 40 * MIN // 08:55 when the screen comes on; the timers lost those 40 minutes
+        e.meter.onScreenInteractive(true)
+        runCurrent()
+        val before = e.meter.changes.value
+        pass(5 * MIN - 1)
+        assertEquals(before, e.meter.changes.value)
+        pass(1)
+
+        assertTrue("the lock screen hears at 09:00, not 40 minutes later", e.meter.changes.value > before)
+    }
+
+    // ---- How long the app in front can go on (Amendment 7) ----
+
+    @Test
+    fun usableMs_isTheTimeLeft_whenItRunsOutInThisPeriod() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env() // 08:00
+        e.meter.onForeground(APP, locked = true)
+        pass(5 * MIN)
+
+        assertEquals(10 * MIN, e.meter.usableMs(APP, afterMs = 0, withinMs = 60 * MIN))
+    }
+
+    @Test
+    fun usableMs_includesTheTimeBeingCounted() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env()
+        e.meter.onForeground(APP, locked = true)
+        pass(10_000)
+
+        assertEquals(15 * MIN - 10_000, e.meter.usableMs(APP, afterMs = 0, withinMs = 60 * MIN))
+    }
+
+    @Test
+    fun usableMs_isNull_whenTheTimeLastsLongerThanAskedAbout() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env()
+
+        assertEquals(null, e.meter.usableMs(APP, afterMs = 0, withinMs = 14 * MIN))
+        assertEquals(15 * MIN, e.meter.usableMs(APP, afterMs = 0, withinMs = 15 * MIN))
+    }
+
+    @Test
+    fun usableMs_runsOnIntoTheNextPeriod_whenThisOneEndsFirst() = runTest {
+        // 1 minute every 5: at 08:04:30 a full minute is left but only 30 s of the period,
+        // and 08:05-08:10 starts with another minute, so the app goes on until 08:06.
+        repo.rules += rule(minutes = 1, periodMinutes = 5)
+        val e = env(startWall = MORNING + 4 * MIN + 30_000)
+
+        assertEquals(90_000L, e.meter.usableMs(APP, afterMs = 0, withinMs = 3 * MIN))
+    }
+
+    @Test
+    fun timeThatRunsOutJustAsItsPeriodEnds_goesOnInTheNextPeriod() = runTest {
+        repo.rules += rule(minutes = 1, periodMinutes = 5)
+        val e = env(startWall = MORNING + 4 * MIN) // 08:04: a minute of time and a minute of the period
+
+        assertEquals(2 * MIN, e.meter.usableMs(APP, afterMs = 0, withinMs = 10 * MIN))
+    }
+
+    @Test
+    fun timeAllowedForAWholePeriod_neverRunsOut() = runTest {
+        repo.rules += rule(minutes = 60, periodMinutes = 60)
+        val e = env()
+
+        assertEquals(null, e.meter.usableMs(APP, afterMs = 0, withinMs = 3 * 60 * MIN))
+    }
+
+    @Test
+    fun usableMs_endsWhereTheRuleEnds() = runTest {
+        repo.rules += rule(minutes = 120, days = 1) // two hours today, nothing tomorrow
+        val e = env(startWall = MIDNIGHT - MIN) // 23:59
+
+        assertEquals(MIN, e.meter.usableMs(APP, afterMs = 0, withinMs = 3 * MIN))
+    }
+
+    @Test
+    fun usableMs_isNothing_withoutARule_whenUsedUp_orWhenPaused() = runTest {
+        repo.rules += rule(minutes = 1)
+        val e = env()
+        assertEquals("no rule", 0L, e.meter.usableMs(LAUNCHER, afterMs = 0, withinMs = MIN))
+
+        e.meter.onForeground(APP, locked = true)
+        pass(MIN)
+        assertEquals("used up", 0L, e.meter.usableMs(APP, afterMs = 0, withinMs = MIN))
+
+        autoTime = false
+        assertEquals("paused", 0L, e.meter.usableMs(APP, afterMs = 0, withinMs = MIN))
+    }
+
+    @Test
+    fun usableMs_afterAnUnlock_countsFromWhereItEnds() = runTest {
+        repo.rules += rule(minutes = 15, periodMinutes = 60)
+        val e = env() // 08:00
+        e.meter.onForeground(APP, locked = true)
+        pass(5 * MIN)
+        e.meter.onForeground(LAUNCHER, locked = false)
+        runCurrent() // 08:05, 10 minutes of this hour left
+
+        assertEquals("from 08:35", 10 * MIN, e.meter.usableMs(APP, afterMs = 30 * MIN, withinMs = 60 * MIN))
+        assertEquals("08:50-09:00, then 09:00-09:15", 25 * MIN, e.meter.usableMs(APP, afterMs = 45 * MIN, withinMs = 60 * MIN))
+        assertEquals("a later hour starts full", 15 * MIN, e.meter.usableMs(APP, afterMs = 2 * 60 * MIN, withinMs = 60 * MIN))
     }
 
     private companion object {

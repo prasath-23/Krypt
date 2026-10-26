@@ -76,7 +76,7 @@ Two phones on this build: the Subject phone, with "Set time automatically" on, a
 3. In **Every**, choose **Custom** and type `25`: the field says "Choose 5 minutes to 24 hours, like 1.5 or 1:30." and Continue is disabled. Change it to `0.5`. "For how long" now shows only 5 min, 10 min, 15 min and Custom. The note reads "Periods follow the clock from midnight: 00:00, 00:30, 01:00 and so on. Time already used in this one counts. Need more right now? Choose Once."
 4. In **For how long**, choose **Custom** and type `31`: the field says "Choose 1 to 30 minutes." and Continue is disabled. Change it to `1`. The sentence reads "Chrome, 1 minute every 30 minutes for 7 days." Tap **Continue**, enter the Guardian PIN, tap **Approve and send** and send the reply back.
 5. On the Subject phone, tap the reply. The toast reads "Chrome: 1 minute every 30 minutes until", then the date 6 days from today, and Chrome opens.
-6. Use Chrome for a minute. When the minute is used, Chrome is blocked at once. The lock screen says **Done for now.** and "You've used your 1 minute for now. More time at HH:MM. Need it sooner? Ask your Guardian.", where HH:MM is the next half hour.
+6. Use Chrome for a minute. Since Amendment 7 a countdown shows at the top of the screen the whole time, because less than 2 minutes are left. When the minute is used, Chrome is blocked at once. The lock screen says **Done for now.** and "You've used your 1 minute for now. More time at HH:MM. Need it sooner? Ask your Guardian.", where HH:MM is the next half hour.
 7. Tap **Back to home**, open Krypt and enter the Guardian PIN. Chrome is under Locked, with "Every 30 min · back at HH:MM · until" and that same date. Tap the row: the sheet offers **Stop repeating time** and **Keep repeating time**. Tap Keep repeating time.
 8. Open Chrome again: the lock screen is back, with Done for now. Leave it on screen. Within a few seconds of HH:MM it closes by itself, and the home screen shows. Nothing else is needed: no notification, no tap.
 9. Open Chrome: it opens with no lock screen. In Krypt's Home it is under Open now, with "Every 30 min · 1 of 1 min left".
@@ -85,6 +85,29 @@ Two phones on this build: the Subject phone, with "Set time automatically" on, a
 1. On the Subject phone, open another locked app, tap **Request access** and send the request to the Guardian phone.
 2. On the Guardian phone, don't tap the link. Copy the whole message into a notes app, delete `,periods` from `caps=daily,forgood,periods`, and copy the edited message.
 3. Open Krypt and tap **Paste a link**, within 5 minutes of the request. Choose **Repeating**: there is no **Every** row, the note is "Today counts as day 1, including time already used. Need more time today? Choose Once.", and the sentence ends "15 minutes a day for 7 days."
+
+## Amendment 7 --- Blocked on time, with a countdown
+
+Two phones on this build, as above. Use any locked app; Chrome below. If Chrome still has repeating time from the check above, stop it first: open Krypt, enter the Guardian PIN, tap Chrome's row and tap **Stop repeating time**. Unplug the Subject phone, so it can sleep while its screen is off. To see why an app was blocked, keep `adb logcat -s KryptA11y` running on a computer: each block is logged as "blocked pkg=com.android.chrome (time up)", with "in front", "every-day time up" or "rechecked" in place of "time up" for the other reasons.
+
+**The countdown, and taps through it.**
+1. On the Subject phone, open Chrome, tap **Request access** and send the request. On the Guardian phone choose **Once**, then **Custom** under For how long, type `3`, approve and send the reply back. Tap the reply: Chrome opens, with no countdown yet.
+2. Wait a minute. With 2 minutes left, a small dark pill appears at the top centre of the screen, just below the status bar. It reads about "2:00 left", with a teal timer icon, and counts down every second.
+3. Tap the pill: the tap goes to Chrome under it, as if the pill weren't there. Scroll the page: Chrome works as before.
+4. Press Home: the pill goes away. Open Chrome again: the pill is back, still counting down.
+5. At 0:30 the icon turns into an orange hourglass.
+6. When the time ends, Chrome is blocked at once: Krypt's lock screen replaces it, and the pill is gone. The log shows "blocked pkg=com.android.chrome (time up)".
+
+**The screen off part way through an unlock.** Before this amendment this failed: Chrome stayed open after its time, until it was opened again.
+1. Get another Once unlock for Chrome, with **Custom** `5`. Tap the reply. The toast reads "Chrome is open until HH:MM": note HH:MM.
+2. Use Chrome for a minute, then press the power button. Leave the phone unplugged and still for 3 minutes.
+3. Wake the phone and unlock it. Chrome is in front, and the pill shows about 1:00 left.
+4. At HH:MM Chrome is blocked within a few seconds, without being touched.
+
+**Repeating time running out while the app is open.** Start just after a half hour begins (HH:00 or HH:30).
+1. Request access for Chrome again. On the Guardian phone choose **Repeating**, **Every** 30 min and **For how long** 5 min. The sentence reads "Chrome, 5 minutes every 30 minutes for 7 days." Approve and send the reply back, then tap it on the Subject phone: Chrome opens, with no countdown yet.
+2. Keep Chrome open and in use. After 3 minutes the pill appears, at about "2:00 left".
+3. When the 5 minutes are used, Chrome is blocked at once: the lock screen says **Done for now.** and "You've used your 5 minutes for now. More time at HH:MM. Need it sooner? Ask your Guardian.", where HH:MM is the next half hour. The pill is gone. The log shows "blocked pkg=com.android.chrome (every-day time up)" or "(time up)".
 
 ## Automated end-to-end run
 

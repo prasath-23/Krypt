@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.util.Log
@@ -43,10 +44,12 @@ import javax.inject.Inject
  * the Guardian popup (FR-011) - are never blocked.
  *
  * Also hosts the parts of Krypt that must keep running: the new-install
- * auto-lock (FR-003, via [NewInstallLocker]), grant expiry for an app that
- * is still open when its grant ends (FR-013, via [GrantExpiryWatcher]), and
- * counting every-day time (Amendment 3, via [DailyAllowanceMeter], fed by
- * window changes and [DeviceStateWatcher]).
+ * auto-lock (FR-003, via [NewInstallLocker]), counting every-day time
+ * (Amendment 3, via [DailyAllowanceMeter], fed by window changes and
+ * [DeviceStateWatcher]), and the time of the app in front: it is blocked
+ * the moment its unlock or every-day time ends, with a countdown over it
+ * for its last two minutes (FR-013, Amendment 7, via [TimeLeftWatcher] and
+ * [TimeLeftPill]).
  *
  * Apart from the 6-hour health check, this service is all Krypt runs in the
  * background (Amendment 5). Android binds it while it is switched on,
@@ -73,10 +76,25 @@ class AppLockerAccessibilityService : AccessibilityService() {
     /** The app the user is in; keyboard and notification-shade windows don't change it. */
     private var foregroundPackage: String? = null
 
+    /** Whether [foregroundPackage] is one Krypt never blocks ([isNeverBlocked]), worked out once per app. */
+    private var neverBlockedInFront: Pair<String, Boolean>? = null
+
+    /** The screen is on and unlocked, as [DeviceStateWatcher] last said. */
+    private var screenOn = true
+
+    /**
+     * The app [blockLaunch] last sent away, and when, until the next window
+     * change: the meter and the time watcher can find its time up together.
+     */
+    private var sentAway: String? = null
+    private var sentAwayAt = 0L
+
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
     private var deviceState: DeviceStateWatcher? = null
+    private var timeLeftPill: TimeLeftPill? = null
+    private var timeLeft: TimeLeftWatcher? = null
 
     private var watchingInstalls = false
     private val packageAddedReceiver = object : BroadcastReceiver() {
@@ -91,11 +109,32 @@ class AppLockerAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         subscribeToLockedAppsFlow()
         serviceScope.launch { settings.settings.collect { setupFinished = it.onboardingComplete } }
-        GrantExpiryWatcher(serviceScope, sessionStore, ::onGrantExpired).start()
+        val pill = TimeLeftPill(this).also { timeLeftPill = it }
+        timeLeft = TimeLeftWatcher(
+            scope = serviceScope,
+            grantMs = sessionStore::remainingMs,
+            usableMs = dailyMeter::usableMs,
+            display = pill,
+            onGrantEnded = { dailyMeter.reevaluate() },
+            onTimeUp = ::onTimeUp,
+        )
+        // A new unlock, every-day time being counted, or a rule changing all move when the app in front's time ends.
+        serviceScope.launch { sessionStore.grantEvents.collect { keepTime() } }
+        serviceScope.launch { dailyMeter.changes.collect { keepTime() } }
         dailyMeter.attach(serviceScope, ::onDailyAccessEnded)
-        deviceState = DeviceStateWatcher(this, dailyMeter, dayClock) {
-            foregroundPackage?.let(::blockIfNeeded)
-        }.also { it.start() }
+        deviceState = DeviceStateWatcher(
+            this,
+            dailyMeter,
+            dayClock,
+            onScreen = { interactive ->
+                screenOn = interactive
+                keepTime()
+            },
+            recheck = {
+                foregroundPackage?.let { blockIfNeeded(it, why = "rechecked") }
+                keepTime()
+            },
+        ).also { it.start() }
         watchNewInstalls()
         // Protection is back, so an earlier "Krypt is off" alert is out of date.
         notificationHelper.cancelProtectionOff()
@@ -109,6 +148,9 @@ class AppLockerAccessibilityService : AccessibilityService() {
             dailyMeter.loaded.first { it }
             lockedAppsRepo.allLockedFlow().collect { set ->
                 lockedPackagesCache = set
+                // The app in front may have come before the list did, or been locked or unlocked since.
+                foregroundPackage?.let { dailyMeter.onForeground(it, locked = it in set) }
+                keepTime()
             }
         }
     }
@@ -129,13 +171,18 @@ class AppLockerAccessibilityService : AccessibilityService() {
         if (ev.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val pkg = ev.packageName?.toString() ?: return
+        // The countdown showing over the app in front; it doesn't take its place.
+        if (pkg == packageName && ev.className?.toString() == TimeLeftPill.ACCESSIBILITY_CLASS) return
         if (!isTransientWindow(pkg, ev.className)) {
+            if (pkg != foregroundPackage) neverBlockedInFront = null
             foregroundPackage = pkg
+            sentAway = null
             // Also for Krypt's own windows, so they stop an app's daily time.
             dailyMeter.onForeground(pkg, locked = pkg in lockedPackagesCache)
         }
 
-        blockIfNeeded(pkg)
+        blockIfNeeded(pkg, why = "in front")
+        keepTime()
     }
 
     override fun onInterrupt() {
@@ -162,6 +209,7 @@ class AppLockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        timeLeft?.watch(null) // stops its timer and takes the countdown down
         deviceState?.stop()
         dailyMeter.detach()
         if (watchingInstalls) {
@@ -175,26 +223,44 @@ class AppLockerAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    /** A grant ran out: if its app is still open, block it now - unless its daily time takes over. */
-    private fun onGrantExpired(pkg: String) {
-        dailyMeter.reevaluate()
-        if (pkg == foregroundPackage) blockIfNeeded(pkg)
+    /** The app in front has no time left ([TimeLeftWatcher]): its unlock or every-day time ended. */
+    private fun onTimeUp(pkg: String) {
+        if (pkg == foregroundPackage) blockIfNeeded(pkg, why = "time up")
     }
 
     /** The app's every-day time ran out, or its rule ended, while it is open. */
     private fun onDailyAccessEnded(pkg: String) {
-        if (pkg == foregroundPackage) blockIfNeeded(pkg)
+        if (pkg == foregroundPackage) blockIfNeeded(pkg, why = "every-day time up")
     }
 
-    /** Block [pkg] if Krypt locks it and nothing allows it right now ([AccessPolicy]). */
-    private fun blockIfNeeded(pkg: String) {
+    /**
+     * Keep time for the app in front ([TimeLeftWatcher]) while the screen is
+     * on: a locked app Krypt may block. Called on everything that can move
+     * when its time ends.
+     */
+    private fun keepTime() {
+        val pkg = foregroundPackage?.takeIf {
+            screenOn && it != packageName && it in lockedPackagesCache && !isNeverBlockedInFront(it)
+        }
+        timeLeft?.watch(pkg)
+    }
+
+    private fun isNeverBlockedInFront(pkg: String): Boolean =
+        neverBlockedInFront?.takeIf { it.first == pkg }?.second
+            ?: isNeverBlocked(pkg).also { neverBlockedInFront = pkg to it }
+
+    /** Block [pkg] if Krypt locks it and nothing allows it right now ([AccessPolicy]). [why] is logged. */
+    private fun blockIfNeeded(pkg: String, why: String) {
         if (pkg == packageName || pkg !in lockedPackagesCache) return
         val decision = AccessPolicy.decide(
             isLocked = true,
             hasGrant = sessionStore.isUnlockedNow(pkg),
             daily = dailyMeter.access(pkg),
         )
-        if (decision is AccessDecision.Block && !isNeverBlocked(pkg)) blockLaunch(pkg)
+        if (decision !is AccessDecision.Block || isNeverBlocked(pkg)) return
+        // Already on its way out: sending it away twice would only start the lock screen twice.
+        if (pkg == sentAway && SystemClock.elapsedRealtime() - sentAwayAt < SENT_AWAY_MS) return
+        blockLaunch(pkg, why)
     }
 
     /**
@@ -205,7 +271,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
      * also goes to the home screen, and bringing the app back (launcher,
      * Recents, a notification) fires another event.
      */
-    private fun blockLaunch(pkg: String) {
+    private fun blockLaunch(pkg: String, why: String) {
+        timeLeftPill?.hide() // not left over the lock screen
         val home = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_HOME)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -214,7 +281,9 @@ class AppLockerAccessibilityService : AccessibilityService() {
         val noAnimation = ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle()
         try {
             startActivities(arrayOf(home, LockScreenActivity.intentFor(this, pkg)), noAnimation)
-            Log.i(TAG, "blocked pkg=$pkg")
+            sentAway = pkg
+            sentAwayAt = SystemClock.elapsedRealtime()
+            Log.i(TAG, "blocked pkg=$pkg ($why)")
         } catch (t: Throwable) {
             Log.e(TAG, "could not show lock screen for pkg=$pkg", t)
         }
@@ -262,5 +331,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
         const val TAG = "KryptA11y"
         const val SYSTEM_UI_PACKAGE = "com.android.systemui"
         const val SOFT_INPUT_WINDOW_CLASS = "android.inputmethodservice.SoftInputWindow"
+
+        /** Long enough for the lock screen to come up, short enough to try again if it didn't. */
+        const val SENT_AWAY_MS = 2_000L
     }
 }

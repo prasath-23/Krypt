@@ -2,8 +2,47 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5 and 6 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6 and 7 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 7 (2026-10-26) - Blocked When the Time Ends, with a Countdown Before It
+
+**Asked for (2026-10-26):** "the timer is not autolaocking after time exit.. this only locks after the i open again.. this is an issue.. same way show the timer as overlay when it reaches it last 2 mins.. just like brainpal scoll indicator.. and pls test all casess"
+
+**What changed:** before this, an app that was open when its time ended could stay usable until it was opened again. Now it is blocked at that moment, even if the phone slept in between, and in its last 2 minutes a small countdown shows over it.
+
+**Why it wasn't blocked on time:** coroutine timers (`Handler`, `delay`) run on the uptime clock, which stops while the phone is in deep sleep. `GrantExpiryWatcher` armed one `delay(remaining)` per unlock, and nothing armed it again when the screen came back on. Turning the screen off during an unlock therefore pushed the block later by as long as the phone slept, and the app stayed usable until it was opened again. A unit test reproduced it: a 15-minute unlock with the screen off for 10 minutes ended at 25 minutes on the phone's clock.
+
+1. **An app that is open when its time ends is blocked at that moment:** a one-time unlock (Once) ending, repeating time running out, or the rule ending at midnight.
+   - `GrantExpiryWatcher` is deleted. `TimeLeftWatcher` keeps time for the locked app in front, and only for that app.
+   - It works out the time left again, from clocks that keep running while the phone sleeps (`elapsedRealtime` and `TrustedDayClock`), whenever something changes: the app in front, the screen going off or on, a new unlock, the every-day meter, the clock or the time zone. While a locked app is open with the screen on, it also looks again at least every 60 s.
+   - The time left is what is left of the unlock, plus any every-day time that follows it. Every-day time is not counted during an unlock. `DailyAllowanceMeter.usableMs` walks from one period's end to the next: a new period starts full, and the rule's last day ends the time at midnight.
+   - The timer that lets a used-up lock screen ("More time at …") close by itself when the time comes back (Amendment 6) is also set again when the screen comes back on.
+   - Blocking is unchanged: Krypt's lock screen replaces the app (Amendment 2). Nothing is drawn over a running app to block it.
+2. **A countdown in the app's last 2 minutes.** A small pill at the top centre of the screen, 8dp below the status bar, reads "1:59 left".
+   - The time is in Geist Mono and "left" in Instrument Sans 500, at 15sp, in #F2F2F2 on #2E2E2E (the light theme's `inverse-on-surface` and `inverse-surface`), with a 1dp white hairline at 20% and fully round ends. Its 16dp `timer` icon is in the dark theme's `open` teal (#7CCFB8). In the last 30 s the icon becomes `hourglass_bottom` in `caution` orange (#F5A06A).
+   - It is always dark, like a toast, so it reads the same over any app, light or dark.
+   - The accessibility service draws it as an accessibility overlay (`TYPE_ACCESSIBILITY_OVERLAY`), so it needs no other permission. It takes no focus, and touches pass through it to the app. Its window title is "KryptTimeLeft".
+   - It shows only while the locked app is in front and the screen is on and unlocked. It goes away when you leave the app, when the screen goes off, when the app is blocked, or when more time arrives.
+   - It counts on across a period's end when the next period starts full: with 1 minute every 5 minutes, at 08:04:30 it shows 1:30, and the app is blocked at 08:06.
+   - Android sends a window event when the pill appears. The service ignores it by the pill's accessibility class name, so it never counts as an app coming to the front, and it doesn't stop every-day time from being counted.
+   - Window events now reach the service at once (`notificationTimeout` 0; it was 100 ms). With a delay, Android keeps only the newest waiting event, so the pill's own event, which is ignored, could have taken the place of another app's coming to the front.
+   - When the list of locked apps arrives after the app in front's first window event, as it can just after Krypt starts, the meter is told again whether that app is locked, so its every-day time is counted and its countdown runs.
+   - Its design is in `docs/design-system/components/TimeLeftPill`.
+3. **The accessibility service description** adds: "When an app's time is nearly up, Krypt shows how long is left over it, and closes the app when the time ends."
+4. **Logging.** `adb logcat -s KryptA11y` shows "blocked pkg=<pkg> (<why>)", where why is one of: in front, time up, every-day time up, rechecked. It also shows "countdown shown".
+5. **Limits.**
+   - Krypt still can't read the screen (`canRetrieveWindowContent` stays false).
+   - After Krypt's own process restarts, it learns which app is in front from that app's next window change, for example the app regaining focus after the phone's lock screen is unlocked.
+   - Amendment 5 still holds: there is no alarm and no foreground service. The 60-s check runs only while a locked app with time is open on screen, and the 1-s tick only while the countdown shows.
+6. **Tests.** JVM: `TimeLeftWatcherTest` and `DailyAllowanceMeterTest`. Device: the e2e cases 24, 28d, 30 and 31b now check the countdown, and the new case 30e turns the screen off for 75 s during a 3-minute unlock and checks that the block still lands within 10 s of the end (`tests/e2e/README.md`).
+
+**FRs touched:**
+- FR-013: a grant ends on time even while its app is open, and even if the phone slept during it. The app is blocked at that moment, not when it is next opened.
+- FR-042: a lock screen showing used-up time still closes by itself when the next period starts, after the phone slept.
+- FR-043 (new): in the last 2 minutes of an app's time, a countdown shows over the app while it is in front and the screen is on and unlocked. It takes no focus and no touches, and needs no permission beyond the accessibility service.
 
 ---
 
@@ -263,7 +302,7 @@ Krypt eliminates both failure modes by moving the unlock authority to a *physica
 2. Krypt on the Subject device loads the stored `MasterKey` from Keystore-backed storage and silently decrypts the approval payload in the background. **No PIN keypad is shown to the Subject.**
 3. The Subject device verifies the payload `req` matches an outstanding `OutstandingRequest` row with `consumed=false`, atomically flips `consumed=true`, and inserts an `UnlockGrant` row.
 4. The overlay flashes green for 500 ms, triggers a short haptic, shows a toast "Unlocked by Guardian until HH:MM", and is dismissed.
-5. When the grant window expires (default 15 minutes), the next foreground event on the app re-triggers the Locker Screen.
+5. When the grant window expires (default 15 minutes), the Locker Screen replaces the app at that moment if it is still open, even if the phone slept meanwhile, and a countdown shows over the app in its last 2 minutes (Amendment 7). Opening the app later shows the Locker Screen.
 
 ### US-6 --- Uninstall attempt
 1. Subject attempts to uninstall Krypt from Settings.
@@ -292,7 +331,7 @@ Each requirement is stated as a testable capability.
 | FR-010 | The interception layer MUST continue to function after 24 hours of screen-off idle, surviving standard OEM battery-optimisation policies (Doze, App Standby). |
 | FR-011 | The system MUST whitelist its own Guardian Popup activity from its own interception, so Guardians can approve requests even on locked-down devices. |
 | FR-012 | Uninstalling the app MUST require Device-Admin to be revoked first. |
-| FR-013 | Each unlock grant MUST be time-boxed. After the grant window expires, the next foreground event on the target app MUST re-trigger the Locker Screen. |
+| FR-013 | Each unlock grant MUST be time-boxed. **Amendment 7:** when the grant window ends, a target app that is still open MUST be blocked at that moment, even if the phone slept during the grant. Opening it after that MUST show the Locker Screen. |
 | FR-014 | The Subject MUST be able to initiate an unlock request without typing any PIN, and the system MUST compose a shareable deep-link payload for the Subject to send. |
 | FR-015 | The system MUST reject any approval URL whose embedded request-ID does not match an outstanding request, or whose decryption fails. |
 | FR-016 | The system MUST provide an internal mock/seam for the "locked-apps database" such that foundational code can be exercised before a persistent store is wired up. |
@@ -301,6 +340,7 @@ Each requirement is stated as a testable capability.
 | FR-019 | (Amendment 1) `OutstandingRequest.ttlSeconds` default MUST be 300 seconds (5 minutes) from request issuance to approval consumption. Requests past TTL MUST be rejected with a clear user-facing error. |
 | FR-020 | (Amendment 1) Each `OutstandingRequest` MUST be single-use. Successful consumption MUST atomically flip `consumed=true` such that a second consume attempt on the same approval URL returns `UnmatchedRequest` (not success). |
 | FR-021 | (Amendment 1) On successful silent approval consumption, the overlay MUST confirm the unlock with a visual cue (>=500 ms green flash or equivalent accessible affordance), a short haptic pulse, and a toast naming the target app. |
+| FR-043 | (Amendment 7) In the last 2 minutes of an app's time (a one-time unlock, repeating time, or both), the system MUST show a countdown over the app while it is in front and the screen is on and unlocked. The countdown MUST NOT take focus or touches, and MUST NOT need any permission beyond the accessibility service. |
 
 ## 6. Success Criteria
 

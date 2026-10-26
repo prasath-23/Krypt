@@ -8,14 +8,15 @@ product. It covers what the JVM and instrumented tests cannot:
 - the full Subject -> Guardian -> Subject round trip across apps.
 
 The stand-in "newly installed app" is the `:e2e-target` module (package
-`com.krypt.e2e.target`).
+`com.krypt.e2e.target`). It logs every tap as `KryptE2ETarget` "tapped", so a
+case can tell that a tap on Krypt's countdown reached the app under it.
 
 ## Run
 
 ```sh
 ./gradlew :app:assembleDebug :e2e-target:assembleDebug
-python tests/e2e/krypt_e2e.py            # ~40 min: includes a real 15-minute grant expiry
-python tests/e2e/krypt_e2e.py --quick    # ~15 min: skips grant expiry, the date changes and Device Admin
+python tests/e2e/krypt_e2e.py            # ~50 min: includes a real 15-minute grant expiry
+python tests/e2e/krypt_e2e.py --quick    # ~20 min: skips the 15-minute grant expiry, the date changes and Device Admin
 ```
 
 Requirements:
@@ -25,8 +26,14 @@ Requirements:
 - Use a wiped device. The script reinstalls Krypt at the start, and the last
   case activates Device Admin, after which Krypt cannot be uninstalled
   without wiping the device.
-- The run reboots the device once (29b). It also moves the clock (30b-30d)
-  and switches automatic date & time (28c), always restoring both. It uses
+- The run reboots the device once (29b). It turns the screen off for 75 s,
+  then wakes the device and dismisses the keyguard (30e), and prints how
+  long the device was really suspended meanwhile. An emulator never is, so
+  there 30e covers the screen going off and on during an unlock, and
+  `TimeLeftWatcherTest` covers the time a sleeping phone loses on its
+  timers. It also moves the
+  clock (30b-30d) and switches automatic date & time (28c), always restoring
+  both. It uses
   `cmd time_detector`, which needs no root. Moving the clock needs
   `set_time_state_for_tests`, which is only on recent Android versions; it
   was checked on Android 16.
@@ -38,7 +45,9 @@ Requirements:
   the active window, which can still be the previous app's for a while.
 - When a case fails, the run saves a screenshot, the UI dump and the
   focused window for it under `<temp>/krypt_e2e_failures/<case>/`, and
-  prints the path. The folder is emptied at the start of each run.
+  prints the path. Screenshots of the countdown also go to that folder:
+  `28d_countdown.png`, `30e_countdown.png` and `31b_countdown.png`. The
+  folder is emptied at the start of each run.
 - Don't start a run shortly before local midnight: the every-day cases
   (28b-30d) assume they all run on the same calendar day.
 
@@ -65,6 +74,12 @@ during a dump isn't blocked until then. That is why the run sets Chrome up
 to skip its first-run screens (case 01): they arrive late, as a second
 activity.
 
+The countdown that shows over an app in its last 2 minutes (Amendment 7) is
+never checked with uiautomator: a dump unbinds Krypt's accessibility
+service, and the countdown goes with it. The script finds it with
+`dumpsys window windows`, by its window title "KryptTimeLeft", and taps the
+middle of its frame to check that the tap reaches the app under it.
+
 ## What it covers
 
 | Area | Positive cases | Negative cases |
@@ -76,10 +91,10 @@ activity.
 | Home | The toggle locks an app (11). A Guardian unlock shows with its time left while the switch stays on (26b). | "Relock now", in the row's sheet, ends the unlock, and the app is blocked again (26c). |
 | Request access | The request link is shared and the pending request saved (16). | Requesting before a PIN exists is refused (04). A request link pasted as a reply is refused (16b). |
 | Guardian | The right PIN shares a reply (21). The Guardian can choose how long it unlocks the app (27: 30 minutes). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
-| Unlock | The approval link opens the app (23). The app opens freely during the grant (24). The grant survives a process restart (26). The copy-and-paste path ("Paste reply") works (27). An app still open when its grant ends is blocked (30). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
+| Unlock | The approval link opens the app (23). The app opens freely during the grant, with no countdown while 15 minutes are left (24). The grant survives a process restart (26). The copy-and-paste path ("Paste reply") works (27). In a 15-minute grant's last 2 minutes the countdown shows over the app, and the app is blocked within 15 s of the end (30). A 3-minute Once unlock, typed into Custom, still ends on time after the screen was off for 75 s: the countdown shows and a tap passes through it, Home hides it and reopening the app shows it, and the block lands within 10 s of the end, logged as "(time up)" (30e). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
 | Health | Switching Krypt's accessibility service off posts "Krypt is off" at once, and switching it back on takes it down (28). The 6-hour health check is scheduled, and no Krypt service runs in the foreground (29); the check's own alert is tested by the instrumented `AccessibilityHealthWorkerTest`, because WorkManager won't run a periodic job early. | |
-| Every day | The Guardian allows 1 minute a day for 2 days (Repeating, with Custom minutes and days; a day is the default period), and the app opens (28b). A minute of use runs out and blocks the app ("Done for today."), with "Request access" still offered; usage survives a restart of Krypt (28d) and a reboot (29b). Time under a one-time unlock doesn't count (30). | Automatic date & time off pauses daily time ("Paused.", 28c). Moving the date forward gives no fresh day (30c). A 40-day date jump and a restart of Krypt don't erase today's used-up time (30d). |
-| Every few hours | The Guardian allows 1 minute an hour for 2 days on Chrome (Repeating, Every "1 hour", Custom minutes), and it opens. The minute runs out and blocks it: the lock screen says "Done for now." and when the time comes back ("More time at …"), with "Request access" still offered (31b). The next hour bringing the time back would mean waiting up to an hour, so the JVM tests cover it (`DailyAllowanceMeterTest`, `DailyAllowancePeriodTest`). | |
+| Every day | The Guardian allows 1 minute a day for 2 days (Repeating, with Custom minutes and days; a day is the default period), and the app opens (28b). With at most today's minute left, the countdown shows over the app at once. A tap on it reaches the app, usage is still counted with it up, it shows again when the app is reopened after Krypt restarts, and it is gone over the lock screen. The minute runs out and blocks the app ("Done for today."), with "Request access" still offered; usage survives a restart of Krypt (28d) and a reboot (29b). Time under a one-time unlock doesn't count (30). | Automatic date & time off pauses daily time ("Paused.", 28c). Moving the date forward gives no fresh day (30c). A 40-day date jump and a restart of Krypt don't erase today's used-up time (30d). |
+| Every few hours | The Guardian allows 1 minute an hour for 2 days on Chrome (Repeating, Every "1 hour", Custom minutes), and it opens, with the countdown over Chrome's minute of the hour. The minute runs out and blocks it: the lock screen says "Done for now." and when the time comes back ("More time at …"), with "Request access" still offered (31b). The next hour bringing the time back would mean waiting up to an hour, so the JVM tests cover it (`DailyAllowanceMeterTest`, `DailyAllowancePeriodTest`). | |
 | Uninstall | Device Admin blocks uninstalling Krypt (31). | |
 
 Instrumented tests (`./gradlew connectedDebugAndroidTest`) cover the same
