@@ -15,7 +15,7 @@ Read this with `CLAUDE.md`, which says how the project is run, and the spec (`po
 | 8 | 2026-10-26 | Krypt asks Android which windows are on screen. The app in front is the one with input focus, and apps in split screen, floating windows and picture-in-picture count too. |
 | 9 | 2026-10-27 | The countdown starts at 5 minutes |
 
-Amendments 1 to 6 are on `main` (PR #5 and earlier). Amendments 7 to 9 are on `dev`, in PR #6, which passed CI and is waiting for the owner to merge it.
+Amendments 1 to 6 reached `main` through PR #5 and earlier. Amendments 7 to 9 and this guide went to `main` in PR #6 (2026-10-27).
 
 ## To check on a real phone
 The emulator can't show these.
