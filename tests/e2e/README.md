@@ -8,14 +8,22 @@ product. It covers what the JVM and instrumented tests cannot:
 - the full Subject -> Guardian -> Subject round trip across apps.
 
 The stand-in "newly installed app" is the `:e2e-target` module (package
-`com.krypt.e2e.target`).
+`com.krypt.e2e.target`). It logs every tap as `KryptE2ETarget` "tapped", so a
+case can tell that a tap on Krypt's countdown reached the app under it. It
+also supports picture-in-picture and has two receivers that the run starts
+with `am broadcast -n`: `EnterPip` puts the open target into
+picture-in-picture (30f), and `ShowOverlay` shows a small window of the
+target, titled "KryptE2EOverlay", over the app in front for 10 s without
+taking focus (30g). That window needs "display over other apps": the target
+declares `SYSTEM_ALERT_WINDOW`, and the run allows it with
+`appops set com.krypt.e2e.target SYSTEM_ALERT_WINDOW allow`.
 
 ## Run
 
 ```sh
 ./gradlew :app:assembleDebug :e2e-target:assembleDebug
-python tests/e2e/krypt_e2e.py            # ~40 min: includes a real 15-minute grant expiry
-python tests/e2e/krypt_e2e.py --quick    # ~15 min: skips grant expiry, the date changes and Device Admin
+python tests/e2e/krypt_e2e.py            # ~50 min: includes a real 15-minute grant expiry
+python tests/e2e/krypt_e2e.py --quick    # ~20 min: skips the 15-minute grant expiry, the date changes and Device Admin
 ```
 
 Requirements:
@@ -25,11 +33,19 @@ Requirements:
 - Use a wiped device. The script reinstalls Krypt at the start, and the last
   case activates Device Admin, after which Krypt cannot be uninstalled
   without wiping the device.
-- The run reboots the device once (29b). It also moves the clock (30b-30d)
-  and switches automatic date & time (28c), always restoring both. It uses
+- The run reboots the device once (29b). It turns the screen off for 75 s,
+  then wakes the device and dismisses the keyguard (30e), and prints how
+  long the device was really suspended meanwhile. An emulator never is, so
+  there 30e covers the screen going off and on during an unlock, and
+  `TimeLeftWatcherTest` covers the time a sleeping phone loses on its
+  timers. It also moves the
+  clock (30b-30d) and switches automatic date & time (28c), always restoring
+  both. It uses
   `cmd time_detector`, which needs no root. Moving the clock needs
   `set_time_state_for_tests`, which is only on recent Android versions; it
-  was checked on Android 16.
+  was checked on Android 16. For 30g the run also lets the e2e target draw
+  over other apps (`appops set com.krypt.e2e.target SYSTEM_ALERT_WINDOW
+  allow`).
 - Android 10 (checked on an API 29 emulator) runs most cases, with three
   limits. `run-as` there can't see Krypt's own process, so the cases that
   kill it (16c, 26, 28d) fail. A Chrome that was never updated is a factory
@@ -38,7 +54,9 @@ Requirements:
   the active window, which can still be the previous app's for a while.
 - When a case fails, the run saves a screenshot, the UI dump and the
   focused window for it under `<temp>/krypt_e2e_failures/<case>/`, and
-  prints the path. The folder is emptied at the start of each run.
+  prints the path. Screenshots of the countdown also go to that folder:
+  `28d_countdown.png`, `30e_countdown.png`, `30f_pip_countdown.png` and
+  `31b_countdown.png`. The folder is emptied at the start of each run.
 - Don't start a run shortly before local midnight: the every-day cases
   (28b-30d) assume they all run on the same calendar day.
 
@@ -59,11 +77,83 @@ Guardian's Custom minutes and days.
 
 Every `uiautomator dump` briefly unbinds Krypt's accessibility service, so
 the script waits for the service to be bound again before it opens an app.
-On a real device nothing unbinds it. A service bound again only learns which
-app is in front at the next window change, so an app window that arrives
-during a dump isn't blocked until then. That is why the run sets Chrome up
-to skip its first-run screens (case 01): they arrive late, as a second
-activity.
+On a real device nothing unbinds it. Before Amendment 8, a service bound
+again only learned which app is in front at the next window change, so an
+app window that arrived during a dump wasn't blocked until then. That is why
+the run sets Chrome up to skip its first-run screens (case 01): they arrive
+late, as a second activity. Since Amendment 8 a service bound again asks
+Android which window has focus, so it knows the app in front at once.
+
+The countdown that shows over an app in its last 5 minutes (Amendment 9) is
+never checked with uiautomator: a dump unbinds Krypt's accessibility
+service, and the countdown goes with it. The script finds it with
+`dumpsys window windows`, by its window title "KryptTimeLeft", and taps the
+middle of its frame to check that the tap reaches the app under it. It finds
+the target's small window ("KryptE2EOverlay", 30g) the same way. Whether the
+target is in picture-in-picture (30f) comes from `dumpsys activity
+activities`, where its task's windowing mode reads "mode=pinned"
+(`target_in_pip()`).
+
+## Chosen cases
+
+`run_cases.py` runs named cases in order, for example
+`python tests/e2e/run_cases.py 30e 30f`. Each case expects the state that
+the cases before it leave, so on a wiped device start with
+`python tests/e2e/run_cases.py --reset 01 02 03 ...`. The suite's state (the
+request, the approval and when it was granted) is kept in
+`<temp>/krypt_e2e_state.json` between runs, so a long run can be split into
+shorter ones. Screenshots still go to `<temp>/krypt_e2e_failures/`, which
+`run_cases.py` doesn't empty.
+
+On a device kept from an earlier full run:
+- Switch Krypt's accessibility service on first if it is off
+  (`settings get secure enabled_accessibility_services`); the script's
+  `enable_krypt_service()` does it. `wait_for_krypt_service()` only waits.
+- The target's 1-minute-a-day rule from 30d must be used up today
+  (`daily_used_ms(TARGET)` of 60000 or more). Otherwise the target opens with
+  no lock screen, and its time runs on past a Once unlock.
+- Chrome is unlocked for good after 32, so 30g needs Chrome locked again.
+- 32 needs 29b's reboot, which ends Chrome's 30-minute grant from 27.
+- A request expires after 5 minutes. 17 and 21 can take about 2.5 minutes
+  each, so a slow 16-23 can run past it; run 16 again, then 21-23 back to back.
+
+## Emulator notes
+
+The runs so far used an Android 16 emulator (system image
+`android-36/google_apis_playstore/x86_64`) with `hw.keyboard=no`, so the
+on-screen keyboard shows as on a phone, `hw.ramSize=3072` and
+`disk.dataPartition.size=6G`. They started it with `-no-snapshot
+-no-boot-anim -gpu swiftshader_indirect -memory 3072 -no-audio`. With
+`-gpu auto`, screenshots came back black or scrambled while Gradle also ran.
+An Android 10 image (`android-29`) works the same way.
+
+- **Wipe before a full run** (`-wipe-data`): case 31 makes Krypt a Device
+  Admin, after which case 01 can't uninstall it.
+- **After a boot or a wipe**, Play Store and Google Play services updates keep
+  the load high for several minutes. Wait until `/proc/loadavg` is below about
+  2.5: under load, taps get lost (07 counted 3 digits for 4 taps) and the
+  Guardian's PIN check takes about 35 s.
+- **Gboard's stylus tutorial** can cover half the screen the first time a
+  text field is tapped. Once per device:
+  `adb shell settings put secure stylus_handwriting_enabled 0`.
+- **The display sleeps** in long sessions: the emulator reports itself
+  unplugged, so `svc power stayon` doesn't hold. Use
+  `adb shell dumpsys battery set ac 1` (undo with `dumpsys battery reset`).
+- **The share sheet can hang** after hours of use (`com.android.intentresolver`
+  ANRs, and its dialog takes taps meant for the next screen). Run
+  `adb shell am force-stop com.android.intentresolver`, or reboot.
+- **A System UI "isn't responding" dialog after a boot** takes window focus,
+  so instrumented tests fail with RootViewWithoutFocus. Tap its "Wait".
+- **The emulator never deep-sleeps**, so it can't show a bug where timers lose
+  sleep time; `TimeLeftWatcherTest` covers that with a clock offset.
+- **Memory:** a 3 GB emulator next to Gradle needs about 8 GB free. Build
+  first, run `./gradlew --stop`, then boot the emulator.
+- **Windows:** in Git Bash, set `MSYS_NO_PATHCONV=1` or adb's `/sdcard/...`
+  arguments get rewritten. Windows defines an environment variable `Serial`,
+  which Python would read for `SERIAL`, so the script reads
+  `KRYPT_ADB_SERIAL`.
+- `expect_taps_reach_the_app_through_the_pill()` clears logcat before its
+  tap, so a case's earlier "countdown shown" lines are gone after it.
 
 ## What it covers
 
@@ -76,10 +166,11 @@ activity.
 | Home | The toggle locks an app (11). A Guardian unlock shows with its time left while the switch stays on (26b). | "Relock now", in the row's sheet, ends the unlock, and the app is blocked again (26c). |
 | Request access | The request link is shared and the pending request saved (16). | Requesting before a PIN exists is refused (04). A request link pasted as a reply is refused (16b). |
 | Guardian | The right PIN shares a reply (21). The Guardian can choose how long it unlocks the app (27: 30 minutes). | Wrong PIN (17), expired request (18), garbled request (19), legacy `krypt://pair` link (20). |
-| Unlock | The approval link opens the app (23). The app opens freely during the grant (24). The grant survives a process restart (26). The copy-and-paste path ("Paste reply") works (27). An app still open when its grant ends is blocked (30). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
+| Unlock | The approval link opens the app (23). The app opens freely during the grant, with no countdown while 15 minutes are left (24). The grant survives a process restart (26). The copy-and-paste path ("Paste reply") works (27). In a 15-minute grant's last 5 minutes the countdown shows over the app, and the app is blocked within 15 s of the end (30). A 3-minute Once unlock, typed into Custom, shows the countdown as soon as the app opens, and still ends on time after the screen was off for 75 s: the countdown shows again and a tap passes through it, Home hides it and reopening the app shows it, and the block lands within 10 s of the end, logged as "(time up)" (30e). | A tampered approval unlocks nothing (22). A replayed approval grants nothing more (25). A reboot ends every grant (29b). Setting the date back and restarting Krypt doesn't revive an ended grant (30b). |
+| On screen | An app in picture-in-picture, with the launcher in front, keeps its 3-minute Once unlock and its countdown. When the time ends, Krypt closes the small window (logged as "closing a window of pkg=…: closed") and the lock screen shows within 10 s (30f). Chrome has a 2-minute Once unlock and its countdown; the target, with a 15-minute unlock of its own, shows a small window over Chrome without taking focus, as the launcher's window does during a cancelled home gesture. The countdown never goes, checked 8 times and by no second "countdown shown" in the log; Chrome stays in front and is blocked within 10 s of its end, logged as "(time up)" (30g, the reported bug: the build before Amendment 8 fails it). | |
 | Health | Switching Krypt's accessibility service off posts "Krypt is off" at once, and switching it back on takes it down (28). The 6-hour health check is scheduled, and no Krypt service runs in the foreground (29); the check's own alert is tested by the instrumented `AccessibilityHealthWorkerTest`, because WorkManager won't run a periodic job early. | |
-| Every day | The Guardian allows 1 minute a day for 2 days (Repeating, with Custom minutes and days; a day is the default period), and the app opens (28b). A minute of use runs out and blocks the app ("Done for today."), with "Request access" still offered; usage survives a restart of Krypt (28d) and a reboot (29b). Time under a one-time unlock doesn't count (30). | Automatic date & time off pauses daily time ("Paused.", 28c). Moving the date forward gives no fresh day (30c). A 40-day date jump and a restart of Krypt don't erase today's used-up time (30d). |
-| Every few hours | The Guardian allows 1 minute an hour for 2 days on Chrome (Repeating, Every "1 hour", Custom minutes), and it opens. The minute runs out and blocks it: the lock screen says "Done for now." and when the time comes back ("More time at …"), with "Request access" still offered (31b). The next hour bringing the time back would mean waiting up to an hour, so the JVM tests cover it (`DailyAllowanceMeterTest`, `DailyAllowancePeriodTest`). | |
+| Every day | The Guardian allows 1 minute a day for 2 days (Repeating, with Custom minutes and days; a day is the default period), and the app opens (28b). With at most today's minute left, the countdown shows over the app at once. A tap on it reaches the app, usage is still counted with it up, it shows again when the app is reopened after Krypt restarts, and it is gone over the lock screen. The minute runs out and blocks the app ("Done for today."), with "Request access" still offered; usage survives a restart of Krypt (28d) and a reboot (29b). Time under a one-time unlock doesn't count (30). | Automatic date & time off pauses daily time ("Paused.", 28c). Moving the date forward gives no fresh day (30c). A 40-day date jump and a restart of Krypt don't erase today's used-up time (30d). |
+| Every few hours | The Guardian allows 1 minute an hour for 2 days on Chrome (Repeating, Every "1 hour", Custom minutes), and it opens, with the countdown over Chrome's minute of the hour. The minute runs out and blocks it: the lock screen says "Done for now." and when the time comes back ("More time at …"), with "Request access" still offered (31b). The next hour bringing the time back would mean waiting up to an hour, so the JVM tests cover it (`DailyAllowanceMeterTest`, `DailyAllowancePeriodTest`). | |
 | Uninstall | Device Admin blocks uninstalling Krypt (31). | |
 
 Instrumented tests (`./gradlew connectedDebugAndroidTest`) cover the same

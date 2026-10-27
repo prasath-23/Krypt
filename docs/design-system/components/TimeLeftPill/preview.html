@@ -1,0 +1,43 @@
+<!-- @dsCard group="Feedback" height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>TimeLeftPill — preview</title>
+<style>
+  /* Always dark, in both themes: the light theme's inverse-surface and inverse-on-surface, with the dark theme's open and caution. */
+  .tl { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px 8px 12px; border-radius: var(--radius-full); background: #2e2e2e; color: #f2f2f2; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); font: 500 15px/18px var(--font-sans); white-space: nowrap; }
+  .tl--open .kx-ic { color: #7ccfb8; }
+  .tl--ending .kx-ic { color: #f5a06a; }
+  .tl__time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  /* The top of a phone, with an app under the pill: one light, one dark. */
+  .tl-app { position: relative; width: 300px; max-width: 100%; height: 200px; overflow: hidden; border: 1px solid var(--outline-variant); border-radius: var(--radius-xl); }
+  .tl-app--light { background: #ffffff; color: #1f1f1f; }
+  .tl-app--light .tl-skel i { background: #e3e3e3; } .tl-app--light .tl-skel b { background: #f0f0f0; }
+  .tl-app--dark { background: #121212; color: #e8e8e8; }
+  .tl-app--dark .tl-skel i { background: #2c2c2c; } .tl-app--dark .tl-skel b { background: #1f1f1f; }
+  .tl-bar { height: 24px; padding: 0 20px; display: flex; align-items: center; font: 500 12px/16px var(--font-sans); }
+  .tl-over { position: absolute; top: 32px; left: 0; right: 0; display: flex; justify-content: center; }
+  .tl-skel { display: flex; flex-direction: column; gap: 12px; padding: 56px 20px 0; }
+  .tl-skel i { display: block; height: 14px; border-radius: var(--radius-sm); }
+  .tl-skel b { display: block; height: 72px; border-radius: var(--radius-lg); }
+</style></head>
+<body>
+<div class="kx-stage">
+  <div class="kx-specimen">
+    <span class="kx-note">Last 5 minutes · over a light app</span>
+    <div class="tl-app tl-app--light">
+      <div class="tl-bar">14:33</div>
+      <div class="tl-skel" aria-hidden="true"><i style="width:55%"></i><b></b><i style="width:80%"></i></div>
+      <div class="tl-over"><span class="tl tl--open" role="timer" aria-label="1:59 left"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M10,3h4c0.55,0,1-0.45,1-1c0-0.55-0.45-1-1-1h-4C9.45,1,9,1.45,9,2C9,2.55,9.45,3,10,3z"/><path d="M19.03,7.39l0.75-0.75c0.38-0.38,0.39-1.01,0-1.4c0,0-0.01-0.01-0.01-0.01c-0.39-0.39-1.01-0.38-1.4,0l-0.75,0.75 C16.07,4.74,14.12,4,12,4c-4.8,0-8.88,3.96-9,8.76C2.87,17.84,6.94,22,12,22c4.98,0,9-4.03,9-9C21,10.88,20.26,8.93,19.03,7.39z M13,13c0,0.55-0.45,1-1,1s-1-0.45-1-1V9c0-0.55,0.45-1,1-1s1,0.45,1,1V13z"/></svg><span><span class="tl__time">1:59</span> left</span></span></div>
+    </div>
+  </div>
+  <div class="kx-specimen">
+    <span class="kx-note">Last 30 seconds · over a dark app</span>
+    <div class="tl-app tl-app--dark">
+      <div class="tl-bar">14:35</div>
+      <div class="tl-skel" aria-hidden="true"><i style="width:55%"></i><b></b><i style="width:80%"></i></div>
+      <div class="tl-over"><span class="tl tl--ending" role="timer" aria-label="0:28 left"><svg class="kx-ic kx-ic--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M16,22c1.1,0,2-0.9,2-2l-0.01-3.18c0-0.53-0.21-1.03-0.58-1.41L14,12l3.41-3.43c0.37-0.37,0.58-0.88,0.58-1.41L18,4 c0-1.1-0.9-2-2-2H8C6.9,2,6,2.9,6,4v3.16C6,7.69,6.21,8.2,6.58,8.58L10,12l-3.41,3.4C6.21,15.78,6,16.29,6,16.82V20 c0,1.1,0.9,2,2,2H16z M8,7.09V5c0-0.55,0.45-1,1-1h6c0.55,0,1,0.45,1,1v2.09c0,0.27-0.11,0.52-0.29,0.71L12,11.5L8.29,7.79 C8.11,7.61,8,7.35,8,7.09z"/></svg><span><span class="tl__time">0:28</span> left</span></span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

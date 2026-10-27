@@ -64,7 +64,7 @@
     <string name="onboarding_required">REQUIRED</string>
     <string name="onboarding_optional">OPTIONAL</string>
     <string name="onboarding_accessibility_title">See when a locked app opens</string>
-    <string name="onboarding_accessibility_line">Krypt notices which app opens. It never reads what\'s on screen.</string>
+    <string name="onboarding_accessibility_line">Krypt notices which apps are on screen. It never reads what they show.</string>
     <string name="onboarding_overlay_title">Show the lock over apps</string>
     <string name="onboarding_overlay_line">Lets Krypt put its lock screen in front of a locked app.</string>
     <string name="onboarding_battery_title">Keep running in the background</string>
@@ -354,8 +354,11 @@
 
     <!-- Accessibility service (WP10) -->
     <string name="accessibility_service_label">Krypt Locker</string>
-    <string name="accessibility_service_description">Krypt needs Accessibility access to see which app is being launched and block locked apps until your Guardian approves. For apps your Guardian gives repeating time, Krypt counts the minutes they are used, on this device only. Krypt does not read your app content and does not send any data off the device.</string>
+    <string name="accessibility_service_description">Krypt needs Accessibility access to see which apps are on screen and block locked apps until your Guardian approves. For apps your Guardian gives repeating time, Krypt counts the minutes they are used, on this device only. When an app\'s time is nearly up, Krypt shows how long is left over it, and closes the app when the time ends. Krypt does not read your app content and does not send any data off the device.</string>
     <string name="accessibility_service_summary">Blocks locked apps from opening until your Guardian approves.</string>
+
+    <!-- The countdown over an app in its last five minutes (Amendments 7 and 9). %1$s: the time left, e.g. 4:59. -->
+    <string name="time_left_pill">%1$s left</string>
 
     <!-- Device Admin (WP11) -->
     <string name="device_admin_label">Krypt Device Admin</string>

@@ -17,7 +17,8 @@ import com.krypt.app.data.daily.DailyAllowanceMeter
 /**
  * Tells the every-day meter and the day clock what the device is doing:
  * the screen going off, on and unlocked; the clock or time zone being
- * changed; automatic date & time being switched. [recheck] is called when
+ * changed; automatic date & time being switched. [onScreen] hears whether
+ * the screen is on and unlocked, as the meter does. [recheck] is called when
  * the app in front may have to be blocked now - after unlocking, since a
  * grant or today's time may have run out while the screen was off.
  *
@@ -27,13 +28,14 @@ class DeviceStateWatcher(
     private val context: Context,
     private val meter: DailyAllowanceMeter,
     private val dayClock: TrustedDayClock,
+    private val onScreen: (interactive: Boolean) -> Unit,
     private val recheck: () -> Unit,
 ) {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_SCREEN_OFF, Intent.ACTION_SHUTDOWN -> meter.onScreenInteractive(false)
+                Intent.ACTION_SCREEN_OFF, Intent.ACTION_SHUTDOWN -> setInteractive(false)
                 Intent.ACTION_SCREEN_ON -> if (!keyguardLocked()) userIsBack()
                 Intent.ACTION_USER_PRESENT -> userIsBack()
                 Intent.ACTION_TIME_CHANGED -> {
@@ -76,7 +78,7 @@ class DeviceStateWatcher(
         )
         started = true
         val power = context.getSystemService(PowerManager::class.java)
-        meter.onScreenInteractive(power?.isInteractive != false && !keyguardLocked())
+        setInteractive(power?.isInteractive != false && !keyguardLocked())
     }
 
     fun stop() {
@@ -91,8 +93,13 @@ class DeviceStateWatcher(
     }
 
     private fun userIsBack() {
-        meter.onScreenInteractive(true)
+        setInteractive(true)
         recheck()
+    }
+
+    private fun setInteractive(interactive: Boolean) {
+        meter.onScreenInteractive(interactive)
+        onScreen(interactive)
     }
 
     private fun keyguardLocked(): Boolean =

@@ -11,14 +11,19 @@ Resolves unknowns and justifies technical choices before moving to data-model an
 **Findings.**
 
 - `TYPE_WINDOW_STATE_CHANGED` is the single event family that fires at app-launch. `TYPE_WINDOW_CONTENT_CHANGED` is chatty (fires on every subtree change) and raises CPU + battery cost for no extra signal here.
-- `FLAG_DEFAULT` is insufficient. We need `FLAG_RETRIEVE_INTERACTIVE_WINDOWS` only if we ever call `getRootInActiveWindow()`; for the foundation we don't, so we omit it to reduce per-event work.
+- `FLAG_DEFAULT` is insufficient. We need `FLAG_RETRIEVE_INTERACTIVE_WINDOWS` only if we ever call `getRootInActiveWindow()`; for the foundation we don't, so we omit it to reduce per-event work. (Superseded by Amendment 8: set, to list the windows on screen. See the note under the Decision.)
 - `notificationTimeout = 100` ms (not 0) debounces rapid state transitions (splash -> main activity) and cuts redundant overlay inflations without breaking the <200 ms budget.
 - `eventTypes = typeWindowStateChanged` and `packageNames = unset` (listen to all packages). Locking down `packageNames` at the config level would require us to enumerate locked apps in the Accessibility config, which is a privacy-leaky and stale list. We filter inside `onAccessibilityEvent` instead.
-- `canRetrieveWindowContent = false` (privacy-minimisation and perf).
+- `canRetrieveWindowContent = false` (privacy-minimisation and perf). (Superseded by Amendment 8: true. See the note under the Decision.)
 - The overlay view must be pre-inflated once at service start and held as a field, not inflated on each event. Inflation typically costs 20-80 ms on mid-range devices; adding that to the 50-100 ms event-to-handler latency would blow the budget.
 - `WindowManager.addView(preInflated)` with the correct layout params then completes in <5 ms.
 
 **Decision.** Service config in `res/xml/accessibility_service_config.xml`: `accessibilityEventTypes=typeWindowStateChanged`, `accessibilityFlags=flagDefault|flagIncludeNotImportantViews` (needed for some OEMs' launchers), `notificationTimeout=100`, `canRetrieveWindowContent=false`. Pre-inflate overlay in `onServiceConnected()`.
+
+**Superseded by Amendment 8 (2026-10-26).** The config is now `accessibilityEventTypes=typeWindowStateChanged|typeWindowsChanged`, `accessibilityFlags=flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows`, `notificationTimeout=0` (since Amendment 7) and `canRetrieveWindowContent=true`.
+- The window state event alone can't say which app is in front. While a home gesture runs, the launcher's window shows behind the app and sends one, though the app keeps focus; and an app in a small window (picture-in-picture, a floating window, split screen) never has focus at all. Krypt now asks Android for the list of windows: the app in front is the one whose window has input focus, and every app with a window on screen is in use.
+- Krypt still reads no app content. Window ids are matched to apps from the window events it already gets. Only a window it hasn't heard from, as just after Krypt starts, is matched through its root node's package name, off the main thread.
+- No polling is added: window changes arrive as events (`typeWindowsChanged`).
 
 ---
 
@@ -186,7 +191,7 @@ Both fit comfortably in SMS-friendly territory.
 
 | # | Topic | Resolution |
 |---|-------|-----------|
-| R1 | Accessibility event filter | `TYPE_WINDOW_STATE_CHANGED` only, 100 ms debounce, pre-inflated overlay |
+| R1 | Accessibility event filter | Superseded by Amendment 8: window-state and windows-changed events, and Android's list of windows (was `TYPE_WINDOW_STATE_CHANGED` only, 100 ms debounce, pre-inflated overlay) |
 | R2 | Overlay flags | `TYPE_APPLICATION_OVERLAY` + `FLAG_NOT_FOCUSABLE|LAYOUT_IN_SCREEN|SECURE|...` |
 | R3 | Battery survival | Accessibility-Service lifecycle + OEM-Settings deep-links + a 6-hour WorkManager safety-net check; the "Krypt is off" alert is instant (Amendment 5 removed the supplementary FGS) |
 | R4 | KDF choice | PBKDF2-HMAC-SHA256, calibrated >=300k iterations, per-Guardian + per-request salt |

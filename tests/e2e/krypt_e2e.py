@@ -9,8 +9,8 @@ Prerequisites (see tests/e2e/README.md):
   one device/emulator on adb (Android 10+), ideally freshly wiped.
 
 Usage:
-  python tests/e2e/krypt_e2e.py            # full run, ~40 min (waits out a 15-min grant)
-  python tests/e2e/krypt_e2e.py --quick    # skip the grant-expiry and uninstall cases
+  python tests/e2e/krypt_e2e.py            # full run, ~50 min (waits out a 15-min grant)
+  python tests/e2e/krypt_e2e.py --quick    # skip the 15-minute expiry, the date and the uninstall cases
 
 The run is ordered: later cases build on the state earlier ones leave. It
 reinstalls Krypt at the start, reboots the device once, moves the device
@@ -343,6 +343,64 @@ def krypt_logcat(pattern):
     return re.findall(pattern, adb("logcat", "-d", "-s", "KryptA11y:*", "KryptNewInstall:*"))
 
 
+PILL_WINDOW = "KryptTimeLeft"  # TimeLeftPill.WINDOW_TITLE
+
+
+def window_frame(title):
+    """The frame (left, top, right, bottom) of the window with [title] while it is on screen, else None.
+
+    Read from the window manager, never from uiautomator: a dump unbinds Krypt's accessibility service,
+    and the countdown goes with it."""
+    out = sh("dumpsys window windows")
+    at = out.find(f" {title}}}")
+    if at < 0:
+        return None
+    end = out.find("Window #", at)
+    block = out[at:end if end > 0 else len(out)]
+    m = re.search(r"(?<![A-Za-z])(?:mFrame|frame)=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]", block)
+    return tuple(int(v) for v in m.groups()) if m else (0, 0, 0, 0)
+
+
+def pill_frame():
+    """The countdown's window frame while it shows over an app, else None."""
+    return window_frame(PILL_WINDOW)
+
+
+def pill_shown():
+    return pill_frame() is not None
+
+
+def target_in_pip():
+    """Whether the e2e target is in picture-in-picture: its task's windowing mode is "pinned"."""
+    out = sh("dumpsys activity activities")
+    if re.search(rf"A=\d+:{re.escape(TARGET)}\b[^\n]*mode=pinned", out):  # Android 11 and later
+        return True
+    # Android 10 says it of the stack, and lists the target's TaskRecord under it.
+    stack = re.search(r"Stack #\d+: type=\w+ mode=pinned(.*?)(?=\n\s*Stack #|\Z)", out, re.S)
+    return bool(stack and f"A={TARGET} " in stack.group(1))
+
+
+def screenshot(name):
+    """Keep what the screen shows now in the evidence folder, e.g. to look at the countdown."""
+    os.makedirs(EVIDENCE, exist_ok=True)
+    png = subprocess.run([ADB, "-s", SERIAL, "exec-out", "screencap", "-p"], capture_output=True, timeout=60).stdout
+    path = os.path.join(EVIDENCE, f"{name}.png")
+    open(path, "wb").write(png)
+    return path
+
+
+def expect_taps_reach_the_app_through_the_pill():
+    """Tap the middle of the countdown: the app under it must get the tap (the target logs each one)."""
+    frame = pill_frame()
+    expect(frame and frame[2] > frame[0], f"no countdown to tap through: {frame}")
+    status_bar = window_frame("StatusBar")
+    expect(not status_bar or frame[1] >= status_bar[3], f"the countdown {frame} covers the status bar {status_bar}")
+    adb("logcat", "-c")
+    sh(f"input tap {(frame[0] + frame[2]) // 2} {(frame[1] + frame[3]) // 2}")
+    tapped = wait_for(lambda: "tapped" in adb("logcat", "-d", "-s", "KryptE2ETarget:*"), timeout=5)
+    expect(tapped, f"a tap on the countdown at {frame} did not reach the app under it")
+
+
 def wait_for(condition, timeout=20, step=1.0):
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -358,7 +416,9 @@ def restart_krypt():
     pid = sh(f"pidof {KRYPT}").strip()
     expect(pid, "Krypt is not running")
     sh(f"run-as {KRYPT} kill -9 {pid}")
-    restarted = wait_for(lambda: sh(f"pidof {KRYPT}").strip() not in ("", pid), timeout=30)
+    # Android waits longer each time a service dies again soon after it started: 40 s was seen when 30d
+    # killed Krypt twice in 8 s on an emulator short of memory.
+    restarted = wait_for(lambda: sh(f"pidof {KRYPT}").strip() not in ("", pid), timeout=90)
     expect(restarted, "Krypt did not restart")
     time.sleep(5)  # service reconnects and restores grants
 
@@ -508,6 +568,22 @@ def approve_every_day(request_url, minutes, days, period=None):
     expect(approval, f"no approval link in {text!r}")
     dismiss_share_sheet()
     return text, approval.group(0)
+
+
+def approve_once(request_url, minutes):
+    """As the Guardian: allow the app once, for [minutes] typed into Custom. Returns the approval link."""
+    open_link(request_url)
+    wait_guardian_form()
+    tap_text(r"^Custom$")  # Once has no Every row, so this is For how long's Custom
+    tap_text(r"^Minutes$")
+    type_text(str(minutes))
+    expect(wait_text(rf", {minutes} minutes?, once\.$", 10), f"{minutes} minutes once is not the choice")
+    guardian_approve(PIN)
+    text = shared_text(APPROVAL_TIMEOUT)
+    approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", text)
+    expect(approval, f"no approval link in {text!r}")
+    dismiss_share_sheet()
+    return approval.group(0)
 
 
 # ------------------------------------------------------------------ runner
@@ -851,6 +927,7 @@ def relaunch_during_grant():
     launch(TARGET)
     expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), f"top is {top_activity()}")
     expect(not krypt_logcat(rf"blocked pkg={re.escape(TARGET)}"), "the granted app was blocked")
+    expect(not pill_shown(), "a countdown shows with most of the 15 minutes left")
 
 
 @case("25 replaying the approval link grants nothing more (negative)")
@@ -978,21 +1055,30 @@ def daily_time_paused_without_auto_time():
     home()
 
 
-@case("28d a minute of use runs out and blocks the app; usage survives a restart of Krypt")
+@case("28d a minute of use counts down over the app, runs out and blocks it; usage survives a restart of Krypt")
 def daily_time_runs_out():
     used_before = daily_used_ms(TARGET)
     expect(used_before < 20_000, f"{used_before} ms already used today")
     launch(TARGET)
+    started = time.time()
     expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), f"top is {top_activity()}")
-    time.sleep(36)  # counting; no uiautomator here, a dump would unbind Krypt's service
+    # Less than a minute of today's time is left, so the countdown shows at once (Amendment 7).
+    # No uiautomator from here on: a dump unbinds Krypt's service, and the countdown with it.
+    expect(wait_for(pill_shown, 10), "no countdown over the app in its last minute")
+    screenshot("28d_countdown")
+    expect_taps_reach_the_app_through_the_pill()
+    time.sleep(max(0.0, started + 36 - time.time()))  # counting, with the countdown up
     restart_krypt()
-    # Krypt saves every 30 s (counted from its last save), so 36 s of use saves at least 6 s of it.
+    # Krypt saves 30 s after its last save, which was when 28c's use stopped, so a few seconds less than
+    # 30 s of this use is saved by now. A second or two would mean the countdown's window stopped the count.
     used = daily_used_ms(TARGET)
     expect(used >= used_before + 5_000, f"nothing saved during use: {used} ms (was {used_before})")
     home()
     launch(TARGET)  # a window change, so counting resumes
+    expect(wait_for(pill_shown, 10), "no countdown when the app came back after Krypt restarted")
     top = wait_top(re.escape(LOCK_SCREEN), timeout=(60_000 - used) // 1000 + 20)
     expect(LOCK_SCREEN in top, f"not blocked when today's minute ran out; top is {top}")
+    expect(wait_for(lambda: not pill_shown(), 3), "the countdown stayed up over the lock screen")
     # Just after Krypt's restart, a screen dump can take most of 10 s on its own.
     expect(wait_text(r"^Done for today\.$", 20), "the lock screen doesn't say today's time is up")
     expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
@@ -1054,18 +1140,101 @@ def grant_expiry_in_app():
     approval = re.search(r"krypt://approve\?[A-Za-z0-9._~*%+=&-]+", shared_text(APPROVAL_TIMEOUT))
     expect(approval, "no approval link")
     dismiss_share_sheet()
+    wait_for_krypt_service()  # the Guardian's screen dumps unbound it; it must see the app open
     open_link(approval.group(0))
     granted = time.time()
     expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), "target did not open")
-    time.sleep(max(0, granted + 15 * 60 - time.time() - 20))
+    time.sleep(max(0, granted + 13 * 60 + 5 - time.time()))  # well into the last five minutes
     expect(TARGET_ACTIVITY in top_activity(), "target left the foreground before expiry")
-    top = wait_top(re.escape(LOCK_SCREEN), timeout=90)
+    expect(wait_for(pill_shown, 10), "no countdown in the unlock's last five minutes")
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
     expect(LOCK_SCREEN in top, f"not blocked when the grant ended; top is {top}")
+    late = time.time() - granted - 15 * 60
+    expect(late < 15, f"blocked {late:.0f} s after the grant ended")
+    expect(wait_for(lambda: not pill_shown(), 3), "the countdown stayed up over the lock screen")
     home()
     launch(TARGET)
     expect(LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN)), "relaunch after expiry was not blocked")
     home()
     expect(daily_used_ms(TARGET) == daily_before, "time under the one-time unlock was counted as daily time")
+
+
+@case("30e an unlock still ends on time when the screen was off during it, with the countdown at the end")
+def unlock_ends_on_time_after_screen_off():
+    # The reported bug: the phone slept during an unlock, and the app stayed open after it ended,
+    # until it was opened again. A coroutine timer stops while the phone sleeps (Amendment 7). An
+    # emulator doesn't suspend, so there this covers the screen going off and on during the unlock,
+    # and TimeLeftWatcherTest covers the time lost in sleep; the note says which this device did.
+    request = request_access_for(TARGET)
+    approval = approve_once(request, minutes=3)
+    home()
+    adb("logcat", "-c")
+    wait_for_krypt_service()  # the Guardian's screen dumps unbound it; it must see the app open
+    open_link(approval)
+    granted = time.time()
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 20), "target did not open")
+    # Three minutes are inside the countdown's last five (Amendment 9), so it shows at once.
+    expect(wait_for(pill_shown, 10), "no countdown with three minutes left")
+    screenshot("30e_countdown_at_once")
+    time.sleep(10)
+    sh("input keyevent KEYCODE_SLEEP")  # the screen goes off; the phone may sleep
+    off_at = time.time()
+    time.sleep(75)
+    off_s = time.time() - off_at
+    sh("input keyevent KEYCODE_WAKEUP")
+    sh("wm dismiss-keyguard")
+    power = sh("dumpsys power")
+    went, came = re.search(r"mLastSleepTime=(\d+)", power), re.search(r"mLastWakeTime=(\d+)", power)
+    if went and came:  # both on the uptime clock, which stops while the phone is suspended
+        suspended = off_s - (int(came.group(1)) - int(went.group(1))) / 1000
+        print(f"      note: suspended for about {max(0.0, suspended):.0f} s of the {off_s:.0f} s the screen was off",
+              flush=True)
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 15),
+           f"the app is not in front after the screen came back; top is {top_activity()}")
+    expect(wait_for(pill_shown, 10), "no countdown after the screen came back")
+    screenshot("30e_countdown")
+    expect_taps_reach_the_app_through_the_pill()
+    home()
+    expect(wait_for(lambda: not pill_shown(), 5), "the countdown stayed up on the home screen")
+    launch(TARGET)  # the unlock is still running
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), f"top is {top_activity()}")
+    expect(wait_for(pill_shown, 10), "no countdown when the app came back")
+    time.sleep(max(0.0, granted + 3 * 60 - 20 - time.time()))
+    screenshot("30e_last_seconds")  # the hourglass in caution orange
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"not blocked when the unlock ended; top is {top}")
+    late = time.time() - granted - 3 * 60
+    expect(late < 10, f"blocked {late:.0f} s after the unlock ended")
+    expect(wait_for(lambda: not pill_shown(), 3), "the countdown stayed up over the lock screen")
+    expect(krypt_logcat(rf"blocked pkg={re.escape(TARGET)} \(time up\)"), "the block wasn't for the time being up")
+    home()
+
+
+@case("30f an app in picture-in-picture keeps its time and countdown, and its small window closes when the time ends")
+def pip_keeps_its_time():
+    # Amendment 8: an app in a small window is in use too. Krypt used to count only the app with focus.
+    request = request_access_for(TARGET)
+    approval = approve_once(request, minutes=3)
+    home()
+    adb("logcat", "-c")
+    wait_for_krypt_service()  # the Guardian's screen dumps unbound it; it must see the app open
+    open_link(approval)
+    granted = time.time()
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 20), "target did not open")
+    sh(f"am broadcast -f 0x20 -n {TARGET}/.EnterPip")
+    expect(wait_for(target_in_pip, 10), "the target did not go into picture-in-picture")
+    # Android 11 and later give the launcher focus now; on Android 10 the small window keeps it.
+    time.sleep(max(0.0, granted + 60 + 5 - time.time()))  # a minute in picture-in-picture
+    expect(target_in_pip(), "the target left picture-in-picture")
+    expect(wait_for(pill_shown, 10), "no countdown for the app in picture-in-picture")
+    screenshot("30f_pip_countdown")
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"not blocked when the unlock ended; top is {top}")
+    late = time.time() - granted - 3 * 60
+    expect(late < 10, f"blocked {late:.0f} s after the unlock ended")
+    expect(wait_for(lambda: not target_in_pip(), 5), "the picture-in-picture window stayed open")
+    expect(krypt_logcat(rf"closing a window of pkg={re.escape(TARGET)}: closed"), "Krypt did not close the small window")
+    home()
 
 
 @case("30b setting the date back and restarting Krypt doesn't revive an ended grant (negative)")
@@ -1129,6 +1298,44 @@ def date_jump_keeps_used_up_day():
     home()
 
 
+@case("30g another app's window showing over a timed app keeps its time, countdown and end (the reported bug)")
+def other_window_keeps_the_app_in_front():
+    # The reported bug (Amendment 8): a home gesture started and cancelled showed the launcher's window
+    # behind Instagram, Instagram kept focus, and Krypt took the launcher for the app in front: the
+    # countdown went away and the time stopped. Here the target shows a small window over Chrome without
+    # taking focus, as the launcher did. Its window may show only if it has time of its own.
+    approval = approve_once(request_access_for(TARGET), minutes=15)
+    home()
+    wait_for_krypt_service()
+    open_link(approval)
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 20), "target did not open")
+    home()
+    approval = approve_once(request_access_for(CHROME), minutes=2)
+    home()
+    adb("logcat", "-c")
+    wait_for_krypt_service()
+    open_link(approval)
+    granted = time.time()
+    expect(CHROME in wait_top(re.escape(CHROME) + r"/", 20), f"Chrome did not open; top is {top_activity()}")
+    expect(wait_for(pill_shown, 10), "no countdown over Chrome with 2 minutes left")
+    sh(f"appops set {TARGET} SYSTEM_ALERT_WINDOW allow")
+    adb("logcat", "-c")
+    sh(f"am broadcast -f 0x20 -n {TARGET}/.ShowOverlay")
+    expect(wait_for(lambda: window_frame("KryptE2EOverlay"), 10, step=0.3), "the other app's window did not show")
+    # Chrome sends window events of its own now and then, which used to set it right again after a
+    # moment (Instagram didn't), so look closely: the countdown must never go, even briefly.
+    samples = [pill_shown() for _ in range(8)]
+    expect(all(samples), f"the countdown went away when another app's window showed: {samples}")
+    expect(not krypt_logcat(r"countdown shown"), "the countdown was taken down and shown again meanwhile")
+    expect(CHROME in top_activity(), f"Chrome left the front; top is {top_activity()}")
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"Chrome was not blocked when its unlock ended; top is {top}")
+    late = time.time() - granted - 2 * 60
+    expect(late < 10, f"blocked {late:.0f} s after the unlock ended")
+    expect(krypt_logcat(r"blocked pkg=com\.android\.chrome \(time up\)"), "the block wasn't for Chrome's time being up")
+    home()
+
+
 @case("31 Device Admin blocks uninstalling Krypt (leaves Krypt installed)")
 def uninstall_blocked():
     out = sh(f"dpm set-active-admin {KRYPT}/.service.KryptDeviceAdminReceiver")
@@ -1143,15 +1350,19 @@ def hourly_time_runs_out():
     request = request_access_for(CHROME)
     text, approval = approve_every_day(request, minutes=1, days=2, period=r"^1 hour$")
     expect("1 minute an hour for 2 days" in text, f"share text: {text!r}")
+    wait_for_krypt_service()  # the Guardian's screen dumps unbound it; it must see Chrome open
     open_link(approval)
     top = wait_top(re.escape(CHROME) + r"/", 20)
     expect(CHROME in top, f"Chrome did not open; top is {top}")
     rule = db(f"select minutesPerDay, periodMinutes from daily_allowances where packageName='{CHROME}'")
     expect(rule == [(1, 60)], f"rule: {rule}")
-    # A minute of use, two if it starts just before the hour turns. No uiautomator dumps meanwhile:
-    # a dump unbinds Krypt's service.
+    # A minute of use, two if it starts just before the hour turns: the countdown shows at once.
+    # No uiautomator dumps meanwhile: a dump unbinds Krypt's service.
+    expect(wait_for(pill_shown, 10), "no countdown over Chrome with the hour's minute running out")
+    screenshot("31b_countdown")
     top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
     expect(LOCK_SCREEN in top, f"not blocked when the hour's minute ran out; top is {top}")
+    expect(wait_for(lambda: not pill_shown(), 3), "the countdown stayed up over the lock screen")
     expect(wait_text(r"^Done for now\.$", 10), "the lock screen doesn't say the time is up for now")
     expect(wait_text(r"More time at \d", 5), "the lock screen doesn't say when the time comes back")
     expect(wait_text(r"^Request access$", 5), "Request access is not offered for extra time")
@@ -1201,8 +1412,10 @@ def main():
                  replay_approval, grant_survives_restart, home_shows_unlock, relock_now_ends_unlock,
                  paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
                  daily_time_paused_without_auto_time, daily_time_runs_out,
-                 health_check_scheduled, reboot_ends_grants, grant_expiry_in_app, date_rollback_after_expiry,
-                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked,
+                 health_check_scheduled, reboot_ends_grants, grant_expiry_in_app,
+                 unlock_ends_on_time_after_screen_off, pip_keeps_its_time, date_rollback_after_expiry,
+                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, other_window_keeps_the_app_in_front,
+                 uninstall_blocked,
                  hourly_time_runs_out, for_good_removes_the_lock]
     shutil.rmtree(EVIDENCE, ignore_errors=True)
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)

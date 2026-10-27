@@ -24,6 +24,8 @@ What the Guardian can allow:
 | **Repeating** | N minutes in each period, for 3, 7, 14 or 30 days, or any 1 to 365 days. The period is a day, or any length from 5 minutes up: every 30 minutes, every hour, every 90 minutes, every 2 hours, and so on. Periods follow the clock from midnight: every 2 hours means 00:00-02:00, 02:00-04:00, and so on. When a period doesn't divide the day, the day's last one is shorter and ends at midnight. The minutes can be used any time in a period, and each period starts with the full amount. This needs automatic date and time to be on. |
 | **For good** | The app's lock is removed, as if the Guardian had turned it off in Krypt's Home list. The app stays open until someone locks it again. |
 
+**When the time ends, the app is blocked at that moment,** even if it is open and the phone slept in between. In the app's last 5 minutes, a small countdown at the top of the screen shows how long is left ("1:59 left"). Taps pass through it to the app. This holds for an app in a small window too: split screen, a floating window or picture-in-picture. Its time counts there, and when the time ends Krypt asks Android to close the small window. A floating window that some phones keep on top of everything may refuse to close, and then stays over the lock screen.
+
 The same app runs on both phones. On the locked phone it is the locker. On the Guardian's phone it only opens approval links.
 
 ## Who uses it
@@ -51,6 +53,7 @@ The same app runs on both phones. On the locked phone it is the locker. On the G
 ## Privacy and security
 
 - **No network access at all.** The APK declares no internet or network-state permission, and every build checks this (`verifyManifest`).
+- **Krypt sees which apps are on screen, not what they show.** Its accessibility service asks Android for the list of windows and which one has focus, and matches each window to its app. It reads no app's content.
 - **No PIN on the locked phone's unlock path.** PINs are always masked and never kept in saved state.
 - **Wrong PINs lock the keypad out.** After three wrong tries the lockouts are 30 s, then 2 min, 10 min and 1 hour.
 - **The approval screen can't be captured.** It blocks screenshots and screen recording, including its PIN sheet.
@@ -84,3 +87,5 @@ The release build type has no signing configuration yet. Use the debug build to 
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Krypt must never gain network access, and it uses first-party AndroidX, Kotlin and Hilt libraries only.
+
+Picking up the work? [docs/HANDOFF.md](docs/HANDOFF.md) says where it stands and what is still open, and [CLAUDE.md](CLAUDE.md) says how the project is run: the rules, how a change is made, and the traps.

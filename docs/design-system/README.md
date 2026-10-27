@@ -30,6 +30,7 @@ The person behind a lock may be a child, someone in recovery or someone who chos
 | Open · N min left | A one-time unlock in progress |
 | Daily · N of M min left | Daily time in progress |
 | Hourly, Every 30 min, Every 2 h, Every 1 h 30 min · N of M min left | Time in a period shorter than a day, in progress |
+| N:SS left | The last five minutes of an app's time, in the countdown over the app (TimeLeftPill) |
 | Relock now / Stop daily time / Stop repeating time | Ending access early (in the sheet opened from the app's row) |
 
 ## Colour: Soft neutral
@@ -64,7 +65,7 @@ Three bundled families (all SIL OFL, in `fonts/`; put them in `res/font/` and ne
 ## Space, shape, size
 
 - 4dp grid. `space-5` (20dp) gutter at every width from `screen-min` (320dp). `space-6` between a title block and its content; `space-8` between sections; `space-12` above the first eyebrow on full screens.
-- Corners are soft, not round: `radius-sm` (10) for app icons, keys and chips; `radius-md` (14) for buttons, fields and segments; `radius-lg` (22) for grouped sections and the lock-screen app tile; `radius-xl` (28) for sheets. Only dots, the switch and badges use `radius-full`.
+- Corners are soft, not round: `radius-sm` (10) for app icons, keys and chips; `radius-md` (14) for buttons, fields and segments; `radius-lg` (22) for grouped sections and the lock-screen app tile; `radius-xl` (28) for sheets. Only dots, the switch, badges and the time-left pill use `radius-full`.
 - Every control has a `touch-target` of at least 48dp. Primary and secondary buttons are `button-height` (52dp); small actions inside grouped cards (never inside Home rows) are `button-height-sm` (36dp).
 - Icons are `icon-md` (20dp) in rows and buttons, `icon-sm` (16dp) in status lines and badges, `icon-lg` (24dp) for the lock reason.
 
