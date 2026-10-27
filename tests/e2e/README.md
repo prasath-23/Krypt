@@ -94,6 +94,67 @@ target is in picture-in-picture (30f) comes from `dumpsys activity
 activities`, where its task's windowing mode reads "mode=pinned"
 (`target_in_pip()`).
 
+## Chosen cases
+
+`run_cases.py` runs named cases in order, for example
+`python tests/e2e/run_cases.py 30e 30f`. Each case expects the state that
+the cases before it leave, so on a wiped device start with
+`python tests/e2e/run_cases.py --reset 01 02 03 ...`. The suite's state (the
+request, the approval and when it was granted) is kept in
+`<temp>/krypt_e2e_state.json` between runs, so a long run can be split into
+shorter ones. Screenshots still go to `<temp>/krypt_e2e_failures/`, which
+`run_cases.py` doesn't empty.
+
+On a device kept from an earlier full run:
+- Switch Krypt's accessibility service on first if it is off
+  (`settings get secure enabled_accessibility_services`); the script's
+  `enable_krypt_service()` does it. `wait_for_krypt_service()` only waits.
+- The target's 1-minute-a-day rule from 30d must be used up today
+  (`daily_used_ms(TARGET)` of 60000 or more). Otherwise the target opens with
+  no lock screen, and its time runs on past a Once unlock.
+- Chrome is unlocked for good after 32, so 30g needs Chrome locked again.
+- 32 needs 29b's reboot, which ends Chrome's 30-minute grant from 27.
+- A request expires after 5 minutes. 17 and 21 can take about 2.5 minutes
+  each, so a slow 16-23 can run past it; run 16 again, then 21-23 back to back.
+
+## Emulator notes
+
+The runs so far used an Android 16 emulator (system image
+`android-36/google_apis_playstore/x86_64`) with `hw.keyboard=no`, so the
+on-screen keyboard shows as on a phone, `hw.ramSize=3072` and
+`disk.dataPartition.size=6G`. They started it with `-no-snapshot
+-no-boot-anim -gpu swiftshader_indirect -memory 3072 -no-audio`. With
+`-gpu auto`, screenshots came back black or scrambled while Gradle also ran.
+An Android 10 image (`android-29`) works the same way.
+
+- **Wipe before a full run** (`-wipe-data`): case 31 makes Krypt a Device
+  Admin, after which case 01 can't uninstall it.
+- **After a boot or a wipe**, Play Store and Google Play services updates keep
+  the load high for several minutes. Wait until `/proc/loadavg` is below about
+  2.5: under load, taps get lost (07 counted 3 digits for 4 taps) and the
+  Guardian's PIN check takes about 35 s.
+- **Gboard's stylus tutorial** can cover half the screen the first time a
+  text field is tapped. Once per device:
+  `adb shell settings put secure stylus_handwriting_enabled 0`.
+- **The display sleeps** in long sessions: the emulator reports itself
+  unplugged, so `svc power stayon` doesn't hold. Use
+  `adb shell dumpsys battery set ac 1` (undo with `dumpsys battery reset`).
+- **The share sheet can hang** after hours of use (`com.android.intentresolver`
+  ANRs, and its dialog takes taps meant for the next screen). Run
+  `adb shell am force-stop com.android.intentresolver`, or reboot.
+- **A System UI "isn't responding" dialog after a boot** takes window focus,
+  so instrumented tests fail with RootViewWithoutFocus. Tap its "Wait".
+- **The emulator never deep-sleeps**, so it can't show a bug where timers lose
+  sleep time; `TimeLeftWatcherTest` covers that with a clock offset.
+- **Memory:** a 3 GB emulator next to Gradle needs about 8 GB free. Build
+  first, run `./gradlew --stop`, then boot the emulator.
+- **Windows:** in Git Bash, set `MSYS_NO_PATHCONV=1` or adb's `/sdcard/...`
+  arguments get rewritten. Windows defines an environment variable `Serial`,
+  which Python would read for `SERIAL`, so the script reads
+  `KRYPT_ADB_SERIAL`.
+- `expect_taps_reach_the_app_through_the_pill()` clears logcat before its
+  tap, so a case's earlier "countdown shown" lines are gone after it.
+
 ## What it covers
 
 | Area | Positive cases | Negative cases |

@@ -87,3 +87,5 @@ The release build type has no signing configuration yet. Use the debug build to 
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Krypt must never gain network access, and it uses first-party AndroidX, Kotlin and Hilt libraries only.
+
+Picking up the work? [docs/HANDOFF.md](docs/HANDOFF.md) says where it stands and what is still open, and [CLAUDE.md](CLAUDE.md) says how the project is run: the rules, how a change is made, and the traps.
