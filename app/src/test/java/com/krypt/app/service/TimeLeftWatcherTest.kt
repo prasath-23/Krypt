@@ -28,6 +28,9 @@ class TimeLeftWatcherTest {
 
     /** When the watcher said the app's time was up, on the phone's clock (ms since the test began). */
     private val timeUp = mutableListOf<Long>()
+
+    /** And whose time it was, in the same order. */
+    private val timeUpApps = mutableListOf<String>()
     private val grantEnded = mutableListOf<String>()
 
     /**
@@ -76,7 +79,10 @@ class TimeLeftWatcherTest {
             grantEnded += it
             onGrantEnded(it)
         },
-        onTimeUp = { timeUp += clock.elapsedMs() },
+        onTimeUp = {
+            timeUp += clock.elapsedMs()
+            timeUpApps += it
+        },
     )
 
     /** A watcher with [APP]'s every-day time from [daily]. */
@@ -261,6 +267,44 @@ class TimeLeftWatcherTest {
         assertEquals(emptyList<String?>(), shown)
     }
 
+    // ---- Several apps on screen (Amendment 8) ----
+
+    @Test
+    fun withTwoAppsOnScreen_theCountdownIsTheFirstToEnd_andEachEndsOnTime() = runTest {
+        // OTHER in a small window over APP, both unlocked for a while.
+        val e = env()
+        e.store.recordGrant(APP, e.clock.nowMs() + 90_000)
+        e.store.recordGrant(OTHER, e.clock.nowMs() + 60_000)
+        e.watcher.watch(listOf(APP, OTHER))
+        runCurrent()
+        assertEquals(listOf<String?>("1:00"), shown)
+
+        pass(60_000)
+        assertEquals(listOf(OTHER), timeUpApps)
+        e.watcher.watch(listOf(APP)) // OTHER's window was closed
+        runCurrent()
+        assertEquals("0:30", shown.last())
+
+        pass(30_000)
+        assertEquals(listOf(OTHER, APP), timeUpApps)
+        assertEquals(listOf(60_000L, 90_000L), timeUp)
+    }
+
+    @Test
+    fun anAppLeavingTheScreen_isNoLongerWatched() = runTest {
+        val e = env()
+        e.store.recordGrant(APP, e.clock.nowMs() + 30_000)
+        e.store.recordGrant(OTHER, e.clock.nowMs() + 30 * MIN)
+        e.watcher.watch(listOf(APP, OTHER))
+        runCurrent()
+
+        e.watcher.watch(listOf(OTHER))
+        pass(MIN)
+
+        assertEquals(emptyList<String>(), timeUpApps)
+        assertEquals(null, shown.last())
+    }
+
     // ---- Every-day time, counted by the meter ----
 
     @Test
@@ -325,6 +369,7 @@ class TimeLeftWatcherTest {
 
     private companion object {
         const val APP = "com.example.app"
+        const val OTHER = "com.example.other"
         const val MIN = 60_000L
         val UTC: ZoneId = ZoneId.of("UTC")
         val TODAY: LocalDate = LocalDate.of(2026, 3, 1)

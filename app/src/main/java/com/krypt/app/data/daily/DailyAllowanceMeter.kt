@@ -27,12 +27,14 @@ import javax.inject.Singleton
  * or the stretch of the clock it counts in, e.g. 14:00-16:00 for "every 2
  * hours".
  *
- * Krypt can't read the screen, so it counts from what the accessibility
- * service reports: the app's time runs while it is the app in front
- * ([onForeground]), the screen is on and unlocked ([onScreenInteractive]),
- * the app is locked, and no one-time Guardian unlock is running (that time
- * is extra). Time is measured on [Clock.elapsedMs], so changing the clock
- * can't add any; the calendar day and time come from [TrustedDayClock].
+ * It counts from what the accessibility service reports: an app's time runs
+ * while it is in use ([onInUse]: it has a window on screen, in front, in
+ * split screen, in a small floating window or in picture-in-picture), the
+ * screen is on and unlocked ([onScreenInteractive]), the app is locked, and
+ * no one-time Guardian unlock is running (that time is extra). Several apps
+ * on screen at once each count. Time is measured on [Clock.elapsedMs], so
+ * changing the clock can't add any; the calendar day and time come from
+ * [TrustedDayClock].
  *
  * Time used is kept per minute of the clock ([LocalMinutes]) and a period
  * adds up its minutes, so periods of any length count alike, and a rule that
@@ -40,12 +42,11 @@ import javax.inject.Singleton
  *
  * Usage is saved every [SAVE_EVERY_MS] and whenever counting stops, so a
  * crash loses at most that much. When the period's time runs out - or a rule
- * ends, or the time can't be trusted any more - while the app is in front,
+ * ends, or the time can't be trusted any more - while the app is in use,
  * the service is told ([attach]) so it can block the app. When a used-up
  * period ends, [changes] ticks, so a lock screen showing it can close.
  *
- * Not counted: picture-in-picture and background audio (another app is in
- * front then), and in split screen only the app opened last.
+ * Not counted: background audio, which has no window on screen.
  */
 @Singleton
 class DailyAllowanceMeter @Inject constructor(
@@ -66,10 +67,12 @@ class DailyAllowanceMeter @Inject constructor(
     /** Apps whose rule was saved or ended while [load] was reading; what it read for them is out of date. */
     private val changedWhileLoading = HashSet<String>()
 
-    private var foreground: String? = null
-    private var foregroundLocked = false
+    /** The apps in use (with a window on screen), and whether Krypt locks each. */
+    private var inUse: Map<String, Boolean> = emptyMap()
     private var interactive = true
-    private var session: Session? = null
+
+    /** The apps whose time is being counted now. */
+    private val sessions = HashMap<String, Session>()
     private var lastSaveElapsed = 0L
 
     private var scope: CoroutineScope? = null
@@ -106,11 +109,14 @@ class DailyAllowanceMeter @Inject constructor(
         usableLocked(pkg, afterMs, withinMs)
     }
 
-    /** The app in front changed ([pkg] null: none known). [locked]: Krypt locks it. */
-    fun onForeground(pkg: String?, locked: Boolean) = act {
-        foreground = pkg
-        foregroundLocked = locked
-    }
+    /**
+     * The apps in use changed: each app with a window on screen, and whether
+     * Krypt locks it. Each locked one's time counts.
+     */
+    fun onInUse(apps: Map<String, Boolean>) = act { inUse = HashMap(apps) }
+
+    /** [pkg] alone is in use, in front ([pkg] null: none known). [locked]: Krypt locks it. */
+    fun onForeground(pkg: String?, locked: Boolean) = onInUse(if (pkg == null) emptyMap() else mapOf(pkg to locked))
 
     /** The screen is on and unlocked (true), or off or at the keyguard (false). */
     fun onScreenInteractive(isInteractive: Boolean) = act {
@@ -151,15 +157,14 @@ class DailyAllowanceMeter @Inject constructor(
     }
 
     /**
-     * The service stopped. The app in front is forgotten: a service bound again
-     * learns it from the next window change, and counting waits until then.
+     * The service stopped. The apps in use are forgotten: a service bound
+     * again tells them anew, and counting waits until then.
      */
     fun detach() {
         synchronized(lock) {
             accrueLocked()
-            session = null
-            foreground = null
-            foregroundLocked = false
+            sessions.clear()
+            inUse = emptyMap()
             saveLocked()
             timer?.cancel()
             grantsWatch?.cancel()
@@ -184,9 +189,8 @@ class DailyAllowanceMeter @Inject constructor(
             used.clear()
             unsaved.clear()
             changedWhileLoading.clear()
-            session = null
-            foreground = null
-            foregroundLocked = false
+            sessions.clear()
+            inUse = emptyMap()
             interactive = true
             timer?.cancel()
             timer = null
@@ -244,32 +248,31 @@ class DailyAllowanceMeter @Inject constructor(
             ended = updateLocked()
         }
         _changes.value = _changes.value + 1
-        ended?.let { e -> e.scope.launch { e.notify(e.pkg) } }
+        ended?.let { e -> e.scope.launch { e.pkgs.forEach(e.notify) } }
     }
 
-    private class AccessEnded(val pkg: String, val scope: CoroutineScope, val notify: (String) -> Unit)
+    private class AccessEnded(val pkgs: List<String>, val scope: CoroutineScope, val notify: (String) -> Unit)
 
-    /** Returns who to tell when the app in front has just lost its access. */
+    /** Returns who to tell when apps in use have just lost their access. */
     private fun updateLocked(): AccessEnded? {
-        val want = foreground?.takeIf { pkg ->
-            foregroundLocked && interactive && !sessionStore.isUnlockedNow(pkg) &&
-                accessLocked(pkg) is DailyAccess.Available
+        val want = inUse.filter { (pkg, locked) ->
+            locked && interactive && !sessionStore.isUnlockedNow(pkg) && accessLocked(pkg) is DailyAccess.Available
+        }.keys
+        val stopped = sessions.keys.filter { it !in want }
+        val ended = ArrayList<String>()
+        for (pkg in stopped) {
+            sessions.remove(pkg)
+            val stillInUse = inUse[pkg] == true && interactive
+            if (stillInUse && !sessionStore.isUnlockedNow(pkg)) ended += pkg
         }
-        var ended: String? = null
-        val current = session
-        if (current != null && current.pkg != want) {
-            session = null
-            saveLocked()
-            val stillInFront = current.pkg == foreground && foregroundLocked && interactive
-            if (stillInFront && !sessionStore.isUnlockedNow(current.pkg)) ended = current.pkg
-        }
-        if (want != null && session == null) startSessionLocked(want)
-        if (session != null && clock.elapsedMs() - lastSaveElapsed >= SAVE_EVERY_MS) saveLocked()
+        if (stopped.isNotEmpty()) saveLocked()
+        for (pkg in want) if (pkg !in sessions) startSessionLocked(pkg)
+        if (sessions.isNotEmpty() && clock.elapsedMs() - lastSaveElapsed >= SAVE_EVERY_MS) saveLocked()
         scheduleLocked()
         scheduleRefillLocked()
         val notify = onAccessEnded
         val target = scope
-        return if (ended != null && notify != null && target != null) AccessEnded(ended, target, notify) else null
+        return if (ended.isNotEmpty() && notify != null && target != null) AccessEnded(ended, target, notify) else null
     }
 
     private fun accessLocked(pkg: String): DailyAccess {
@@ -317,10 +320,9 @@ class DailyAllowanceMeter @Inject constructor(
         return next.takeIf { rule.covers(Instant.ofEpochMilli(it).atZone(rule.zone).toLocalDate()) }
     }
 
-    /** Time the running session has counted for [pkg] since [sinceMs] but not yet added to [used]. */
+    /** Time [pkg]'s running session has counted since [sinceMs] but not yet added to [used]. */
     private fun countingMs(pkg: String, sinceMs: Long, nowMs: Long): Long {
-        val s = session ?: return 0L
-        if (s.pkg != pkg) return 0L
+        val s = sessions[pkg] ?: return 0L
         val counting = (clock.elapsedMs() - s.sinceElapsed).coerceAtLeast(0L)
         return minOf(counting, (nowMs - sinceMs).coerceAtLeast(0L))
     }
@@ -328,29 +330,32 @@ class DailyAllowanceMeter @Inject constructor(
     private fun startSessionLocked(pkg: String) {
         val rule = rules[pkg] ?: return
         val now = dayClock.nowMs() ?: return
-        session = Session(pkg, rule.zone, LocalMinutes.of(now, rule.zone), clock.elapsedMs())
+        sessions[pkg] = Session(pkg, rule.zone, LocalMinutes.of(now, rule.zone), clock.elapsedMs())
     }
 
-    /** Move the running session's time into [used], split at the minutes of the clock it crossed. */
+    /** Move the running sessions' time into [used], split at the minutes of the clock it crossed. */
     private fun accrueLocked() {
-        val s = session ?: return
+        if (sessions.isEmpty()) return
         val nowElapsed = clock.elapsedMs()
-        val delta = nowElapsed - s.sinceElapsed
-        if (delta <= 0L) return
         val now = dayClock.nowMs()
-        if (now == null) {
-            // With the time no longer known (automatic time just went off), the time
-            // was still used in the minute that was.
-            add(s.pkg, s.minute, delta)
-        } else {
-            var from = now - delta
-            while (from < now) {
-                val until = minOf(now, LocalMinutes.nextStartMs(from, s.zone))
-                add(s.pkg, LocalMinutes.of(from, s.zone), until - from)
-                from = until
+        for (entry in sessions.entries) {
+            val s = entry.value
+            val delta = nowElapsed - s.sinceElapsed
+            if (delta <= 0L) continue
+            if (now == null) {
+                // With the time no longer known (automatic time just went off), the time
+                // was still used in the minute that was.
+                add(s.pkg, s.minute, delta)
+            } else {
+                var from = now - delta
+                while (from < now) {
+                    val until = minOf(now, LocalMinutes.nextStartMs(from, s.zone))
+                    add(s.pkg, LocalMinutes.of(from, s.zone), until - from)
+                    from = until
+                }
             }
+            entry.setValue(s.copy(minute = now?.let { LocalMinutes.of(it, s.zone) } ?: s.minute, sinceElapsed = nowElapsed))
         }
-        session = s.copy(minute = now?.let { LocalMinutes.of(it, s.zone) } ?: s.minute, sinceElapsed = nowElapsed)
     }
 
     private fun add(pkg: String, minute: Long, ms: Long) {
@@ -378,20 +383,22 @@ class DailyAllowanceMeter @Inject constructor(
         }
     }
 
-    /** Wake up when the period's time runs out, when the period ends, or when it's time to save. */
+    /** Wake up when an app's time runs out, when its period ends, or when it's time to save. */
     private fun scheduleLocked() {
         timer?.cancel()
         timer = null
-        val s = session ?: return
+        if (sessions.isEmpty()) return
         val target = scope ?: return
-        val rule = rules[s.pkg] ?: return
-        val left = (accessLocked(s.pkg) as? DailyAccess.Available)?.remainingMs ?: return
         val now = dayClock.nowMs() ?: return
-        val untilPeriodEnds = rule.periodEndMs(now) - now
-        val untilSave = SAVE_EVERY_MS - (clock.elapsedMs() - lastSaveElapsed)
-        val wait = minOf(left, untilPeriodEnds, untilSave).coerceAtLeast(1L)
+        var wait = SAVE_EVERY_MS - (clock.elapsedMs() - lastSaveElapsed)
+        for (pkg in sessions.keys) {
+            val rule = rules[pkg] ?: continue
+            val left = (accessLocked(pkg) as? DailyAccess.Available)?.remainingMs ?: continue
+            wait = minOf(wait, left, rule.periodEndMs(now) - now)
+        }
+        val delayMs = wait.coerceAtLeast(1L)
         timer = target.launch {
-            delay(wait)
+            delay(delayMs)
             reevaluate()
         }
     }

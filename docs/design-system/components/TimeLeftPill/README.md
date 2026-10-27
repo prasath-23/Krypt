@@ -9,7 +9,7 @@ The countdown over an app in its last 2 minutes: a small dark pill at the top of
 
 The time is minutes and seconds, rounded up, so the last second shows 0:01 and 0:00 never shows while the app is open. It ticks every second.
 
-**When it shows:** only while a locked app with time is in front, and the screen is on and unlocked. It goes away when you leave the app, when the screen goes off, when the app is blocked, or when more time arrives, and it comes back with the app. When a period ends first and the next one starts full, it counts on across the end: with 1 minute every 5 minutes, at 08:04:30 it shows 1:30, and the app is blocked at 08:06.
+**When it shows:** only while a locked app with time is on screen (in front, in split screen, in a floating window or in picture-in-picture), and the screen is on and unlocked. With several such apps, it counts down for the one whose time ends first. It goes away when the app leaves the screen, when the screen goes off, when the app is blocked, or when more time arrives, and it comes back with the app. When a period ends first and the next one starts full, it counts on across the end: with 1 minute every 5 minutes, at 08:04:30 it shows 1:30, and the app is blocked at 08:06.
 
 **The consumer provides** the time left, in milliseconds. `TimeLeftWatcher` calls `TimeLeftDisplay.show(pkg, msLeft)` and `hide()`, and `TimeLeftPill` draws it. The text is `time_left_pill` ("%1$s left") around `timeLeftText(msLeft)`.
 

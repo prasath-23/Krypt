@@ -13,14 +13,24 @@ import android.widget.TextView;
  */
 public class TargetActivity extends Activity {
 
+    /** The open target, for {@link EnterPip}. */
+    static TargetActivity current;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        current = this;
         TextView marker = new TextView(this);
         marker.setText("E2E target is open");
         marker.setTextSize(24f);
         marker.setGravity(Gravity.CENTER);
         setContentView(marker);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (current == this) current = null;
+        super.onDestroy();
     }
 
     @Override

@@ -88,7 +88,7 @@ Two phones on this build: the Subject phone, with "Set time automatically" on, a
 
 ## Amendment 7 --- Blocked on time, with a countdown
 
-Two phones on this build, as above. Use any locked app; Chrome below. If Chrome still has repeating time from the check above, stop it first: open Krypt, enter the Guardian PIN, tap Chrome's row and tap **Stop repeating time**. Unplug the Subject phone, so it can sleep while its screen is off. To see why an app was blocked, keep `adb logcat -s KryptA11y` running on a computer: each block is logged as "blocked pkg=com.android.chrome (time up)", with "in front", "every-day time up" or "rechecked" in place of "time up" for the other reasons.
+Two phones on this build, as above. Use any locked app; Chrome below. If Chrome still has repeating time from the check above, stop it first: open Krypt, enter the Guardian PIN, tap Chrome's row and tap **Stop repeating time**. Unplug the Subject phone, so it can sleep while its screen is off. To see why an app was blocked, keep `adb logcat -s KryptA11y` running on a computer: each block is logged as "blocked pkg=com.android.chrome (time up)", with "in front", "on screen" (Amendment 8), "every-day time up" or "rechecked" in place of "time up" for the other reasons.
 
 **The countdown, and taps through it.**
 1. On the Subject phone, open Chrome, tap **Request access** and send the request. On the Guardian phone choose **Once**, then **Custom** under For how long, type `3`, approve and send the reply back. Tap the reply: Chrome opens, with no countdown yet.
@@ -108,6 +108,24 @@ Two phones on this build, as above. Use any locked app; Chrome below. If Chrome 
 1. Request access for Chrome again. On the Guardian phone choose **Repeating**, **Every** 30 min and **For how long** 5 min. The sentence reads "Chrome, 5 minutes every 30 minutes for 7 days." Approve and send the reply back, then tap it on the Subject phone: Chrome opens, with no countdown yet.
 2. Keep Chrome open and in use. After 3 minutes the pill appears, at about "2:00 left".
 3. When the 5 minutes are used, Chrome is blocked at once: the lock screen says **Done for now.** and "You've used your 5 minutes for now. More time at HH:MM. Need it sooner? Ask your Guardian.", where HH:MM is the next half hour. The pill is gone. The log shows "blocked pkg=com.android.chrome (every-day time up)" or "(time up)".
+
+## Amendment 8 --- Apps on screen: a cancelled home gesture, and small windows
+
+Two phones on this build, as above, with gesture navigation on the Subject phone. Use a locked app that plays video; the problem was seen in Instagram Reels. If the app still has repeating time from a check above, stop it first in Krypt's Home (**Stop repeating time**). Keep `adb logcat -s KryptA11y` running: it logs "countdown shown" each time the countdown appears, "blocked pkg=… (<why>)" for each block, and "closing a window of pkg=…: closed" or "…: can't be closed" when Krypt asks Android to close a small window.
+
+**A home gesture started and cancelled.** Before this amendment the countdown could vanish and the time stop here, until some other app sent a window event.
+1. Request access for the app. On the Guardian phone choose **Once**, then **Custom** under For how long, type `3`, approve and send the reply back. Tap the reply, and play a video in the app.
+2. Wait for the countdown, at about "2:00 left". Start a stopwatch.
+3. Start the home gesture: swipe up from the bottom edge until the home screen starts to show behind the app, then slide back down and let go, so the app stays. Do it a few times.
+4. The countdown never goes away, and it keeps time with the stopwatch: 30 s on the stopwatch take about 30 s off the countdown. The log shows "countdown shown" only once.
+5. When the time ends, the app is blocked at once. The log shows "blocked pkg=<the app> (time up)".
+
+**An app in a small window.**
+1. Get another Once unlock for the app, with **Custom** `3`, and tap the reply.
+2. Put the app in a small window: picture-in-picture (in many video apps, press Home while a video plays), a floating "mini window" if the phone has one, or split screen with another app. Then use the other app, or stay on the home screen.
+3. In the app's last 2 minutes the countdown shows at the top of the screen, over whatever is in front.
+4. When the time ends, Krypt's lock screen shows. A picture-in-picture window is closed: the log shows "closing a window of pkg=<the app>: closed". A window that can't be closed ("…: can't be closed") is left under the lock screen, except a floating window that the phone keeps on top of everything: that one stays over the lock screen.
+5. Repeating time in a small window counts too. Give the app **Repeating**, **Every** 30 min and **For how long** 5 min, starting just after a half hour begins, and use it only in a small window: the countdown appears after 3 minutes of use, and the app is blocked after 5.
 
 ## Automated end-to-end run
 

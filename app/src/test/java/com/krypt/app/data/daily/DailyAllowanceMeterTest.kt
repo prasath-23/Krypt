@@ -539,6 +539,62 @@ class DailyAllowanceMeterTest {
         assertTrue("the lock screen hears at 09:00, not 40 minutes later", e.meter.changes.value > before)
     }
 
+    // ---- Several apps on screen at once (Amendment 8) ----
+
+    @Test
+    fun anAppInASmallWindowOverAnotherApp_counts() = runTest {
+        repo.rules += rule(minutes = 60)
+        val e = env()
+
+        e.meter.onInUse(mapOf(LAUNCHER to false, APP to true))
+        pass(10 * MIN)
+
+        assertEquals(50 * MIN, e.left())
+    }
+
+    @Test
+    fun twoLockedAppsOnScreen_bothCount() = runTest {
+        repo.rules += rule(minutes = 60)
+        repo.rules += rule(minutes = 60, pkg = OTHER)
+        val e = env()
+
+        e.meter.onInUse(mapOf(APP to true, OTHER to true)) // OTHER in a small window over APP, say
+        pass(10 * MIN)
+
+        assertEquals(50 * MIN, e.left())
+        assertEquals(50 * MIN, (e.meter.access(OTHER) as DailyAccess.Available).remainingMs)
+    }
+
+    @Test
+    fun whenOneOfTwoAppsRunsOut_onlyItIsBlocked_andTheOtherGoesOnCounting() = runTest {
+        repo.rules += rule(minutes = 60)
+        repo.rules += rule(minutes = 1, pkg = OTHER)
+        val e = env()
+
+        e.meter.onInUse(mapOf(APP to true, OTHER to true))
+        pass(MIN)
+        assertEquals(listOf(OTHER), ended)
+        pass(MIN)
+
+        assertEquals(58 * MIN, e.left())
+    }
+
+    @Test
+    fun closingTheSmallWindow_stopsOnlyItsCount() = runTest {
+        repo.rules += rule(minutes = 60)
+        repo.rules += rule(minutes = 60, pkg = OTHER)
+        val e = env()
+        e.meter.onInUse(mapOf(APP to true, OTHER to true))
+        pass(5 * MIN)
+
+        e.meter.onInUse(mapOf(APP to true))
+        pass(5 * MIN)
+
+        assertEquals(50 * MIN, e.left())
+        assertEquals(55 * MIN, (e.meter.access(OTHER) as DailyAccess.Available).remainingMs)
+        assertEquals("closed by the user, not run out", emptyList<String>(), ended)
+    }
+
     // ---- How long the app in front can go on (Amendment 7) ----
 
     @Test
@@ -634,6 +690,7 @@ class DailyAllowanceMeterTest {
 
     private companion object {
         const val APP = "com.example.app"
+        const val OTHER = "com.example.other"
         const val LAUNCHER = "com.example.launcher"
         const val KRYPT = "com.krypt.app"
         const val MIN = 60_000L

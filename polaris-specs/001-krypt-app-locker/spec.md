@@ -2,8 +2,54 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6 and 7 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6, 7 and 8 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 8 (2026-10-26) - Ask Android Which Apps Are on Screen
+
+**Reported (2026-10-26):** screenshots from the user's OnePlus-style phone, over Instagram Reels: their stopwatch went from 06:16 to 06:50 (34 s) while Krypt's countdown went from 1:10 to 1:03 (7 s), and in one shot the countdown was gone with Instagram still open. They wrote: "some caes timer disappears and treated as app not opened.. this happens in times like I tried to push background but not pushing.. in places like this.. can u see what the issue". Then, while that was being fixed: "and this should solve the timer if app is used as mini screen !!! add this too ur work load".
+
+**Chosen:** asked how Krypt should find the app in front, the user chose "Ask Android (Recommended)" over "Stay blind, watch for activity".
+
+**What changed:** before this, Krypt took the app that sent the last window event for the app in front, and knew of no other app on screen. Now it asks Android which windows are on screen. The app in front is the one with input focus, and every locked app with a window on screen counts its time, gets the countdown, and is blocked when its time ends.
+
+**Why the countdown went and the time stopped:** while a home gesture runs, Android shows the launcher's window behind the app, to animate it. That window sends a window event, so Krypt took the launcher for the app in front: it stopped counting the app's every-day time and took the countdown down. When the gesture is cancelled the app never lost focus, and on the user's phone it sends nothing new, so Krypt stayed wrong until some other window event. A Once unlock ending in that state wasn't enforced either. On the Pixel emulator the app does send an event when the gesture is cancelled, so it recovers: the countdown was taken down and shown again.
+
+**Why small windows were missed:** an app used in a small window (picture-in-picture, a floating "mini window", split screen) was never counted, never got the countdown and was never blocked. Krypt only knew the one app that sent the last window event.
+
+1. **Krypt asks Android which windows are on screen.**
+   - The accessibility service config sets `canRetrieveWindowContent="true"` and the flag `flagRetrieveInteractiveWindows`, and listens to `typeWindowStateChanged|typeWindowsChanged`.
+   - Krypt still reads no app content. Window ids are matched to apps from the window events it already gets (`AppWindows`). Only a window it hasn't heard from, as just after Krypt starts, is matched through its root node's package name, off the main thread.
+   - On Android 12 and later, the dialog that switches an accessibility service on already says "View and control screen" for every service, so nothing new is shown there. On Android 10 and 11 the dialog lists "Retrieve window content".
+   - Updating the app kept the service switched on (checked on the emulator).
+2. **The app in front is the app whose window has input focus.** A window showing no longer makes its app the one in front: not the launcher behind an app during a gesture, and not another app's floating window. Focus changes (`TYPE_WINDOWS_CHANGED`) are followed. Just after Krypt starts, it knows the app in front at once.
+3. **Every locked app with a window on screen is in use:** full screen, split screen, a small floating window or picture-in-picture.
+   - Each one's every-day time counts (`DailyAllowanceMeter.onInUse`), several apps at once.
+   - The countdown watches all of them and shows the one whose time ends first.
+   - Each is blocked when its time ends.
+4. **Blocking an app that is only in a small window.** Krypt asks Android to close that window (`ACTION_DISMISS` on the window) and shows the lock screen as before. This closes a picture-in-picture window (checked on the emulator, logged as "closing a window of pkg=…: closed").
+5. **The accessibility service description** now starts: "Krypt needs Accessibility access to see which apps are on screen and block locked apps until your Guardian approves." It was "…to see which app is being launched…".
+6. **Logging.** `adb logcat -s KryptA11y` shows "blocked pkg=<pkg> (<why>)", where why is one of: in front, on screen, time up, every-day time up, rechecked. It also shows "closing a window of pkg=<pkg>: closed" or "…: can't be closed", and "countdown shown".
+7. **Limits.**
+   - A floating window that stays on top of everything, as some phones' "mini window" does, may refuse to close. The lock screen is then under it. Krypt doesn't start the lock screen again and again while its own screen is in front.
+   - Background audio has no window on screen, so it still isn't counted.
+   - On Android 10 a closed picture-in-picture window can stay listed for a moment, so the lock screen may be started a second time about 2 s after the first (seen in testing). It is already in front then, so nothing changes on screen.
+   - Amendment 5 still holds: no polling was added. Window changes arrive as events, and Amendment 7's 60-s check and 1-s tick are unchanged.
+8. **Tests.**
+   - JVM, the new `AppWindowsTest`: focus wins over the last window event; a launcher behind the app doesn't take its place; a small window is on screen without focus; there is no answer when Android doesn't say; an unknown window is looked up once, off the main thread.
+   - `DailyAllowanceMeterTest`: an app in a small window over another app counts; two locked apps on screen both count; when one runs out, only it is blocked; closing the small window stops only its count.
+   - `TimeLeftWatcherTest`: with two apps on screen the countdown is for the one ending first, and each ends on time; an app leaving the screen is no longer watched. 482 unit tests pass.
+   - Device: the new e2e cases 30f (picture-in-picture) and 30g (another app's window over a timed app, the reported bug); see `tests/e2e/README.md`. The build before this amendment (735408b) fails 30g, and this one passes.
+9. **Supersedes** what Amendments 3, 6 and 7 say about counting time or keeping it only for the app in front; Amendment 7's limits on reading the screen and on learning the app in front after a restart; and Amendment 3's known limitations of counting without screen access, except background audio. Each of those places says so.
+
+**FRs touched:**
+- FR-001: interception reads Android's list of windows. The app in front is the one whose window has input focus, and every locked app with a window on screen is checked.
+- FR-013: an app in a small window is blocked when its grant ends too, and Krypt asks Android to close that window.
+- FR-038: an app is in use while it has a window on screen, so time in split screen, a small floating window or picture-in-picture counts, and several apps can count at once.
+- FR-043: the countdown watches every locked app on screen and counts down for the one whose time ends first.
+- FR-044 (new): every locked app with a window on screen (full screen, split screen, a small floating window or picture-in-picture) is in use: its time counts, it gets the countdown, and it is blocked when its time ends.
 
 ---
 
@@ -16,7 +62,7 @@
 **Why it wasn't blocked on time:** coroutine timers (`Handler`, `delay`) run on the uptime clock, which stops while the phone is in deep sleep. `GrantExpiryWatcher` armed one `delay(remaining)` per unlock, and nothing armed it again when the screen came back on. Turning the screen off during an unlock therefore pushed the block later by as long as the phone slept, and the app stayed usable until it was opened again. A unit test reproduced it: a 15-minute unlock with the screen off for 10 minutes ended at 25 minutes on the phone's clock.
 
 1. **An app that is open when its time ends is blocked at that moment:** a one-time unlock (Once) ending, repeating time running out, or the rule ending at midnight.
-   - `GrantExpiryWatcher` is deleted. `TimeLeftWatcher` keeps time for the locked app in front, and only for that app.
+   - `GrantExpiryWatcher` is deleted. `TimeLeftWatcher` keeps time for the locked app in front, and only for that app. (Amendment 8: for every locked app on screen.)
    - It works out the time left again, from clocks that keep running while the phone sleeps (`elapsedRealtime` and `TrustedDayClock`), whenever something changes: the app in front, the screen going off or on, a new unlock, the every-day meter, the clock or the time zone. While a locked app is open with the screen on, it also looks again at least every 60 s.
    - The time left is what is left of the unlock, plus any every-day time that follows it. Every-day time is not counted during an unlock. `DailyAllowanceMeter.usableMs` walks from one period's end to the next: a new period starts full, and the rule's last day ends the time at midnight.
    - The timer that lets a used-up lock screen ("More time at …") close by itself when the time comes back (Amendment 6) is also set again when the screen comes back on.
@@ -25,17 +71,17 @@
    - The time is in Geist Mono and "left" in Instrument Sans 500, at 15sp, in #F2F2F2 on #2E2E2E (the light theme's `inverse-on-surface` and `inverse-surface`), with a 1dp white hairline at 20% and fully round ends. Its 16dp `timer` icon is in the dark theme's `open` teal (#7CCFB8). In the last 30 s the icon becomes `hourglass_bottom` in `caution` orange (#F5A06A).
    - It is always dark, like a toast, so it reads the same over any app, light or dark.
    - The accessibility service draws it as an accessibility overlay (`TYPE_ACCESSIBILITY_OVERLAY`), so it needs no other permission. It takes no focus, and touches pass through it to the app. Its window title is "KryptTimeLeft".
-   - It shows only while the locked app is in front and the screen is on and unlocked. It goes away when you leave the app, when the screen goes off, when the app is blocked, or when more time arrives.
+   - It shows only while the locked app is in front and the screen is on and unlocked. It goes away when you leave the app, when the screen goes off, when the app is blocked, or when more time arrives. (Amendment 8: while a locked app is on screen, in front or in a small window; with several, for the one whose time ends first.)
    - It counts on across a period's end when the next period starts full: with 1 minute every 5 minutes, at 08:04:30 it shows 1:30, and the app is blocked at 08:06.
    - Android sends a window event when the pill appears. The service ignores it by the pill's accessibility class name, so it never counts as an app coming to the front, and it doesn't stop every-day time from being counted.
    - Window events now reach the service at once (`notificationTimeout` 0; it was 100 ms). With a delay, Android keeps only the newest waiting event, so the pill's own event, which is ignored, could have taken the place of another app's coming to the front.
    - When the list of locked apps arrives after the app in front's first window event, as it can just after Krypt starts, the meter is told again whether that app is locked, so its every-day time is counted and its countdown runs.
    - Its design is in `docs/design-system/components/TimeLeftPill`.
 3. **The accessibility service description** adds: "When an app's time is nearly up, Krypt shows how long is left over it, and closes the app when the time ends."
-4. **Logging.** `adb logcat -s KryptA11y` shows "blocked pkg=<pkg> (<why>)", where why is one of: in front, time up, every-day time up, rechecked. It also shows "countdown shown".
+4. **Logging.** `adb logcat -s KryptA11y` shows "blocked pkg=<pkg> (<why>)", where why is one of: in front, time up, every-day time up, rechecked. It also shows "countdown shown". (Amendment 8 adds "on screen" and "closing a window of pkg=<pkg>: …".)
 5. **Limits.**
-   - Krypt still can't read the screen (`canRetrieveWindowContent` stays false).
-   - After Krypt's own process restarts, it learns which app is in front from that app's next window change, for example the app regaining focus after the phone's lock screen is unlocked.
+   - Krypt still can't read the screen (`canRetrieveWindowContent` stays false). (Superseded by Amendment 8: `canRetrieveWindowContent` is true, so Krypt can ask Android which windows are on screen. It still reads no app content.)
+   - After Krypt's own process restarts, it learns which app is in front from that app's next window change, for example the app regaining focus after the phone's lock screen is unlocked. (Superseded by Amendment 8: it asks Android which window has focus, so it knows at once.)
    - Amendment 5 still holds: there is no alarm and no foreground service. The 60-s check runs only while a locked app with time is open on screen, and the 1-s tick only while the countdown shows.
 6. **Tests.** JVM: `TimeLeftWatcherTest` and `DailyAllowanceMeterTest`. Device: the e2e cases 24, 28d, 30 and 31b now check the countdown, and the new case 30e turns the screen off for 75 s during a 3-minute unlock and checks that the block still lands within 10 s of the end (`tests/e2e/README.md`).
 
@@ -59,7 +105,7 @@
 3. **Older phones are never sent one.** The request says the phone accepts periods (`caps=periods`, `contracts/request.md`), and the screen shows the "Every" row only then. Without it, Repeating means a day. A period shorter than a day travels in its own payload shape (`contracts/approve.md`), which an older install refuses rather than read as minutes a day. A day keeps the old shape, so phones from before this amendment still take per-day approvals.
 4. **On the child's phone, the rule gives N minutes in each period, every day, for D days.** What Amendment 3 says about every-day rules holds for each period:
    - The app opens without asking while the period's time lasts. When it runs out, the app is blocked at that moment, even if it is open.
-   - Time counts only while the app is in front, the screen is on and unlocked, and no one-time unlock runs. One-time time is still extra.
+   - Time counts only while the app is in front, the screen is on and unlocked, and no one-time unlock runs. One-time time is still extra. (Amendment 8: while the app is on screen, in front or in a small window.)
    - Repeating time needs automatic date & time; without it the time is paused and the app stays locked. The time of day comes from the trusted clock (`TrustedDayClock`), as the day did, so a clock changed by hand doesn't move it.
    - **Residual risk,** as in Amendment 3: offline, a clock set forward, automatic time turned back on and a reboot can bring a later period's time early. Each period's minutes still count once.
    - Days and periods are counted in the time zone the device had when the rule was approved.
@@ -145,7 +191,7 @@
    - A new every-day approval for the same app replaces the old rule, and time already used today still counts.
    - One-time time never counts against the daily time: it is extra.
    - Locking the app again (a reinstall, or the Home toggle) ends its rule, as it ends a grant.
-4. **How daily time is counted.** Krypt still cannot read the screen. It counts from what the accessibility service already reports: an app's daily time runs while it is the app in front, the screen is on and unlocked, and no one-time unlock is running.
+4. **How daily time is counted.** Krypt still cannot read the screen. It counts from what the accessibility service already reports: an app's daily time runs while it is the app in front, the screen is on and unlocked, and no one-time unlock is running. (Amendment 8: Krypt asks Android which windows are on screen, and every locked app with a window on screen counts.)
    - Time is measured on the monotonic clock, so changing the clock adds none.
    - Usage is saved every 30 s and whenever counting stops, so a crash loses at most 30 s.
    - Usage survives restarts and reboots, because it is kept per calendar day.
@@ -156,7 +202,7 @@
    - After a reboot the day can't go backwards (a high-water mark), so a used-up day can't come round again.
    - Days are counted in the time zone the device had when the rule was approved, so changing the time zone makes no extra day.
    - **Residual risk:** offline, a child who sets the date forward, turns automatic time back on and reboots can use later days' time early. Each day's allowance still counts once, and the rule still ends on its last day.
-6. **Known limitations of counting without screen access:**
+6. **Known limitations of counting without screen access** (superseded by Amendment 8, except that background audio still isn't counted):
    - Picture-in-picture and background audio aren't counted.
    - In split screen only the app opened last is counted.
    - An app kept in picture-in-picture past its time keeps playing until its next window change (as with a one-time unlock).
@@ -319,7 +365,7 @@ Each requirement is stated as a testable capability.
 
 | ID | Requirement |
 |----|-------------|
-| FR-001 | The system MUST intercept the launch of any locked application and render the Locker Screen before the target app's UI becomes visible. |
+| FR-001 | The system MUST intercept the launch of any locked application and render the Locker Screen before the target app's UI becomes visible. **Amendment 8:** the system MUST learn which apps are on screen from Android's list of windows. The app in front is the one whose window has input focus; a window that only shows, such as the launcher behind an app during a gesture, MUST NOT take its place. |
 | FR-002 | The Locker Screen MUST NOT be dismissible by Back, Home, Recents, notification-shade, status bar, or rotation. |
 | FR-003 | The system MUST automatically classify every newly-installed package as locked, regardless of install source. |
 | FR-004 | The system MUST post a local notification via a user-visible "Security Alerts" channel within 500 ms of each new install being locked. The notification body MUST contain the locked package name. |
@@ -331,7 +377,7 @@ Each requirement is stated as a testable capability.
 | FR-010 | The interception layer MUST continue to function after 24 hours of screen-off idle, surviving standard OEM battery-optimisation policies (Doze, App Standby). |
 | FR-011 | The system MUST whitelist its own Guardian Popup activity from its own interception, so Guardians can approve requests even on locked-down devices. |
 | FR-012 | Uninstalling the app MUST require Device-Admin to be revoked first. |
-| FR-013 | Each unlock grant MUST be time-boxed. **Amendment 7:** when the grant window ends, a target app that is still open MUST be blocked at that moment, even if the phone slept during the grant. Opening it after that MUST show the Locker Screen. |
+| FR-013 | Each unlock grant MUST be time-boxed. **Amendment 7:** when the grant window ends, a target app that is still open MUST be blocked at that moment, even if the phone slept during the grant. Opening it after that MUST show the Locker Screen. **Amendment 8:** this also holds for an app in a small window (split screen, a floating window, picture-in-picture). |
 | FR-014 | The Subject MUST be able to initiate an unlock request without typing any PIN, and the system MUST compose a shareable deep-link payload for the Subject to send. |
 | FR-015 | The system MUST reject any approval URL whose embedded request-ID does not match an outstanding request, or whose decryption fails. |
 | FR-016 | The system MUST provide an internal mock/seam for the "locked-apps database" such that foundational code can be exercised before a persistent store is wired up. |
@@ -340,7 +386,8 @@ Each requirement is stated as a testable capability.
 | FR-019 | (Amendment 1) `OutstandingRequest.ttlSeconds` default MUST be 300 seconds (5 minutes) from request issuance to approval consumption. Requests past TTL MUST be rejected with a clear user-facing error. |
 | FR-020 | (Amendment 1) Each `OutstandingRequest` MUST be single-use. Successful consumption MUST atomically flip `consumed=true` such that a second consume attempt on the same approval URL returns `UnmatchedRequest` (not success). |
 | FR-021 | (Amendment 1) On successful silent approval consumption, the overlay MUST confirm the unlock with a visual cue (>=500 ms green flash or equivalent accessible affordance), a short haptic pulse, and a toast naming the target app. |
-| FR-043 | (Amendment 7) In the last 2 minutes of an app's time (a one-time unlock, repeating time, or both), the system MUST show a countdown over the app while it is in front and the screen is on and unlocked. The countdown MUST NOT take focus or touches, and MUST NOT need any permission beyond the accessibility service. |
+| FR-043 | (Amendment 7) In the last 2 minutes of an app's time (a one-time unlock, repeating time, or both), the system MUST show a countdown over the app while it is in front and the screen is on and unlocked. The countdown MUST NOT take focus or touches, and MUST NOT need any permission beyond the accessibility service. **Amendment 8:** while the app is on screen, in front or in a small window; with several such apps, the countdown is for the one whose time ends first. |
+| FR-044 | (Amendment 8) Every locked app with a window on screen (full screen, split screen, a small floating window or picture-in-picture) MUST count as in use: its every-day time counts, it gets the countdown (FR-043), and it MUST be blocked when its time ends. When it is only in a small window, the system MUST ask Android to close that window. |
 
 ## 6. Success Criteria
 

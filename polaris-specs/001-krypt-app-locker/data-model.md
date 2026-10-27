@@ -174,7 +174,7 @@ PRIMARY KEY (packageName, minute)
 
 **Invariants.**
 - Written only by consuming an every-day approval, in the same transaction that marks its request consumed.
-- Usage is measured on the monotonic clock while the app is in front, the screen is on and no one-time grant runs. It is split at the clock minutes it crosses, and saved every 30 s and whenever counting stops (`DailyAllowanceMeter`).
+- Usage is measured on the monotonic clock while the app is in use, the screen is on and no one-time grant runs. Since Amendment 8 an app is in use while it has a window on screen: in front, in split screen, in a small floating window or in picture-in-picture, and several apps can count at once. It is split at the clock minutes it crosses, and saved every 30 s and whenever counting stops (`DailyAllowanceMeter`).
 - A clock minute that happens twice, when summer time ends, is one `minute`. A minute that is skipped has no row.
 - The calendar day and time come from `TrustedDayClock`: nothing while automatic date & time is off; within a boot, a monotonic anchor; after a reboot, never earlier than the latest trusted time.
 - Rules that ended more than a day ago, and usage older than 35 days (a `minute` before `(today - 35) * 1440`), are pruned at startup, by the trusted day (not at all while automatic time is off). Usage on a day an app's current rule covers is never pruned, so moving the date forward can't erase used-up time.

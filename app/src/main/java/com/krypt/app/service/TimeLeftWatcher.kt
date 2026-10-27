@@ -14,13 +14,14 @@ interface TimeLeftDisplay {
 }
 
 /**
- * Keeps time for the locked app in front (FR-013, Amendment 7): it is
- * blocked the moment its time ends, and in its last [WARN_MS] a countdown
- * shows over it ([TimeLeftDisplay]).
+ * Keeps time for the locked apps on screen (FR-013, Amendments 7 and 8):
+ * each is blocked the moment its time ends, and in the last [WARN_MS] of the
+ * first to end a countdown shows ([TimeLeftDisplay]).
  *
- * Its time is what is left of a one-time unlock ([grantMs]), then any
+ * An app's time is what is left of a one-time unlock ([grantMs]), then any
  * every-day time ([usableMs]), which isn't counted while an unlock runs.
- * Only the app in front is watched ([watch]): an app in the background needs
+ * Only apps on screen are watched ([watch]) - in front, in split screen, in
+ * a small window or picture-in-picture: an app in the background needs
  * nothing when its time ends, since opening it again is checked anyway.
  *
  * Coroutine timers stop while the phone sleeps, so nothing here waits on one
@@ -43,21 +44,24 @@ class TimeLeftWatcher(
     /** The app has no time left: block it. Asked again every [RETRY_MS] while it stays in front. */
     private val onTimeUp: (pkg: String) -> Unit,
 ) {
-    private var watched: String? = null
+    private var watched: List<String> = emptyList()
 
-    /** [watched] had a one-time unlock running when last looked at. */
-    private var granted = false
+    /** The watched apps that had a one-time unlock running when last looked at. */
+    private val granted = HashSet<String>()
     private var timer: Job? = null
 
+    /** Keep time for [pkg] alone, or for no app when it is null. */
+    fun watch(pkg: String?) = watch(listOfNotNull(pkg))
+
     /**
-     * Keep time for [pkg]: the locked app in front, with the screen on and
-     * unlocked. Null when there is none. Call it again whenever the app's
-     * time may have changed.
+     * Keep time for [pkgs]: the locked apps on screen, with the screen on
+     * and unlocked. Call it again whenever their time may have changed.
      */
-    fun watch(pkg: String?) {
-        if (pkg != watched) {
-            watched = pkg
-            granted = false
+    fun watch(pkgs: Collection<String>) {
+        val apps = pkgs.distinct()
+        if (apps != watched) {
+            granted.retainAll(apps.toSet())
+            watched = apps
         }
         check()
     }
@@ -65,21 +69,27 @@ class TimeLeftWatcher(
     private fun check() {
         timer?.cancel()
         timer = null
-        val pkg = watched ?: return display.hide()
-        val grant = grantMs(pkg)
-        if (granted && grant <= 0L) onGrantEnded(pkg)
-        granted = grant > 0L
-        val left = usableMs(pkg, grant, WARN_MS + MAX_WAIT_MS)?.let { grant + it }
-        if (left != null && left in 1..WARN_MS) display.show(pkg, left) else display.hide()
-        if (left != null && left <= 0L) onTimeUp(pkg)
-        val wait = when {
-            left == null -> MAX_WAIT_MS
-            left <= 0L -> RETRY_MS
-            left <= WARN_MS -> (left - 1) % 1_000 + 1 // when the next whole second shows
-            else -> minOf(left - WARN_MS, MAX_WAIT_MS)
+        if (watched.isEmpty()) return display.hide()
+        var wait = MAX_WAIT_MS
+        var soonest: Pair<String, Long>? = null
+        for (pkg in watched) {
+            val grant = grantMs(pkg)
+            if (pkg in granted && grant <= 0L) onGrantEnded(pkg)
+            if (grant > 0L) granted += pkg else granted -= pkg
+            val left = usableMs(pkg, grant, WARN_MS + MAX_WAIT_MS)?.let { grant + it }
+            if (left != null && left in 1..WARN_MS && (soonest == null || left < soonest.second)) soonest = pkg to left
+            if (left != null && left <= 0L) onTimeUp(pkg)
+            val appWait = when {
+                left == null -> MAX_WAIT_MS
+                left <= 0L -> RETRY_MS
+                left <= WARN_MS -> (left - 1) % 1_000 + 1 // when the next whole second shows
+                else -> minOf(left - WARN_MS, MAX_WAIT_MS)
+            }
+            wait = minOf(wait, if (grant > 0L) minOf(appWait, grant) else appWait)
         }
+        soonest?.let { (pkg, left) -> display.show(pkg, left) } ?: display.hide()
         timer = scope.launch {
-            delay(if (granted) minOf(wait, grant) else wait)
+            delay(wait)
             check()
         }
     }

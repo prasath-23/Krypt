@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- ShowOverlay's window over other apps; the test allows it with appops. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <application
         android:allowBackup="false"
         android:label="Krypt E2E Target"
@@ -8,12 +11,18 @@
 
         <activity
             android:name=".TargetActivity"
-            android:exported="true">
+            android:exported="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Started by the e2e test with am broadcast -n. -->
+        <receiver android:name=".ShowOverlay" android:exported="true" />
+        <receiver android:name=".EnterPip" android:exported="true" />
     </application>
 
 </manifest>

@@ -370,6 +370,16 @@ def pill_shown():
     return pill_frame() is not None
 
 
+def target_in_pip():
+    """Whether the e2e target is in picture-in-picture: its task's windowing mode is "pinned"."""
+    out = sh("dumpsys activity activities")
+    if re.search(rf"A=\d+:{re.escape(TARGET)}\b[^\n]*mode=pinned", out):  # Android 11 and later
+        return True
+    # Android 10 says it of the stack, and lists the target's TaskRecord under it.
+    stack = re.search(r"Stack #\d+: type=\w+ mode=pinned(.*?)(?=\n\s*Stack #|\Z)", out, re.S)
+    return bool(stack and f"A={TARGET} " in stack.group(1))
+
+
 def screenshot(name):
     """Keep what the screen shows now in the evidence folder, e.g. to look at the countdown."""
     os.makedirs(EVIDENCE, exist_ok=True)
@@ -1198,6 +1208,33 @@ def unlock_ends_on_time_after_screen_off():
     home()
 
 
+@case("30f an app in picture-in-picture keeps its time and countdown, and its small window closes when the time ends")
+def pip_keeps_its_time():
+    # Amendment 8: an app in a small window is in use too. Krypt used to count only the app with focus.
+    request = request_access_for(TARGET)
+    approval = approve_once(request, minutes=3)
+    home()
+    adb("logcat", "-c")
+    wait_for_krypt_service()  # the Guardian's screen dumps unbound it; it must see the app open
+    open_link(approval)
+    granted = time.time()
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 20), "target did not open")
+    sh(f"am broadcast -f 0x20 -n {TARGET}/.EnterPip")
+    expect(wait_for(target_in_pip, 10), "the target did not go into picture-in-picture")
+    # Android 11 and later give the launcher focus now; on Android 10 the small window keeps it.
+    time.sleep(max(0.0, granted + 60 + 5 - time.time()))  # into the last two minutes
+    expect(target_in_pip(), "the target left picture-in-picture")
+    expect(wait_for(pill_shown, 10), "no countdown for the app in picture-in-picture")
+    screenshot("30f_pip_countdown")
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"not blocked when the unlock ended; top is {top}")
+    late = time.time() - granted - 3 * 60
+    expect(late < 10, f"blocked {late:.0f} s after the unlock ended")
+    expect(wait_for(lambda: not target_in_pip(), 5), "the picture-in-picture window stayed open")
+    expect(krypt_logcat(rf"closing a window of pkg={re.escape(TARGET)}: closed"), "Krypt did not close the small window")
+    home()
+
+
 @case("30b setting the date back and restarting Krypt doesn't revive an ended grant (negative)")
 def date_rollback_after_expiry():
     now_ms = device_time_ms()
@@ -1256,6 +1293,44 @@ def date_jump_keeps_used_up_day():
     top = wait_top(re.escape(LOCK_SCREEN))
     expect(LOCK_SCREEN in top, f"a date jump gave a fresh day of time; top is {top}")
     expect(wait_text(r"^Done for today\.$", 10), "the lock screen doesn't say today's time is up")
+    home()
+
+
+@case("30g another app's window showing over a timed app keeps its time, countdown and end (the reported bug)")
+def other_window_keeps_the_app_in_front():
+    # The reported bug (Amendment 8): a home gesture started and cancelled showed the launcher's window
+    # behind Instagram, Instagram kept focus, and Krypt took the launcher for the app in front: the
+    # countdown went away and the time stopped. Here the target shows a small window over Chrome without
+    # taking focus, as the launcher did. Its window may show only if it has time of its own.
+    approval = approve_once(request_access_for(TARGET), minutes=15)
+    home()
+    wait_for_krypt_service()
+    open_link(approval)
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 20), "target did not open")
+    home()
+    approval = approve_once(request_access_for(CHROME), minutes=2)
+    home()
+    adb("logcat", "-c")
+    wait_for_krypt_service()
+    open_link(approval)
+    granted = time.time()
+    expect(CHROME in wait_top(re.escape(CHROME) + r"/", 20), f"Chrome did not open; top is {top_activity()}")
+    expect(wait_for(pill_shown, 10), "no countdown over Chrome with 2 minutes left")
+    sh(f"appops set {TARGET} SYSTEM_ALERT_WINDOW allow")
+    adb("logcat", "-c")
+    sh(f"am broadcast -f 0x20 -n {TARGET}/.ShowOverlay")
+    expect(wait_for(lambda: window_frame("KryptE2EOverlay"), 10, step=0.3), "the other app's window did not show")
+    # Chrome sends window events of its own now and then, which used to set it right again after a
+    # moment (Instagram didn't), so look closely: the countdown must never go, even briefly.
+    samples = [pill_shown() for _ in range(8)]
+    expect(all(samples), f"the countdown went away when another app's window showed: {samples}")
+    expect(not krypt_logcat(r"countdown shown"), "the countdown was taken down and shown again meanwhile")
+    expect(CHROME in top_activity(), f"Chrome left the front; top is {top_activity()}")
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
+    expect(LOCK_SCREEN in top, f"Chrome was not blocked when its unlock ended; top is {top}")
+    late = time.time() - granted - 2 * 60
+    expect(late < 10, f"blocked {late:.0f} s after the unlock ended")
+    expect(krypt_logcat(r"blocked pkg=com\.android\.chrome \(time up\)"), "the block wasn't for Chrome's time being up")
     home()
 
 
@@ -1336,8 +1411,9 @@ def main():
                  paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
                  daily_time_paused_without_auto_time, daily_time_runs_out,
                  health_check_scheduled, reboot_ends_grants, grant_expiry_in_app,
-                 unlock_ends_on_time_after_screen_off, date_rollback_after_expiry,
-                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, uninstall_blocked,
+                 unlock_ends_on_time_after_screen_off, pip_keeps_its_time, date_rollback_after_expiry,
+                 date_forward_gives_no_new_day, date_jump_keeps_used_up_day, other_window_keeps_the_app_in_front,
+                 uninstall_blocked,
                  hourly_time_runs_out, for_good_removes_the_lock]
     shutil.rmtree(EVIDENCE, ignore_errors=True)
     print(f"Krypt e2e on {SERIAL}: Android {sh('getprop ro.build.version.release').strip()}", flush=True)
