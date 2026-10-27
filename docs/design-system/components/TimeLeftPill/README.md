@@ -1,10 +1,10 @@
-The countdown over an app in its last 2 minutes: a small dark pill at the top of the screen that says how long is left, "1:59 left". The app works under it as before.
+The countdown over an app in its last 5 minutes: a small dark pill at the top of the screen that says how long is left, "1:59 left". The app works under it as before.
 
 **Shows:** a pill at the top centre of the screen, 8dp below the status bar, with fully round ends (`radius-full`). A 16dp icon (`icon-sm`), then the time in Geist Mono and "left" in Instrument Sans 500, both at 15sp. The pill is `#2E2E2E` with `#F2F2F2` text (the light theme's `inverse-surface` and `inverse-on-surface`), and a 1dp white hairline at 20% lifts it off dark apps.
 
 | State | When | Icon | Line |
 |---|---|---|---|
-| Time left | The last 2 minutes | `timer` in the dark theme's `open` (`#7CCFB8`) | 1:59 left |
+| Time left | The last 5 minutes | `timer` in the dark theme's `open` (`#7CCFB8`) | 1:59 left |
 | Last 30 s | The last 30 seconds | `hourglass_bottom` in the dark theme's `caution` (`#F5A06A`) | 0:28 left |
 
 The time is minutes and seconds, rounded up, so the last second shows 0:01 and 0:00 never shows while the app is open. It ticks every second.

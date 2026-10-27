@@ -667,7 +667,7 @@ These are part of the experience too.
 | Notification: new app locked (Security Alerts channel, high importance) | "New App Protected" / "{App} ({package}) has been locked by default". Tapping opens Krypt |
 | Notification: protection off | "Krypt is off" / "Locked apps can be opened freely. Tap to turn Krypt Locker back on in Accessibility settings." Posted the moment Krypt's accessibility service is switched off, and taken down when it is switched back on |
 | Accessibility service description (system Settings) | `accessibility_service_description`: what Krypt watches, and that it sends nothing off the device. Since Amendment 8 it starts "Krypt needs Accessibility access to see which apps are on screen and block locked apps until your Guardian approves." (it was "…to see which app is being launched…"). Since Amendment 7 it also says: "When an app's time is nearly up, Krypt shows how long is left over it, and closes the app when the time ends." |
-| Countdown over an app (since Amendment 7) | "1:59 left" in a small dark pill at the top centre of the screen, in the last 2 minutes of an app's time (`service/TimeLeftPill.kt`). Since Amendment 8 that includes an app in split screen, a floating window or picture-in-picture; with several, it counts down for the one whose time ends first. The accessibility service draws it as an accessibility overlay: it takes no touches, so the app works under it, and it is always dark, whatever the theme |
+| Countdown over an app (since Amendment 7) | "1:59 left" in a small dark pill at the top centre of the screen, in the last 5 minutes of an app's time (`service/TimeLeftPill.kt`; 2 before Amendment 9). Since Amendment 8 that includes an app in split screen, a floating window or picture-in-picture; with several, it counts down for the one whose time ends first. The accessibility service draws it as an accessibility overlay: it takes no touches, so the app works under it, and it is always dark, whatever the theme |
 | Device Admin explanation | "Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first." |
 | Share target label | "Open in Krypt" |
 | Launcher icon | `res/drawable/ic_launcher_*`; free to redesign (adaptive icon, monochrome layer welcome) |
@@ -825,9 +825,10 @@ Speak to them as "you".
 - One-time access ends on time, even with the app open. Since Amendment 7
   that holds even if the phone slept during it. It survives Krypt
   restarting, but not a reboot.
-- Since Amendment 7, an app's last 2 minutes (of an unlock, repeating time,
+- Since Amendment 7, an app's last minutes (of an unlock, repeating time,
   or both) show a countdown over it, "1:59 left", and the app is blocked
-  the moment its time ends.
+  the moment its time ends. The countdown starts at 5:00 (at 2:00 before
+  Amendment 9).
 - Daily time counts only while the app is in front with the screen on, and
   it is saved every 30 s. Since Amendment 6 it is kept per minute of the
   clock, and a period adds up its minutes. Since Amendment 8 it counts

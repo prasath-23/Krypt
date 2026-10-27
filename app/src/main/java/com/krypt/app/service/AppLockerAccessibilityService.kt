@@ -51,7 +51,7 @@ import javax.inject.Inject
  * [DeviceStateWatcher]), and the time of the apps on screen - in front, in
  * split screen, in a small window or picture-in-picture: each is blocked the
  * moment its unlock or every-day time ends, with a countdown for the last
- * two minutes (FR-013, Amendments 7 and 8, via [TimeLeftWatcher] and
+ * five minutes (FR-013, Amendments 7, 8 and 9, via [TimeLeftWatcher] and
  * [TimeLeftPill]).
  *
  * Apart from the 6-hour health check, this service is all Krypt runs in the

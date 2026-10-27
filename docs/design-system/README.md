@@ -30,7 +30,7 @@ The person behind a lock may be a child, someone in recovery or someone who chos
 | Open · N min left | A one-time unlock in progress |
 | Daily · N of M min left | Daily time in progress |
 | Hourly, Every 30 min, Every 2 h, Every 1 h 30 min · N of M min left | Time in a period shorter than a day, in progress |
-| N:SS left | The last two minutes of an app's time, in the countdown over the app (TimeLeftPill) |
+| N:SS left | The last five minutes of an app's time, in the countdown over the app (TimeLeftPill) |
 | Relock now / Stop daily time / Stop repeating time | Ending access early (in the sheet opened from the app's row) |
 
 ## Colour: Soft neutral

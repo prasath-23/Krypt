@@ -138,21 +138,21 @@ class TimeLeftWatcherTest {
     }
 
     @Test
-    fun theCountdown_showsForTheLastTwoMinutes_secondBySecond() = runTest {
+    fun theCountdown_showsForTheLastFiveMinutes_secondBySecond() = runTest {
         val e = env()
-        e.store.recordGrant(APP, e.clock.nowMs() + 3 * MIN)
+        e.store.recordGrant(APP, e.clock.nowMs() + 6 * MIN)
         e.watcher.watch(APP)
 
         pass(MIN - 1)
         assertEquals(emptyList<String?>(), shown)
         pass(1)
-        assertEquals(listOf<String?>("2:00"), shown)
+        assertEquals(listOf<String?>("5:00"), shown)
         pass(1_000)
-        assertEquals(listOf<String?>("2:00", "1:59"), shown)
-        pass(2 * MIN - 1_000)
+        assertEquals(listOf<String?>("5:00", "4:59"), shown)
+        pass(5 * MIN - 1_000)
 
-        assertEquals(countdownFrom(120), shown)
-        assertEquals(listOf(3 * MIN), timeUp)
+        assertEquals(countdownFrom(300), shown)
+        assertEquals(listOf(6 * MIN), timeUp)
     }
 
     @Test
@@ -309,15 +309,15 @@ class TimeLeftWatcherTest {
 
     @Test
     fun everyDayTimeRunningOut_countsDown_thenEnds() = runTest {
-        repo.rules += rule(minutes = 3)
+        repo.rules += rule(minutes = 6)
         meterEnv(MORNING)
 
         pass(MIN)
-        assertEquals(listOf<String?>("2:00"), shown)
-        pass(2 * MIN)
+        assertEquals(listOf<String?>("5:00"), shown)
+        pass(5 * MIN)
 
-        assertEquals(3 * MIN, timeUp.first())
-        assertEquals(countdownFrom(120), shown)
+        assertEquals(6 * MIN, timeUp.first())
+        assertEquals(countdownFrom(300), shown)
     }
 
     @Test
@@ -359,6 +359,8 @@ class TimeLeftWatcherTest {
 
     @Test
     fun theTimeShows_inMinutesAndSeconds_roundedUp() {
+        assertEquals("5:00", timeLeftText(300_000))
+        assertEquals("4:59", timeLeftText(299_000))
         assertEquals("2:00", timeLeftText(120_000))
         assertEquals("2:00", timeLeftText(119_001))
         assertEquals("1:59", timeLeftText(119_000))

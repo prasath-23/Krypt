@@ -95,8 +95,8 @@ class TimeLeftWatcher(
     }
 
     companion object {
-        /** The countdown shows for the app's last two minutes. */
-        const val WARN_MS = 2 * 60_000L
+        /** The countdown shows for the app's last five minutes (two before Amendment 9). */
+        const val WARN_MS = 5 * 60_000L
 
         /** The longest the time left goes unchecked while an app is watched. */
         const val MAX_WAIT_MS = 60_000L

@@ -1144,9 +1144,9 @@ def grant_expiry_in_app():
     open_link(approval.group(0))
     granted = time.time()
     expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY)), "target did not open")
-    time.sleep(max(0, granted + 13 * 60 + 5 - time.time()))  # into the last two minutes
+    time.sleep(max(0, granted + 13 * 60 + 5 - time.time()))  # well into the last five minutes
     expect(TARGET_ACTIVITY in top_activity(), "target left the foreground before expiry")
-    expect(wait_for(pill_shown, 10), "no countdown in the unlock's last two minutes")
+    expect(wait_for(pill_shown, 10), "no countdown in the unlock's last five minutes")
     top = wait_top(re.escape(LOCK_SCREEN), timeout=150)
     expect(LOCK_SCREEN in top, f"not blocked when the grant ended; top is {top}")
     late = time.time() - granted - 15 * 60
@@ -1173,7 +1173,9 @@ def unlock_ends_on_time_after_screen_off():
     open_link(approval)
     granted = time.time()
     expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 20), "target did not open")
-    expect(not pill_shown(), "a countdown with three minutes left")
+    # Three minutes are inside the countdown's last five (Amendment 9), so it shows at once.
+    expect(wait_for(pill_shown, 10), "no countdown with three minutes left")
+    screenshot("30e_countdown_at_once")
     time.sleep(10)
     sh("input keyevent KEYCODE_SLEEP")  # the screen goes off; the phone may sleep
     off_at = time.time()
@@ -1189,7 +1191,7 @@ def unlock_ends_on_time_after_screen_off():
               flush=True)
     expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 15),
            f"the app is not in front after the screen came back; top is {top_activity()}")
-    expect(wait_for(pill_shown, 10), "no countdown in the unlock's last two minutes")
+    expect(wait_for(pill_shown, 10), "no countdown after the screen came back")
     screenshot("30e_countdown")
     expect_taps_reach_the_app_through_the_pill()
     home()
@@ -1222,7 +1224,7 @@ def pip_keeps_its_time():
     sh(f"am broadcast -f 0x20 -n {TARGET}/.EnterPip")
     expect(wait_for(target_in_pip, 10), "the target did not go into picture-in-picture")
     # Android 11 and later give the launcher focus now; on Android 10 the small window keeps it.
-    time.sleep(max(0.0, granted + 60 + 5 - time.time()))  # into the last two minutes
+    time.sleep(max(0.0, granted + 60 + 5 - time.time()))  # a minute in picture-in-picture
     expect(target_in_pip(), "the target left picture-in-picture")
     expect(wait_for(pill_shown, 10), "no countdown for the app in picture-in-picture")
     screenshot("30f_pip_countdown")

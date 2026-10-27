@@ -2,8 +2,24 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6, 7 and 8 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6, 7, 8 and 9 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 9 (2026-10-27) - The Countdown Starts at 5 Minutes
+
+**Asked for (2026-10-27):** "pls show 5mins time in remaing count down"
+
+**What changed:** the countdown over an app (FR-043) now shows for the app's last 5 minutes, from "5:00 left". It was the last 2 minutes.
+
+1. `TimeLeftWatcher.WARN_MS` is 5 minutes. Nothing else about the countdown changed: it ticks every second while it shows, its icon turns into the orange hourglass for the last 30 s, and it covers every locked app on screen as in Amendment 8.
+2. An unlock or repeating time of 5 minutes or less shows the countdown as soon as the app opens.
+3. Amendment 5 still holds: the 1-s tick runs only while the countdown shows, now for up to 5 minutes at a time.
+4. **Tests.** `TimeLeftWatcherTest`: a 6-minute unlock, and 6 minutes of every-day time, show nothing until 5:00 is left, then count down from 5:00 to 0:01 and end on the dot. The e2e case 30e, a 3-minute unlock, now expects the countdown as soon as the app opens; before this it checked that none showed.
+
+**FRs touched:**
+- FR-043: the countdown shows for the last 5 minutes of an app's time, not 2.
 
 ---
 
@@ -57,7 +73,7 @@
 
 **Asked for (2026-10-26):** "the timer is not autolaocking after time exit.. this only locks after the i open again.. this is an issue.. same way show the timer as overlay when it reaches it last 2 mins.. just like brainpal scoll indicator.. and pls test all casess"
 
-**What changed:** before this, an app that was open when its time ended could stay usable until it was opened again. Now it is blocked at that moment, even if the phone slept in between, and in its last 2 minutes a small countdown shows over it.
+**What changed:** before this, an app that was open when its time ended could stay usable until it was opened again. Now it is blocked at that moment, even if the phone slept in between, and in its last 2 minutes a small countdown shows over it. (Amendment 9: the last 5 minutes.)
 
 **Why it wasn't blocked on time:** coroutine timers (`Handler`, `delay`) run on the uptime clock, which stops while the phone is in deep sleep. `GrantExpiryWatcher` armed one `delay(remaining)` per unlock, and nothing armed it again when the screen came back on. Turning the screen off during an unlock therefore pushed the block later by as long as the phone slept, and the app stayed usable until it was opened again. A unit test reproduced it: a 15-minute unlock with the screen off for 10 minutes ended at 25 minutes on the phone's clock.
 
@@ -67,7 +83,7 @@
    - The time left is what is left of the unlock, plus any every-day time that follows it. Every-day time is not counted during an unlock. `DailyAllowanceMeter.usableMs` walks from one period's end to the next: a new period starts full, and the rule's last day ends the time at midnight.
    - The timer that lets a used-up lock screen ("More time at …") close by itself when the time comes back (Amendment 6) is also set again when the screen comes back on.
    - Blocking is unchanged: Krypt's lock screen replaces the app (Amendment 2). Nothing is drawn over a running app to block it.
-2. **A countdown in the app's last 2 minutes.** A small pill at the top centre of the screen, 8dp below the status bar, reads "1:59 left".
+2. **A countdown in the app's last 2 minutes.** A small pill at the top centre of the screen, 8dp below the status bar, reads "1:59 left". (Amendment 9: the last 5 minutes, from "5:00 left".)
    - The time is in Geist Mono and "left" in Instrument Sans 500, at 15sp, in #F2F2F2 on #2E2E2E (the light theme's `inverse-on-surface` and `inverse-surface`), with a 1dp white hairline at 20% and fully round ends. Its 16dp `timer` icon is in the dark theme's `open` teal (#7CCFB8). In the last 30 s the icon becomes `hourglass_bottom` in `caution` orange (#F5A06A).
    - It is always dark, like a toast, so it reads the same over any app, light or dark.
    - The accessibility service draws it as an accessibility overlay (`TYPE_ACCESSIBILITY_OVERLAY`), so it needs no other permission. It takes no focus, and touches pass through it to the app. Its window title is "KryptTimeLeft".
@@ -88,7 +104,7 @@
 **FRs touched:**
 - FR-013: a grant ends on time even while its app is open, and even if the phone slept during it. The app is blocked at that moment, not when it is next opened.
 - FR-042: a lock screen showing used-up time still closes by itself when the next period starts, after the phone slept.
-- FR-043 (new): in the last 2 minutes of an app's time, a countdown shows over the app while it is in front and the screen is on and unlocked. It takes no focus and no touches, and needs no permission beyond the accessibility service.
+- FR-043 (new): in the last 2 minutes of an app's time, a countdown shows over the app while it is in front and the screen is on and unlocked. It takes no focus and no touches, and needs no permission beyond the accessibility service. (Amendment 9: the last 5 minutes.)
 
 ---
 
@@ -348,7 +364,7 @@ Krypt eliminates both failure modes by moving the unlock authority to a *physica
 2. Krypt on the Subject device loads the stored `MasterKey` from Keystore-backed storage and silently decrypts the approval payload in the background. **No PIN keypad is shown to the Subject.**
 3. The Subject device verifies the payload `req` matches an outstanding `OutstandingRequest` row with `consumed=false`, atomically flips `consumed=true`, and inserts an `UnlockGrant` row.
 4. The overlay flashes green for 500 ms, triggers a short haptic, shows a toast "Unlocked by Guardian until HH:MM", and is dismissed.
-5. When the grant window expires (default 15 minutes), the Locker Screen replaces the app at that moment if it is still open, even if the phone slept meanwhile, and a countdown shows over the app in its last 2 minutes (Amendment 7). Opening the app later shows the Locker Screen.
+5. When the grant window expires (default 15 minutes), the Locker Screen replaces the app at that moment if it is still open, even if the phone slept meanwhile, and a countdown shows over the app in its last 5 minutes (Amendments 7 and 9). Opening the app later shows the Locker Screen.
 
 ### US-6 --- Uninstall attempt
 1. Subject attempts to uninstall Krypt from Settings.
@@ -386,7 +402,7 @@ Each requirement is stated as a testable capability.
 | FR-019 | (Amendment 1) `OutstandingRequest.ttlSeconds` default MUST be 300 seconds (5 minutes) from request issuance to approval consumption. Requests past TTL MUST be rejected with a clear user-facing error. |
 | FR-020 | (Amendment 1) Each `OutstandingRequest` MUST be single-use. Successful consumption MUST atomically flip `consumed=true` such that a second consume attempt on the same approval URL returns `UnmatchedRequest` (not success). |
 | FR-021 | (Amendment 1) On successful silent approval consumption, the overlay MUST confirm the unlock with a visual cue (>=500 ms green flash or equivalent accessible affordance), a short haptic pulse, and a toast naming the target app. |
-| FR-043 | (Amendment 7) In the last 2 minutes of an app's time (a one-time unlock, repeating time, or both), the system MUST show a countdown over the app while it is in front and the screen is on and unlocked. The countdown MUST NOT take focus or touches, and MUST NOT need any permission beyond the accessibility service. **Amendment 8:** while the app is on screen, in front or in a small window; with several such apps, the countdown is for the one whose time ends first. |
+| FR-043 | (Amendment 7) In the last 5 minutes of an app's time (a one-time unlock, repeating time, or both; 2 minutes before Amendment 9), the system MUST show a countdown over the app while it is in front and the screen is on and unlocked. The countdown MUST NOT take focus or touches, and MUST NOT need any permission beyond the accessibility service. **Amendment 8:** while the app is on screen, in front or in a small window; with several such apps, the countdown is for the one whose time ends first. |
 | FR-044 | (Amendment 8) Every locked app with a window on screen (full screen, split screen, a small floating window or picture-in-picture) MUST count as in use: its every-day time counts, it gets the countdown (FR-043), and it MUST be blocked when its time ends. When it is only in a small window, the system MUST ask Android to close that window. |
 
 ## 6. Success Criteria

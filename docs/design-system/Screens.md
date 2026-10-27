@@ -54,4 +54,4 @@ No layout: UnlockFlash, then the toast.
 
 - **Notification small icon:** `krypt-mark-sm.svg`, the small brand mark as a white-on-transparent vector drawable (Android tints it). A generic `shield` would read as antivirus. The texts are "New app protected", "Instagram (com.instagram.android) is locked by default.", "Krypt is off" and "Locked apps can open freely. Tap to turn Krypt back on in Accessibility settings."
 - **Share sheet titles:** "Send your request" and "Send your reply".
-- **Time-left pill:** in the last 2 minutes of an app's time, "1:59 left" in a small dark pill at the top centre of the screen, over whatever is in front. The app may also be in a small window, such as picture-in-picture. Krypt's accessibility service draws it; it takes no touches, so the app under it works as before. See TimeLeftPill.
+- **Time-left pill:** in the last 5 minutes of an app's time, "1:59 left" in a small dark pill at the top centre of the screen, over whatever is in front. The app may also be in a small window, such as picture-in-picture. Krypt's accessibility service draws it; it takes no touches, so the app under it works as before. See TimeLeftPill.
