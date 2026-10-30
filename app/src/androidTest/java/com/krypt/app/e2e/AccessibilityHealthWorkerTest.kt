@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.os.SystemClock
+import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.work.ListenableWorker
@@ -15,6 +16,8 @@ import androidx.work.testing.TestListenableWorkerBuilder
 import com.krypt.app.data.settings.SettingsRepository
 import com.krypt.app.notifications.NotificationHelper
 import com.krypt.app.notifications.SecurityAlertsChannel
+import com.krypt.app.service.AppLockerAccessibilityService
+import com.krypt.app.service.EnabledAccessibilityServices
 import com.krypt.app.worker.AccessibilityHealthWorker
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -29,9 +32,9 @@ import org.junit.runner.RunWith
 import javax.inject.Inject
 
 /**
- * The 6-hour health check (FR-010, Amendment 5). Instrumented tests run with
- * Krypt's accessibility service switched off, which is exactly the case it
- * alerts on.
+ * The 15-minute health check (FR-010, Amendments 5 and 10). Krypt's
+ * accessibility service doesn't run during instrumented tests, which is
+ * exactly the case it alerts on.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -73,27 +76,43 @@ class AccessibilityHealthWorkerTest {
     }
 
     /**
-     * Whether the alert shows up within [withinMs]. Posting is asynchronous:
-     * notify() returns before the system lists the notification.
+     * Whether an alert titled [title] shows up within [withinMs]. Posting is
+     * asynchronous: notify() returns before the system lists the notification.
      */
-    private fun protectionOffAlertShown(withinMs: Long): Boolean {
+    private fun alertShown(title: String, withinMs: Long): Boolean {
         val deadline = SystemClock.uptimeMillis() + withinMs
         while (true) {
             val shown = notifications.activeNotifications.any {
-                it.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() == "Krypt is off"
+                it.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() == title
             }
             if (shown || SystemClock.uptimeMillis() >= deadline) return shown
             Thread.sleep(100)
         }
     }
 
+    /**
+     * The service doesn't run during these tests. Switched off in Settings, as
+     * on a fresh device, that is "Krypt is off"; left switched on there by an
+     * earlier run, it is "Krypt has stopped" (Amendment 10).
+     */
+    private fun expectedAlert(): String {
+        val enabled = Settings.Secure.getString(targetContext.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        val on = EnabledAccessibilityServices.includes(
+            enabled,
+            targetContext.packageName,
+            AppLockerAccessibilityService::class.java.name,
+        )
+        return if (on) "Krypt has stopped" else "Krypt is off"
+    }
+
     @Test
-    fun afterSetup_serviceSwitchedOff_postsTheProtectionOffAlert() {
+    fun afterSetup_serviceNotRunning_postsTheAlertThatSaysWhatToDo() {
         state.reset(onboardingComplete = true, pinConfigured = true)
+        val title = expectedAlert()
 
         assertEquals(ListenableWorker.Result.success(), runWorker())
 
-        assertTrue("no 'Krypt is off' alert", protectionOffAlertShown(withinMs = 5_000))
+        assertTrue("no '$title' alert", alertShown(title, withinMs = 5_000))
     }
 
     @Test
@@ -102,6 +121,6 @@ class AccessibilityHealthWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), runWorker())
 
-        assertFalse("alert shown before setup was finished", protectionOffAlertShown(withinMs = 2_000))
+        assertFalse("alert shown before setup was finished", alertShown(expectedAlert(), withinMs = 2_000))
     }
 }

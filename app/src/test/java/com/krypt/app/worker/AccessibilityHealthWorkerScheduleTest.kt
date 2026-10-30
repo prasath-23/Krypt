@@ -38,24 +38,26 @@ class AccessibilityHealthWorkerScheduleTest {
     }
 
     @Test
-    fun firstStart_schedulesTheCheckEvery6Hours() {
+    fun firstStart_schedulesTheCheckEvery15Minutes() {
         assertEquals(ExistingPeriodicWorkPolicy.KEEP, scheduleOver())
-        assertEquals(TimeUnit.HOURS.toMillis(6), request.captured.workSpec.intervalDuration)
+        assertEquals(TimeUnit.MINUTES.toMillis(15), request.captured.workSpec.intervalDuration)
     }
 
     @Test
-    fun laterStarts_leaveA6HourCheckAlone() {
-        assertEquals(ExistingPeriodicWorkPolicy.KEEP, scheduleOver(check(WorkInfo.State.ENQUEUED, 6, TimeUnit.HOURS)))
+    fun laterStarts_leaveA15MinuteCheckAlone() {
+        assertEquals(ExistingPeriodicWorkPolicy.KEEP, scheduleOver(check(WorkInfo.State.ENQUEUED, 15, TimeUnit.MINUTES)))
     }
 
     @Test
-    fun anInstallWithThe15MinuteCheck_movesTo6Hours() {
-        assertEquals(ExistingPeriodicWorkPolicy.UPDATE, scheduleOver(check(WorkInfo.State.ENQUEUED, 15, TimeUnit.MINUTES)))
-        assertEquals(ExistingPeriodicWorkPolicy.UPDATE, scheduleOver(check(WorkInfo.State.RUNNING, 15, TimeUnit.MINUTES)))
+    fun anInstallWithThe6HourCheck_movesTo15Minutes() {
+        // Amendment 10: a phone can stop Krypt in the background, and the check brings it back.
+        assertEquals(ExistingPeriodicWorkPolicy.UPDATE, scheduleOver(check(WorkInfo.State.ENQUEUED, 6, TimeUnit.HOURS)))
+        assertEquals(ExistingPeriodicWorkPolicy.UPDATE, scheduleOver(check(WorkInfo.State.RUNNING, 6, TimeUnit.HOURS)))
+        assertEquals(TimeUnit.MINUTES.toMillis(15), request.captured.workSpec.intervalDuration)
     }
 
     @Test
     fun aCancelledOldCheck_isReplacedNotUpdated() {
-        assertEquals(ExistingPeriodicWorkPolicy.KEEP, scheduleOver(check(WorkInfo.State.CANCELLED, 15, TimeUnit.MINUTES)))
+        assertEquals(ExistingPeriodicWorkPolicy.KEEP, scheduleOver(check(WorkInfo.State.CANCELLED, 6, TimeUnit.HOURS)))
     }
 }

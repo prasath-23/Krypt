@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.krypt.app.common.TrustedDayClock
 import com.krypt.app.data.daily.DailyAllowanceMeter
@@ -61,6 +62,9 @@ class DeviceStateWatcher(
 
     private var started = false
 
+    /** What was last said, so the log has one line per change. */
+    private var lastInteractive: Boolean? = null
+
     fun start() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -98,10 +102,18 @@ class DeviceStateWatcher(
     }
 
     private fun setInteractive(interactive: Boolean) {
+        if (interactive != lastInteractive) {
+            lastInteractive = interactive
+            Log.i(TAG, if (interactive) "screen on and unlocked" else "screen off or locked")
+        }
         meter.onScreenInteractive(interactive)
         onScreen(interactive)
     }
 
     private fun keyguardLocked(): Boolean =
         context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+
+    private companion object {
+        const val TAG = "KryptA11y"
+    }
 }

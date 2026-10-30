@@ -47,7 +47,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
                      tools:node="remove" />
 
-    <!-- WorkManager reschedules the 6-hour health check after a reboot. (Android binds
+    <!-- WorkManager reschedules the 15-minute health check after a reboot. (Android binds
          the accessibility service again by itself.) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 

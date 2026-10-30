@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
 import android.telecom.TelecomManager
@@ -16,6 +17,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import com.krypt.app.common.ScreensInFront
 import com.krypt.app.common.TrustedDayClock
 import com.krypt.app.data.AccessDecision
 import com.krypt.app.data.AccessPolicy
@@ -54,10 +56,11 @@ import javax.inject.Inject
  * five minutes (FR-013, Amendments 7, 8 and 9, via [TimeLeftWatcher] and
  * [TimeLeftPill]).
  *
- * Apart from the 6-hour health check, this service is all Krypt runs in the
- * background (Amendment 5). Android binds it while it is switched on,
- * restarts it if the process dies, and calls it when something happens;
- * between calls it only waits on the timers above.
+ * Apart from the 15-minute health check, this service is all Krypt runs in
+ * the background (Amendments 5 and 10). Android binds it while it is switched
+ * on, restarts it if the process dies, and calls it when something happens;
+ * between calls it only waits on the timers above. If Android starts it but
+ * never connects it, [ConnectWatchdog] restarts Krypt (Amendment 10).
  */
 @AndroidEntryPoint
 class AppLockerAccessibilityService : AccessibilityService() {
@@ -123,6 +126,7 @@ class AppLockerAccessibilityService : AccessibilityService() {
     private var deviceState: DeviceStateWatcher? = null
     private var timeLeftPill: TimeLeftPill? = null
     private var timeLeft: TimeLeftWatcher? = null
+    private var connectWatchdog: ConnectWatchdog? = null
 
     private var watchingInstalls = false
     private val packageAddedReceiver = object : BroadcastReceiver() {
@@ -133,8 +137,23 @@ class AppLockerAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Android created the service; connecting it should follow at once ([ConnectWatchdog]). */
+    override fun onCreate() {
+        super.onCreate()
+        ServiceState.created = true
+        connectWatchdog = ConnectWatchdog(
+            scope = serviceScope,
+            isConnected = { ServiceState.connected },
+            screenInFront = { ScreensInFront.any },
+            restarts = RestartLog(getSharedPreferences(RestartLog.PREFS_NAME, MODE_PRIVATE), System::currentTimeMillis),
+            restart = { Process.killProcess(Process.myPid()) },
+        ).also { it.start() }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
+        ServiceState.connected = true
+        connectWatchdog?.stop()
         subscribeToLockedAppsFlow()
         serviceScope.launch { settings.settings.collect { setupFinished = it.onboardingComplete } }
         val pill = TimeLeftPill(this).also { timeLeftPill = it }
@@ -232,6 +251,7 @@ class AppLockerAccessibilityService : AccessibilityService() {
         val inUse = showing.associateWith { it in lockedPackagesCache }
         if (inUse != toldInUse) {
             toldInUse = inUse
+            Log.i(TAG, "on screen: ${inUse.keys.joinToString()}")
             // Krypt's own windows too, so they stop the time of the apps they cover.
             dailyMeter.onInUse(inUse)
         }
@@ -258,11 +278,16 @@ class AppLockerAccessibilityService : AccessibilityService() {
         if (!EnabledAccessibilityServices.includes(enabled, packageName, AppLockerAccessibilityService::class.java.name)) {
             Log.i(TAG, "switched off")
             if (setupFinished) notificationHelper.notifyProtectionOff()
+        } else {
+            Log.i(TAG, "unbound by Android while switched on")
         }
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        connectWatchdog?.stop()
+        ServiceState.connected = false
+        ServiceState.created = false
         timeLeft?.watch(null) // stops its timer and takes the countdown down
         deviceState?.stop()
         dailyMeter.detach()

@@ -127,6 +127,19 @@ Two phones on this build, as above, with gesture navigation on the Subject phone
 4. When the time ends, Krypt's lock screen shows. A picture-in-picture window is closed: the log shows "closing a window of pkg=<the app>: closed". A window that can't be closed ("…: can't be closed") is left under the lock screen, except a floating window that the phone keeps on top of everything: that one stays over the lock screen.
 5. Repeating time in a small window counts too. Give the app **Repeating**, **Every** 30 min and **For how long** 10 min, starting just after a half hour begins, and use it only in a small window: the countdown appears after 5 minutes of use, and the app is blocked after 10.
 
+## Amendment 10 --- Krypt stopped by the phone
+
+One phone on this build (Settings > Apps > Krypt shows version 0.2.0-alpha), set up as the Subject, with a computer and adb. Keep `adb logcat -s KryptA11y KryptDaily KryptHealth` running. Use a locked app whose time is used up, so that it is blocked.
+
+**Krypt comes back by itself.**
+1. Stop Krypt the way a phone can: kill it, and kill it again as soon as Android starts it. With the debug build, run `adb shell run-as com.krypt.app kill -9 $(adb shell pidof com.krypt.app)`; as soon as `adb shell pidof com.krypt.app` shows a new number, run the same again. If `adb shell dumpsys accessibility | grep 'Bound services'` still lists Krypt Locker afterwards, Android brought it straight back, as it mostly does: try again.
+2. Open the used-up app. It opens, because Krypt sees nothing now.
+3. Within about 15 minutes, Krypt starts again and its lock screen replaces the app. To skip the wait, run the health check's job: find its number with `adb shell dumpsys jobscheduler | grep com.krypt.app`, then `adb shell cmd jobscheduler run -f com.krypt.app <number>`. The log shows "connected".
+
+**The alert.** When Android has dropped the service, the health check can't bring Krypt back: it posts "Krypt has stopped". Tapping it opens Accessibility settings; turning Krypt Locker off and on brings Krypt back and takes the alert down.
+
+**On a phone that stops background apps** (such as the owner's vivo X200 on OriginOS 6, with Krypt's battery settings at their defaults): use a timed app for 10 minutes alongside a stopwatch. Home's time left and the countdown must keep up with it, apart from at most about 15 minutes while the phone has Krypt stopped.
+
 ## Automated end-to-end run
 
 `tests/e2e/krypt_e2e.py` automates most of US-1 to US-7 on one device (see
