@@ -1,4 +1,4 @@
-# Handoff: where Krypt stands (2026-10-29)
+# Handoff: where Krypt stands (2026-10-30)
 
 Read this with `CLAUDE.md`, which says how the project is run, and the spec (`polaris-specs/001-krypt-app-locker/spec.md`), where each change is an amendment with the owner's words and choices.
 
@@ -16,7 +16,7 @@ Read this with `CLAUDE.md`, which says how the project is run, and the spec (`po
 | 9 | 2026-10-27 | The countdown starts at 5 minutes |
 | 10 | 2026-10-29 | Krypt comes back when the phone stops it: a health check every 15 minutes, a self-repair, and an alert that says what to do. Version 0.2.0-alpha. |
 
-Amendments 1 to 6 reached `main` through PR #5 and earlier. Amendments 7 to 9 and this guide went to `main` in PR #6 (2026-10-27). Amendment 10 isn't on `main` yet.
+Amendments 1 to 6 reached `main` through PR #5 and earlier. Amendments 7 to 9 and this guide went to `main` in PR #6 (2026-10-27). Amendment 10 went to `main` in PR #7 (2026-10-30).
 
 ## To check on a real phone
 The emulator can't show these.
