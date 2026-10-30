@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -53,24 +54,32 @@ class NotificationHelper @Inject constructor(
      * Krypt's accessibility service is switched off, so locked apps open
      * freely. Tapping the alert opens the Accessibility settings. Posted by
      * the service as it is switched off, or by the health check when it
-     * finds the service not running.
+     * finds the service switched off.
      */
-    fun notifyProtectionOff() {
+    fun notifyProtectionOff() =
+        postProtectionAlert(R.string.notif_protection_off_title, R.string.notif_protection_off_body)
+
+    /**
+     * Krypt's accessibility service is switched on in Settings but isn't
+     * running (Amendment 10): Android stopped it and didn't start it again,
+     * so locked apps open freely. Switching it off and on brings it back;
+     * tapping the alert opens the Accessibility settings. It replaces the
+     * "Krypt is off" alert, and [cancelProtectionOff] takes either down.
+     */
+    fun notifyProtectionStopped() =
+        postProtectionAlert(R.string.notif_protection_stopped_title, R.string.notif_protection_stopped_body)
+
+    private fun postProtectionAlert(@StringRes title: Int, @StringRes body: Int) {
         val pending = PendingIntent.getActivity(
             context,
             PROTECTION_OFF_ID,
             Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = alert(
-            context.getString(R.string.notif_protection_off_title),
-            context.getString(R.string.notif_protection_off_body),
-            pending,
-        )
-        post(PROTECTION_OFF_ID, notification)
+        post(PROTECTION_OFF_ID, alert(context.getString(title), context.getString(body), pending))
     }
 
-    /** The service is running again: take down the "Krypt is off" alert. */
+    /** The service is running again: take down the "Krypt is off" or "Krypt has stopped" alert. */
     fun cancelProtectionOff() {
         NotificationManagerCompat.from(context).cancel(PROTECTION_OFF_ID)
     }

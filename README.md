@@ -45,7 +45,7 @@ The same app runs on both phones. On the locked phone it is the locker. On the G
    - **See when a locked app opens** (Accessibility)
    - **Show the lock over apps** (display over other apps)
 
-   Three more are optional: **Keep running in the background** (battery optimisation, for phones that stop apps in the background), **Make Krypt harder to remove** (Device admin) and **Alerts about new apps** (notifications).
+   Three more are optional: **Keep running in the background** (battery optimisation, for phones that stop apps in the background), **Make Krypt harder to remove** (Device admin) and **Alerts about new apps** (notifications). Phones such as vivo, OnePlus, OPPO and Xiaomi can stop Krypt in the background unless it may keep running there, and while it is stopped it counts no time and blocks nothing. It comes back by itself within about 15 minutes, or posts "Krypt has stopped" with what to do.
 4. Tap **Start protecting**, then hand the phone to the Guardian to choose a 4 to 6 digit PIN.
 
 **On the Guardian's phone:** install the same APK. Request links then open Krypt's approval screen. If you open Krypt itself, choose **I'm a Guardian**.

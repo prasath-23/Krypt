@@ -211,7 +211,7 @@ Leaving Krypt (Home button, Recents, screen off) returns it to step 3.
 | A `krypt://approve` link is tapped | Any messenger | **Approval confirmation** (`subject/ApprovalTrampolineActivity.kt`): translucent, no UI except the flash and a toast |
 | "Open in Krypt" from the share sheet or text selection | Any app | **Link receiver** (`ui/link/LinkReceiverActivity.kt`): no UI, opens the link it finds, or shows a toast |
 | "Paste link" / "Paste approval link" buttons | Krypt itself | Opens the copied link as above |
-| Notifications | Krypt | "New App Protected" opens Krypt; "Krypt is off" opens Accessibility settings |
+| Notifications | Krypt | "New App Protected" opens Krypt; "Krypt is off" and "Krypt has stopped" open Accessibility settings |
 
 ### 5.3 Two phones, one app
 
@@ -666,6 +666,7 @@ These are part of the experience too.
 |---|---|
 | Notification: new app locked (Security Alerts channel, high importance) | "New App Protected" / "{App} ({package}) has been locked by default". Tapping opens Krypt |
 | Notification: protection off | "Krypt is off" / "Locked apps can be opened freely. Tap to turn Krypt Locker back on in Accessibility settings." Posted the moment Krypt's accessibility service is switched off, and taken down when it is switched back on |
+| Notification: protection stopped (since Amendment 10) | "Krypt has stopped" / "Locked apps can open freely. Tap, then turn Krypt Locker off and on again to restart it." Posted by the 15-minute health check when Krypt is switched on in Settings but isn't running, and taken down when it runs again |
 | Accessibility service description (system Settings) | `accessibility_service_description`: what Krypt watches, and that it sends nothing off the device. Since Amendment 8 it starts "Krypt needs Accessibility access to see which apps are on screen and block locked apps until your Guardian approves." (it was "…to see which app is being launched…"). Since Amendment 7 it also says: "When an app's time is nearly up, Krypt shows how long is left over it, and closes the app when the time ends." |
 | Countdown over an app (since Amendment 7) | "1:59 left" in a small dark pill at the top centre of the screen, in the last 5 minutes of an app's time (`service/TimeLeftPill.kt`; 2 before Amendment 9). Since Amendment 8 that includes an app in split screen, a floating window or picture-in-picture; with several, it counts down for the one whose time ends first. The accessibility service draws it as an accessibility overlay: it takes no touches, so the app works under it, and it is always dark, whatever the theme |
 | Device Admin explanation | "Krypt uses Device Admin to make itself harder to uninstall, so a determined user has to visit Settings first." |
@@ -759,6 +760,10 @@ These are part of the experience too.
    **End daily time**.
 10. **Protection switched off.** The "Krypt is off" notification appears at
     once -> Accessibility settings. Switching Krypt back on removes it.
+11. **Krypt stopped by the phone (Amendment 10).** Krypt starts again by
+    itself within about 15 minutes. If it can't, "Krypt has stopped"
+    appears -> Accessibility settings, where turning Krypt Locker off and
+    on brings it back.
 
 ---
 

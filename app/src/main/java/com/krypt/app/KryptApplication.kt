@@ -7,6 +7,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.krypt.app.common.Clock
+import com.krypt.app.common.ScreensInFront
 import com.krypt.app.common.TrustedDayClock
 import com.krypt.app.data.LockerSessionStore
 import com.krypt.app.data.UnlockGrantRepository
@@ -29,7 +30,8 @@ import javax.inject.Inject
  *  - HiltAndroidApp DI bootstrap
  *  - Security-Alerts notification channel (WP07)
  *  - Restore the unlock grants this boot had before the process last died
- *  - The 6-hour AccessibilityHealthWorker (WP16), scheduled off the main thread
+ *  - The 15-minute AccessibilityHealthWorker (WP16, Amendment 10), scheduled off the main thread
+ *  - [ScreensInFront], so Krypt never restarts itself under its own screens
  *
  * No foreground service: the accessibility service is all Krypt runs in the
  * background (Amendment 5). No network work. Ever.
@@ -55,6 +57,7 @@ class KryptApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(ScreensInFront)
         securityAlertsChannel.ensureCreated()
         restoreUnlockGrants()
         // The chosen theme must hold before any window exists: AppCompat's

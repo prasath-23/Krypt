@@ -63,13 +63,13 @@ Resolves unknowns and justifies technical choices before moving to data-model an
 **Decision.** Three-layer defence:
 1. Rely on the Accessibility Service's own lifecycle resilience.
 2. Pair it with a low-importance foreground service that shares the service lifecycle. (Superseded by Amendment 5: removed. See the note below.)
-3. Add a 15-minute WorkManager heartbeat that nags the user if Accessibility gets disabled. (Superseded by Amendment 5: every 6 hours, as a safety net. See the note below.)
+3. Add a 15-minute WorkManager heartbeat that nags the user if Accessibility gets disabled. (Superseded by Amendment 5: every 6 hours, as a safety net. See the note below. Amendment 10: every 15 minutes again.)
 
 OEM-specific battery-whitelist screens will be surfaced during onboarding via `Intent`s to the best-known Settings activities per OEM (documented in a lookup table in `OverlayManager` / `PermissionWizardScreen`).
 
 **Superseded by Amendment 5 (2026-10-25).** Layers 2 and 3 no longer stand as written; layer 1 and the OEM deep-links remain.
 - Layer 2 is removed. Krypt runs no foreground service and posts no permanent notification. The accessibility service is the only thing Krypt runs in the background: Android binds it while it is switched on, restarts it if the process dies, and calls it only when a window opens.
-- Layer 3 is now a safety net. The "Krypt is off" alert no longer waits for the heartbeat: once setup is finished, the service posts it as Android unbinds it after it is switched off, and takes it down when it connects again. The WorkManager check runs every 6 hours, only for what no event reports: the service switched on but not running (for example, it didn't come back after a reboot).
+- Layer 3 is now a safety net. The "Krypt is off" alert no longer waits for the heartbeat: once setup is finished, the service posts it as Android unbinds it after it is switched off, and takes it down when it connects again. The WorkManager check runs every 6 hours, only for what no event reports: the service switched on but not running (for example, it didn't come back after a reboot). (Amendment 10: every 15 minutes, since a phone that stops background apps can leave Krypt stopped, and running the check starts Krypt's process, which brings the service back.)
 - The battery-optimisation exemption is an optional onboarding step. Doze and App Standby don't stop the accessibility service, so FR-010 rests on layer 1, plus the OEM help link on phones whose maker stops background apps.
 
 ---
@@ -193,7 +193,7 @@ Both fit comfortably in SMS-friendly territory.
 |---|-------|-----------|
 | R1 | Accessibility event filter | Superseded by Amendment 8: window-state and windows-changed events, and Android's list of windows (was `TYPE_WINDOW_STATE_CHANGED` only, 100 ms debounce, pre-inflated overlay) |
 | R2 | Overlay flags | `TYPE_APPLICATION_OVERLAY` + `FLAG_NOT_FOCUSABLE|LAYOUT_IN_SCREEN|SECURE|...` |
-| R3 | Battery survival | Accessibility-Service lifecycle + OEM-Settings deep-links + a 6-hour WorkManager safety-net check; the "Krypt is off" alert is instant (Amendment 5 removed the supplementary FGS) |
+| R3 | Battery survival | Accessibility-Service lifecycle + OEM-Settings deep-links + a 15-minute WorkManager safety-net check (6-hour under Amendment 5); the "Krypt is off" alert is instant (Amendment 5 removed the supplementary FGS) |
 | R4 | KDF choice | PBKDF2-HMAC-SHA256, calibrated >=300k iterations, per-Guardian + per-request salt |
 | R5 | URL size | URL-safe Base64, <512 chars target |
 | R6 | Package visibility | `QUERY_ALL_PACKAGES` (sideload-distribution accepted) |

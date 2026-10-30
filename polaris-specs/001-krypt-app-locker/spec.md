@@ -2,8 +2,43 @@
 
 **Feature:** `001-krypt-app-locker`
 **Mission:** software-dev
-**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6, 7, 8 and 9 below)
+**Status:** accepted (Amendment 1 in flight - WP19..WP23; Amendments 2, 3, 4, 5, 6, 7, 8, 9 and 10 below)
 **Target branch:** `main`
+
+---
+
+## Amendment 10 (2026-10-29) - Krypt Comes Back When the Phone Stops It
+
+**Reported (2026-10-29):** three screenshots from the user's vivo X200 (OriginOS 6, based on Android 16) over Instagram, with repeating time of 5 minutes every 30 minutes. About 5 minutes into Instagram (their stopwatch at 04:55) no countdown showed, and Krypt's Home still said "Every 30 min · 5 of 5 min left". They wrote: "My time is not calculating from the time I am using.. even if I use the app for 10 mins the apps shows as this 5/5 and it calculating only after 15 to 20 mins later.. like after 3:45 but I am using it before.." and "the timer should calculate based on the app time I am using.. 30 min window I can use when ever and however for 5 min..like 1 now and remaining in some other within the time window". The phone had the latest build, Krypt's battery settings at their defaults, and Autostart allowed.
+
+**Chosen:**
+- Asked how soon Krypt should come back when the phone has stopped it, the user chose "Every 15 minutes (Recommended)" over "Every hour" and "Keep every 6 hours".
+- Asked whether setup should make "Allow background activity" compulsory (recommended), meaning the phone's battery setting that lets Krypt keep running in the background, the user declined: "that would drain batter.. i want the app should running while the timmed app is running.. in all other case it should stoped.. and auto start should check the app while running..". The battery step stays optional (Amendment 5).
+
+**Why the time wasn't counted:** counting was right whenever Krypt was running. On the emulator the same rule counted 38 s in 40 s of use, and kept counting after Krypt's process was killed and after the screen went off and on. But on the user's phone Krypt wasn't running:
+- A phone that stops background apps can kill Krypt's process. Android normally starts it again at once and connects its accessibility service (back in 3 s on the emulator).
+- If the new process is killed too while it is still starting, Android gives up. The service stays switched on in Settings, but nothing runs: Krypt sees no app opening, counts no time, shows no countdown and blocks nothing. Reproduced on the emulator by killing Krypt's new process 0.3 s after it started.
+- Any start of Krypt's process brings the service back while Android still holds it: opening Krypt, or running its health check's job (both seen). The user opened Krypt's Home to check the time, and from then on it counted, so counting seemed to start "15 to 20 mins later".
+- Two more states were seen. After a reboot under load, Android killed Krypt for starting too slowly, started it again, created the service and never connected it (the open finding of 2026-10-15); a new process connects it. And when Krypt was killed during its start ("start timeout"), Android dropped the service altogether: only switching it off and on, an update or a reboot brings it back.
+
+1. **The health check runs every 15 minutes** (every 6 hours under Amendment 5), WorkManager's shortest period. Running it starts Krypt's process, and so brings the service back. Installs with the 6-hour check move to 15 minutes; Android holds the check back while the phone sleeps.
+2. **The check says what to do.** After starting the process it waits up to 20 s for the service to connect, then:
+   - switched off in Settings: "Krypt is off", as before;
+   - switched on there but not running: a new alert, **"Krypt has stopped"**, "Locked apps can open freely. Tap, then turn Krypt Locker off and on again to restart it." Tapping opens the Accessibility settings. It replaces "Krypt is off", and both are taken down when the service connects;
+   - created in this process but not connected yet: no alert, since item 3 handles it.
+3. **Self-repair (`ConnectWatchdog`).** When Android creates the service but doesn't connect it within 60 s, Krypt restarts its own process, and Android connects the service in the new one. It never does so while one of Krypt's own screens is in front (it waits), and at most 3 times an hour.
+4. **Logging.** `adb logcat -s KryptA11y KryptDaily KryptHealth` shows "screen on and unlocked" or "screen off or locked", "on screen: <packages>", "unbound by Android while switched on", the self-repair, "counting pkg=…" and "stopped counting pkg=…", and what the health check found.
+5. **The version** is 0.2.0-alpha (version code 2), shown in Settings > Apps > Krypt, so the build on a phone can be told apart. Every build until now was 0.1.0-alpha.
+6. **Limits.**
+   - Time used while Krypt was stopped isn't counted afterwards, and nothing is blocked meanwhile. The health check keeps that to about 15 minutes, up to about 30 with WorkManager's timing. Counting it later would need Android's usage access, a new permission, not chosen.
+   - A phone that also holds back Krypt's background jobs can delay the check.
+   - When Android has dropped the service, only switching it off and on brings it back, as the alert says.
+   - If 3 restarts in an hour all leave the service created but unconnected, Krypt stops restarting itself, and the health check, which leaves a service that is still starting to item 3, posts no alert. Switching the service off and on fixes it.
+   - The phone's battery settings can let Krypt keep running in the background, which makes the phone much less likely to stop it; that stays optional (Chosen, above).
+7. **Tests.** JVM: `ConnectWatchdogTest` (a restart after 60 s; not under Krypt's own screens; not when connected or destroyed; at most 3 an hour), `ServiceHealthTest` (which alert), `AccessibilityHealthWorkerScheduleTest` (15 minutes; a 6-hour check moves). Instrumented: `AccessibilityHealthWorkerTest` expects the alert that fits the device's setting. Device: the new e2e case 29c leaves Krypt stopped, checks that a used-up app opens freely, runs the health check's job, and expects Krypt back, blocking the app that is open.
+
+**FRs touched:**
+- FR-010: when the phone stops Krypt anyway, the health check brings it back within 15 minutes, or says what to do; a service created but never connected restarts Krypt within a minute.
 
 ---
 
@@ -25,7 +60,7 @@
 
 ## Amendment 8 (2026-10-26) - Ask Android Which Apps Are on Screen
 
-**Reported (2026-10-26):** screenshots from the user's OnePlus-style phone, over Instagram Reels: their stopwatch went from 06:16 to 06:50 (34 s) while Krypt's countdown went from 1:10 to 1:03 (7 s), and in one shot the countdown was gone with Instagram still open. They wrote: "some caes timer disappears and treated as app not opened.. this happens in times like I tried to push background but not pushing.. in places like this.. can u see what the issue". Then, while that was being fixed: "and this should solve the timer if app is used as mini screen !!! add this too ur work load".
+**Reported (2026-10-26):** screenshots from the user's phone (a vivo X200 on OriginOS 6), over Instagram Reels: their stopwatch went from 06:16 to 06:50 (34 s) while Krypt's countdown went from 1:10 to 1:03 (7 s), and in one shot the countdown was gone with Instagram still open. They wrote: "some caes timer disappears and treated as app not opened.. this happens in times like I tried to push background but not pushing.. in places like this.. can u see what the issue". Then, while that was being fixed: "and this should solve the timer if app is used as mini screen !!! add this too ur work load".
 
 **Chosen:** asked how Krypt should find the app in front, the user chose "Ask Android (Recommended)" over "Stay blind, watch for activity".
 
@@ -160,7 +195,7 @@
    - It made Krypt look like an app running all day. Android 13 and later can list such apps under active apps, with a Stop button.
 2. **"Krypt is off" is said at once.** When Krypt's accessibility service is switched off after setup, the service posts the alert as Android unbinds it. Android also unbinds the service while a UI test drives the phone or another user is in front. Those leave it switched on in Settings, so they don't alert. The alert is taken down when the service connects again.
    - A force stop kills Krypt before it can say anything, and also cancels its scheduled check. As before, nothing alerts until Krypt is opened again.
-3. **The health check runs every 6 hours, not every 15 minutes:** 4 wake-ups a day instead of 96. It is the safety net for what no event reports: the service switched on but not running, for example after a reboot it never came back from. Installs that had the 15-minute check move to the new period; later starts leave the schedule alone.
+3. **The health check runs every 6 hours, not every 15 minutes:** 4 wake-ups a day instead of 96. It is the safety net for what no event reports: the service switched on but not running, for example after a reboot it never came back from. Installs that had the 15-minute check move to the new period; later starts leave the schedule alone. (Amendment 10: every 15 minutes again, since a phone that stops background apps can leave Krypt stopped until its process starts.)
 4. **"Keep running in the background" is optional.** Setup needs two permissions: Accessibility and Display over other apps.
    - Stock Android no longer needs the battery-optimisation exemption, because Doze and App Standby don't stop an accessibility service.
    - Its row stays, under Optional, with the help link for Xiaomi, Samsung and others, whose own battery managers can stop background apps.
@@ -390,7 +425,7 @@ Each requirement is stated as a testable capability.
 | FR-007 | Unlock-request URLs MUST be self-contained: all data required to validate a Guardian's PIN MUST travel in the URL. **Amendment 1:** the validation material is a `pinProof = HMAC-SHA-256(MasterKey, "krypt/v1/pin-proof")` embedded alongside the random salt used at setup. No server lookup, no background sync. |
 | FR-008 | Guardian PIN verification MUST apply a slow key-derivation function with a tuned work factor of at least 300,000 PBKDF2-HMAC-SHA256 iterations (or equivalent), such that a correct or incorrect PIN check takes at least 250 ms of CPU time on target-class hardware. |
 | FR-009 | Unlock-approval URLs MUST carry their payload encrypted under an AES-256-GCM key derived from the PIN-verified material, such that an observer of the URL cannot read the grant without the PIN. **Amendment 1:** the key material is `K_req = HKDF-SHA-256(MasterKey, salt="krypt/v1/approve", info=req \|\| nonce, 32)`. `MasterKey` is the same on both devices - computed once on the Subject device at setup and recomputed on-the-fly on the Guardian device from the typed PIN + `salt` in the URL. |
-| FR-010 | The interception layer MUST continue to function after 24 hours of screen-off idle, surviving standard OEM battery-optimisation policies (Doze, App Standby). |
+| FR-010 | The interception layer MUST continue to function after 24 hours of screen-off idle, surviving standard OEM battery-optimisation policies (Doze, App Standby). **Amendment 10:** when the phone stops Krypt anyway, the health check MUST bring it back within 15 minutes or tell the user what to do, and a service that Android created but never connected MUST make Krypt restart. |
 | FR-011 | The system MUST whitelist its own Guardian Popup activity from its own interception, so Guardians can approve requests even on locked-down devices. |
 | FR-012 | Uninstalling the app MUST require Device-Admin to be revoked first. |
 | FR-013 | Each unlock grant MUST be time-boxed. **Amendment 7:** when the grant window ends, a target app that is still open MUST be blocked at that moment, even if the phone slept during the grant. Opening it after that MUST show the Locker Screen. **Amendment 8:** this also holds for an app in a small window (split screen, a floating window, picture-in-picture). |

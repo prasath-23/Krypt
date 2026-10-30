@@ -423,6 +423,34 @@ def restart_krypt():
     time.sleep(5)  # service reconnects and restores grants
 
 
+def stop_krypt_while_it_starts():
+    """Kill Krypt, then kill the process Android starts again for its service while it is still starting, as a
+    phone that stops background apps can (Amendment 10). Android may then not start Krypt by itself."""
+    pid = sh(f"pidof {KRYPT}").strip()
+    expect(pid, "Krypt is not running")
+    # Bounded on the phone too (60 s), so nothing is left killing Krypt if adb gives up.
+    sh(f"run-as {KRYPT} kill -9 {pid}; i=0; while [ $i -lt 600 ]; do p=$(pidof {KRYPT}); "
+       f"if [ -n \"$p\" ] && [ \"$p\" != \"{pid}\" ]; then sleep 0.3; run-as {KRYPT} kill -9 $p; break; fi; "
+       f"i=$((i+1)); sleep 0.1; done", timeout=90)
+    time.sleep(10)
+
+
+def run_health_check():
+    """Run the health check's job now, as WorkManager does every 15 minutes (Amendment 10). WorkManager may skip
+    the work itself when it is forced early, but the job still starts Krypt's process."""
+    ids = re.findall(rf"JOB #u\d+a\d+/(\d+): \S+ {re.escape(KRYPT)}/androidx\.work\.impl\.background\.systemjob\.",
+                     sh("dumpsys jobscheduler"))
+    expect(ids, "no health-check job is scheduled")
+    sh(f"cmd jobscheduler run -f {KRYPT} {ids[0]}")
+
+
+def switch_krypt_off_and_on():
+    """What the "Krypt has stopped" alert asks for, done through the setting."""
+    sh("settings put secure enabled_accessibility_services ''")
+    time.sleep(3)
+    expect(enable_krypt_service(), "Krypt's service did not come back when switched off and on")
+
+
 def reboot_device():
     boot = sh("settings get global boot_count").strip()
     adb("reboot", timeout=120)
@@ -1100,6 +1128,33 @@ def health_check_scheduled():
            "a Krypt service runs in the foreground")
 
 
+@case("29c the health check brings Krypt back after the phone stopped it")
+def health_check_brings_krypt_back():
+    # Amendment 10. When a phone stops Krypt while it is starting again, Android can leave it stopped: switched on
+    # in Settings, but seeing nothing, so a used-up app opens freely. Any start of Krypt's process brings it back,
+    # and the health check's job is one, every 15 minutes.
+    for _ in range(3):
+        stop_krypt_while_it_starts()
+        if not sh(f"pidof {KRYPT}").strip():
+            break
+        wait_for_krypt_service()  # Android started it again at once, as it mostly does: try again
+    expect(not sh(f"pidof {KRYPT}").strip(), "Android kept starting Krypt again, so it couldn't be left stopped")
+    sh(f"am start -n {TARGET_ACTIVITY}")
+    expect(TARGET_ACTIVITY in wait_top(re.escape(TARGET_ACTIVITY), 15), f"the target did not open; top is {top_activity()}")
+    time.sleep(3)
+    expect(LOCK_SCREEN not in top_activity(), "the used-up app was blocked although Krypt was stopped")
+    adb("logcat", "-c")
+    run_health_check()
+    top = wait_top(re.escape(LOCK_SCREEN), timeout=60)
+    if LOCK_SCREEN not in top:
+        # Android dropped the service altogether: only switching it off and on brings it back, as the alert says.
+        switch_krypt_off_and_on()
+        back = LOCK_SCREEN in wait_top(re.escape(LOCK_SCREEN), timeout=30)
+        expect(False, f"the health check did not bring Krypt back; switching it off and on did: {back}")
+    expect(krypt_logcat(r"connected"), "Krypt's service did not connect again")
+    home()
+
+
 @case("29b a reboot ends every grant (negative)")
 def reboot_ends_grants():
     # Chrome's grant from case 27 still has minutes left.
@@ -1412,7 +1467,7 @@ def main():
                  replay_approval, grant_survives_restart, home_shows_unlock, relock_now_ends_unlock,
                  paste_approval_path, catch_up_after_protection_off, daily_approval_opens_app,
                  daily_time_paused_without_auto_time, daily_time_runs_out,
-                 health_check_scheduled, reboot_ends_grants, grant_expiry_in_app,
+                 health_check_scheduled, health_check_brings_krypt_back, reboot_ends_grants, grant_expiry_in_app,
                  unlock_ends_on_time_after_screen_off, pip_keeps_its_time, date_rollback_after_expiry,
                  date_forward_gives_no_new_day, date_jump_keeps_used_up_day, other_window_keeps_the_app_in_front,
                  uninstall_blocked,

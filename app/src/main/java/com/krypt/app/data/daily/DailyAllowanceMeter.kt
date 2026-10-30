@@ -262,6 +262,7 @@ class DailyAllowanceMeter @Inject constructor(
         val ended = ArrayList<String>()
         for (pkg in stopped) {
             sessions.remove(pkg)
+            Log.i(TAG, "stopped counting pkg=$pkg")
             val stillInUse = inUse[pkg] == true && interactive
             if (stillInUse && !sessionStore.isUnlockedNow(pkg)) ended += pkg
         }
@@ -331,6 +332,7 @@ class DailyAllowanceMeter @Inject constructor(
         val rule = rules[pkg] ?: return
         val now = dayClock.nowMs() ?: return
         sessions[pkg] = Session(pkg, rule.zone, LocalMinutes.of(now, rule.zone), clock.elapsedMs())
+        Log.i(TAG, "counting pkg=$pkg")
     }
 
     /** Move the running sessions' time into [used], split at the minutes of the clock it crossed. */
